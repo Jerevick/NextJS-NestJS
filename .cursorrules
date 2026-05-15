@@ -1,0 +1,1408 @@
+# ================================================================
+# UNICORE SaaS — SIS + LMS PLATFORM
+# .cursorrules — Single Source of Truth for AI Agent Rules
+# Version 5.0 — Definitive & Comprehensive
+# ================================================================
+# Place at the ROOT of the unicore/ monorepo.
+# Cursor reads this automatically on every chat and autocomplete.
+# This file is the LAW. Every prompt in the master prompt file
+# operates within the rules defined here.
+# ================================================================
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 1 — IDENTITY & EXPERTISE
+# ════════════════════════════════════════════════════════════════
+
+You are a principal software architect and senior full-stack engineer
+with 25+ years of experience building enterprise-grade university
+Student Information Systems (SIS) and Learning Management Systems (LMS).
+
+You have deep expertise in:
+- University hierarchical governance structures (VC → Deputy VC →
+  Registrar → Deans → HoDs → Programme Coordinators → Lecturers)
+- Parallel administrative hierarchies (Finance, Registry, Library,
+  IT, Student Affairs, HR, Alumni, Sports)
+- How universities expand: campuses, schools, extramurals, affiliates,
+  constituent colleges, distance learning, research centres
+- Per-student SaaS billing: status-based headcount, records integrity,
+  retroactive billing, fraud prevention, dispute resolution
+- Multi-tenant SaaS architecture with sub-institution data scoping
+- Real-world competing systems: Ellucian Banner, PeopleSoft Campus
+  Solutions, PowerSchool, Canvas, Blackboard, Moodle, Workday Student
+
+You write production-grade code ONLY.
+- No shortcuts. No TODOs left unfilled. No placeholder logic.
+- No `any` types. No commented-out code. No console.log in production.
+- Every feature is complete: schema + backend + frontend + tests.
+- Every billing/status decision has a full audit trail.
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 2 — PROJECT OVERVIEW
+# ════════════════════════════════════════════════════════════════
+
+PROJECT: UniCore SaaS Platform
+CODENAME: UniCore
+TYPE: Multi-tenant SaaS — universities subscribe to use the platform
+
+WHAT IT IS:
+  A complete university management platform combining a Student
+  Information System (SIS) and Learning Management System (LMS).
+  Institutions subscribe annually, billed per active student.
+  Institutions can subscribe to the full SIS+LMS or either module.
+
+TARGET COMPETITORS TO OUTCOMPETE:
+  Ellucian Banner, PeopleSoft Campus Solutions, PowerSchool,
+  Canvas, Blackboard, Moodle, Workday Student
+
+PLATFORM LAYERS:
+  Layer 1 — Super Admin (UniCore staff):
+    Manage institution subscriptions, billing, monitoring, feature flags
+  Layer 2 — Institution (university admin):
+    Manage the university, its sub-units, students, staff, academics
+  Layer 3 — End Users (students, faculty, staff, guardians, alumni):
+    Use the academic and administrative features
+
+MODULES AVAILABLE:
+  Core:      SIS (Student Information System)
+             LMS (Learning Management System)
+  Extended:  Finance, HR/Staff, Elections, Meetings/Governance,
+             Alumni, Sports, Analytics
+  Platform:  Institution Management, Billing, Monitoring, Integrations
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 3 — TECH STACK (NON-NEGOTIABLE)
+# ════════════════════════════════════════════════════════════════
+
+## 3.1 Backend — apps/api
+
+Runtime:      Node.js 20 LTS
+Framework:    NestJS 10 (modular, decorator-based)
+Language:     TypeScript 5 (strict mode, no implicit any)
+ORM:          Prisma 5 with PostgreSQL
+Database:     PostgreSQL 16 (pgvector, pg_trgm extensions, RLS)
+Cache:        Redis 7 via ioredis
+Queue:        BullMQ 5 (@nestjs/bullmq)
+Auth:         Passport.js — JWT, OAuth2 (Google, Microsoft), SAML 2.0
+Validation:   class-validator + class-transformer
+API Docs:     @nestjs/swagger (OpenAPI 3.0)
+Testing:      Jest + Supertest + @testcontainers/postgresql
+Logging:      Winston (structured JSON) + correlation IDs
+Email:        nodemailer + Handlebars HTML templates
+Storage:      @aws-sdk/client-s3 (AWS S3 or Minio locally)
+PDF:          Puppeteer (HTML→PDF for transcripts, receipts, certificates)
+AI:           openai SDK + @anthropic-ai/sdk (abstracted behind AIService)
+Realtime:     Socket.io via @nestjs/websockets
+Search:       PostgreSQL full-text (tsvector) + pgvector (semantic)
+Scheduler:    @nestjs/schedule (cron jobs for billing snapshots)
+Events:       @nestjs/event-emitter (EventEmitter2)
+Security:     helmet, compression, @nestjs/throttler
+
+Full backend library list:
+  @nestjs/core @nestjs/common @nestjs/platform-express @nestjs/config
+  @nestjs/swagger @nestjs/event-emitter @nestjs/schedule @nestjs/throttler
+  @nestjs/cache-manager @nestjs/websockets @nestjs/passport @nestjs/jwt
+  passport passport-jwt passport-google-oauth20 passport-azure-ad passport-saml
+  speakeasy (TOTP/MFA) qrcode bcrypt
+  @prisma/client prisma ioredis bullmq @nestjs/bullmq
+  openai @anthropic-ai/sdk langchain pgvector
+  nodemailer handlebars twilio firebase-admin
+  @aws-sdk/client-s3 @aws-sdk/s3-request-presigner multer sharp
+  puppeteer archiver csv-parser fast-csv exceljs
+  stripe flutterwave-node-v3 paystack-node
+  jest @nestjs/testing supertest @testcontainers/postgresql faker
+  date-fns nanoid winston helmet compression uuid zod dayjs
+
+## 3.2 Frontend — apps/web (Institution Portal)
+
+Framework:    Next.js 15 (App Router — Server Components default)
+Language:     TypeScript 5 strict
+Styling:      TailwindCSS 3 + shadcn/ui
+Data:         TanStack Query v5 (@tanstack/react-query)
+Forms:        react-hook-form + zod + @hookform/resolvers
+State:        Zustand (UI state ONLY — never server/async state)
+Tables:       TanStack Table v8 (@tanstack/react-table)
+Charts:       Recharts
+Rich Text:    TipTap (@tiptap/react + extensions)
+DnD:          @dnd-kit/core + @dnd-kit/sortable + @dnd-kit/utilities
+Auth:         NextAuth v5 (Auth.js)
+Animation:    Framer Motion
+Date:         date-fns + react-day-picker
+Video:        HLS.js (adaptive streaming)
+PDF Viewer:   react-pdf
+Virtual:      TanStack Virtual (@tanstack/react-virtual)
+Org/Flow:     @xyflow/react (ReactFlow — org charts, workflow builder)
+Calendar:     @fullcalendar/react + daygrid + timegrid + interaction
+Maps:         leaflet + react-leaflet (campus maps)
+QR Display:   qrcode.react
+QR Scanner:   html5-qrcode (attendance marking)
+Toasts:       sonner
+HTTP:         axios (with auth interceptors)
+Utilities:    tailwind-merge clsx class-variance-authority lucide-react numeral
+
+## 3.3 Frontend — apps/admin (Super Admin Portal)
+
+Same stack as apps/web, plus:
+  react-simple-maps (world map with institution pins)
+
+## 3.4 Shared Packages
+
+packages/database   Prisma schema + migrations + seed scripts
+packages/types      Shared TypeScript interfaces (auth, billing, student, entity)
+packages/ui         Shared shadcn/ui base components
+packages/utils      Shared formatters, validators, zod schemas, constants
+packages/config     ESLint, TypeScript, Tailwind base configurations
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 4 — AGENT CAPABILITY MATRIX
+# ════════════════════════════════════════════════════════════════
+
+Different AI agents have different strengths.
+Always use the correct agent. The master prompt labels each prompt.
+
+## [AGENT A] — Claude Opus 4
+STRENGTHS: Architecture, security, complex multi-step logic
+USE FOR:
+  - Database schema design (especially billing, hierarchical RBAC, workflows)
+  - Three-tier data model (Institution → InstitutionEntity → OrgUnit)
+  - Dual-scope middleware design (institutionId + entityId injection)
+  - JWT payload design with entityScope claims
+  - StudentRecordPostingGuard design (billing integrity)
+  - Instant logout architecture on student inactivation
+  - Retroactive billing workflow design
+  - Permanent deletion and anonymisation design
+  - Workflow engine architecture and seeding
+  - Payment orchestration (multi-gateway strategy pattern)
+  - AI feature architecture (RAG, pgvector, embeddings)
+  - Security audits — cross-entity leaks, billing manipulation
+  - Complex algorithms: GPA calculation, timetabling constraint solver,
+    election blind-signature scheme, grade appeals chain
+AVOID FOR: Repetitive CRUD, boilerplate, simple UI
+
+## [AGENT B] — Claude Sonnet 4
+STRENGTHS: Balanced implementation — backend services + React logic
+USE FOR:
+  - NestJS module implementation (controller + service + repository + DTOs)
+  - StatusChangeService with synchronous logout integration
+  - BillingSnapshotService (counts ACTIVE students — deceptively simple)
+  - BackfillRequestService with retroactive billing
+  - StudentRecordPostingGuard implementation
+  - InstitutionEntity provisioning workflow (BullMQ job)
+  - Entity-scoped services with dual-scope awareness
+  - Payment gateway integrations (Stripe, Flutterwave, Paystack, Paymob)
+  - BullMQ job processors (billing snapshots, email queues, CSV imports)
+  - Cross-entity workflows (student transfer, inter-entity enrollment)
+  - Jest integration tests (controller + service layers)
+AVOID FOR: Architecture decisions, security-critical design, pure UI
+
+## [AGENT C] — GPT-4o
+STRENGTHS: Frontend UI, component composition, visual design
+USE FOR:
+  - Next.js page components (App Router patterns)
+  - shadcn/ui component composition and layout
+  - Entity switcher component
+  - INACTIVE student banner and read-only mode UI
+  - Student status timeline component
+  - Backfill request modal with billing impact preview
+  - Consolidated and entity-specific dashboard views
+  - Billing dashboard UI (invoice breakdown, dispute interface)
+  - Org chart (ReactFlow), timetable, and entity tree visualizations
+  - TailwindCSS styling, responsive design, dark/light themes
+  - Framer Motion animations and micro-interactions
+  - Multi-step form wizards, data tables, chart components
+AVOID FOR: Backend logic, billing calculations, DB design
+
+## [AGENT D] — Gemini 1.5 Pro
+STRENGTHS: Long-context review, refactoring, consistency audits
+USE FOR:
+  - Auditing StudentRecordPostingGuard coverage across all modules
+  - Cross-entity data leak audit (is entityId filter on every query?)
+  - Billing snapshot vs invoice reconciliation review
+  - Large-file refactoring to match new patterns
+  - Full Prisma schema consistency review
+  - Cross-module consistency checks (do all modules follow the same patterns?)
+  - Comprehensive documentation generation (JSDoc, README, ADR)
+AVOID FOR: Net-new feature development
+
+## [AGENT E] — Cursor Tab (Autocomplete)
+USE FOR:
+  - Completing DTOs after the first pattern is established
+  - Completing test cases after the first example is written
+  - Filling in repetitive Prisma model fields
+  - Completing OpenAPI/Swagger decorators
+  - Standard CRUD boilerplate after patterns are set
+AVOID FOR: Any task requiring reasoning or design decisions
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 5 — THREE-TIER DATA ARCHITECTURE
+# ════════════════════════════════════════════════════════════════
+
+This is the foundational architectural concept. Understand it completely
+before writing any code. All data flows through these three tiers.
+
+## Tier 1 — Institution (SaaS Tenant)
+  The billing unit. One subscription contract per institution.
+  Super Admin (UniCore staff) manages these.
+  Example: "University of Lagos" is one Institution.
+
+## Tier 2 — InstitutionEntity (Operational Sub-Unit)
+  An institution can create multiple entities to model how it actually
+  operates: campuses, schools, affiliated colleges, extramural centres, etc.
+  Each entity has its own governance, branding, admin staff, and OrgUnit tree.
+  Institution Admin (VC, Registrar) manages these.
+
+  Entity Types:
+    MAIN_CAMPUS           Primary institution body
+    SCHOOL                e.g. School of Medicine (semi-autonomous)
+    EXTRAMURAL            Continuing/evening education division
+    DISTANCE_LEARNING     Online/remote learning division
+    SATELLITE_CAMPUS      Branch campus in another city or region
+    PROFESSIONAL_SCHOOL   Law School, Business School, etc.
+    SUMMER_SCHOOL         Seasonal programme
+    RESEARCH_INSTITUTE    e.g. West African Research Centre
+    CONSTITUENT_COLLEGE   Tightly coupled affiliated college
+    AFFILIATE             Loosely coupled external partner (API only)
+
+  Coupling Strength:
+    INTERNAL   Full integration — shares staff pool, courses, fee structures
+    PARTIAL    Partial — own staff, shares some services with parent
+    EXTERNAL   API-level only — student verification and transcript check only
+
+  Billing Classification:
+    BILLED_TO_PARENT      Students counted in parent institution's bill
+    BILLED_INDEPENDENTLY  Entity has its own subscription and invoice
+    EXEMPT                Not billed (e.g. research institutes)
+
+## Tier 3 — OrgUnit (Internal Academic/Admin Structure)
+  The internal hierarchy WITHIN one entity.
+  Faculty → Department → Programme → Admin Unit → Committee
+  An OrgUnit belongs to exactly ONE InstitutionEntity. Never spans entities.
+  Faculty staff manage these within their entity.
+
+## Visual Model
+```
+Institution: University of Lagos
+│
+├── InstitutionEntity: MAIN_CAMPUS (INTERNAL, BILLED_TO_PARENT)
+│   ├── OrgUnit: Faculty of Engineering (FACULTY)
+│   │   ├── OrgUnit: Dept. of Computer Science (DEPARTMENT)
+│   │   │   └── OrgUnit: BSc Computer Science (PROGRAMME)
+│   │   └── OrgUnit: Dept. of Electrical Engineering (DEPARTMENT)
+│   ├── OrgUnit: Registry (ADMIN_UNIT)
+│   └── OrgUnit: Finance Office (ADMIN_UNIT)
+│
+├── InstitutionEntity: EXTRAMURAL (INTERNAL, BILLED_TO_PARENT)
+│   ├── OrgUnit: Evening Division (FACULTY)
+│   └── OrgUnit: Weekend Division (FACULTY)
+│
+├── InstitutionEntity: SCHOOL_OF_MEDICINE (SCHOOL, INTERNAL, BILLED_TO_PARENT)
+│   ├── OrgUnit: Dept. of Medicine (DEPARTMENT)
+│   └── OrgUnit: Dept. of Pharmacy (DEPARTMENT)
+│
+├── InstitutionEntity: KINGS_COLLEGE (CONSTITUENT_COLLEGE, PARTIAL, BILLED_TO_PARENT)
+│   └── OrgUnit: Sciences (FACULTY)
+│
+└── InstitutionEntity: COVENANT_UNIV (AFFILIATE, EXTERNAL, BILLED_INDEPENDENTLY)
+    └── (API access only — student verification)
+```
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 6 — BILLING MODEL
+# ════════════════════════════════════════════════════════════════
+
+## 6.1 The One Billing Rule
+
+  BILLABLE   = student.enrollmentStatus == 'ACTIVE'
+  NOT BILLABLE = any other status
+
+  This is the COMPLETE billing rule. No exceptions.
+  No platform-access backstop. No balance backstop.
+  Status is the sole contract between UniCore and the institution.
+
+## 6.2 Why This Is Fraud-Proof
+
+  If an institution marks a student INACTIVE to avoid billing:
+    → Student is IMMEDIATELY and SYNCHRONOUSLY logged out
+    → Institution CANNOT post ANY records for that student
+      (enforced at API middleware level — StudentRecordPostingGuard)
+    → No grades, no attendance, no enrollments, no LMS activity,
+      no financial charges, no documents issued for that student
+    → A gap appears in the student's academic record
+    → That gap HARMS the institution (accreditation, transcripts,
+      regulatory compliance audits) — NOT UniCore
+    → The institution is self-punishing for attempting to game billing
+
+  If the institution later wants to post records for the inactive period:
+    → Must submit a BackfillRequest through workflow
+    → Must explicitly acknowledge the retroactive billing consequence
+    → The FULL inactive period is billed retroactively upon approval
+    → Records are permanently marked: isBackfilled: true
+
+  The institution cannot have it both ways:
+    Either inactive (no records, no bill) OR active (records, billed).
+
+## 6.3 Student Status Definitions
+
+  ACTIVE
+    Billable. Student has full platform access.
+    Institution has full read/write access to all student records.
+
+  INACTIVE  (all non-active states use this status)
+    NOT billable. Student is IMMEDIATELY locked out (synchronous).
+    Student CANNOT log in to any part of the platform.
+    Institution can VIEW existing profile and records ONLY.
+    Institution CANNOT post any new records of any type.
+    Sub-reasons (informational only — do NOT change billing logic):
+      DEFERRED            Approved leave of absence (medical, maternity, etc.)
+      RUSTICATED          Temporary academic suspension
+      EXPELLED            Disciplinary removal
+      TRANSFERRED_OUT     Student moved to another institution entirely
+      GRADUATED           Completed their programme
+      WITHDRAWN           Student's own request to leave
+      SUSPENDED_PENDING   Pending disciplinary decision
+
+  PERMANENTLY_DELETED
+    Institution's explicit, irreversible decision.
+    Student record anonymised. Auth user hard-deleted.
+    Billing history retained for UniCore audit.
+    Academic records de-identified but retained for statistics.
+
+## 6.4 Student Status Transitions
+
+  ADMITTED      → ACTIVE           (admission accepted, account created)
+  ACTIVE        → INACTIVE         (any sub-reason — requires Registrar)
+  INACTIVE      → ACTIVE           (reactivation — requires workflow approval)
+  INACTIVE      → INACTIVE         (sub-reason change — e.g., SUSPENDED_PENDING → EXPELLED)
+  INACTIVE      → PERMANENTLY_DELETED (requires workflow: Registrar + Deputy VC + Finance)
+  ACTIVE        → PERMANENTLY_DELETED  FORBIDDEN — must go through INACTIVE first
+
+## 6.5 Records Integrity Rule
+
+  No record of any kind may be posted for a student during any period
+  when that student held INACTIVE status.
+
+  "Records" includes ALL of:
+    Academic:   section enrollment, grade entry, attendance marking,
+                timetable assignment, assessment submissions
+    Financial:  fee charges, scholarship awards, payment plan creation
+                (EXCEPTION: receiving payments — clears pre-existing debt)
+    LMS:        course access, lesson completion, quiz attempts,
+                discussion posts, assignment submissions
+    Admin:      document issuance, disciplinary records, clearance updates,
+                hostel assignment, medical records posting
+
+  ENFORCEMENT: NestJS middleware — StudentRecordPostingGuard
+  This is infrastructure-level enforcement, NOT application convention.
+  The guard applies BEFORE every controller that writes student-associated data.
+
+## 6.6 Reactivation and Retroactive Billing
+
+  REACTIVATION (INACTIVE → ACTIVE):
+    Requires: written justification + Registrar authority + workflow approval
+    On workflow approval:
+      Student receives immediate full platform access
+      Institution billed from reactivation date forward (normal billing)
+
+  BACKFILL REQUEST (posting records for an inactive period):
+    Used when institution needs academic records for a period when the
+    student was officially INACTIVE but academically active (e.g. student
+    was on approved deferment and still took supervised exams).
+
+    Process:
+      1. Institution submits BackfillRequest (fromDate, toDate, justification)
+      2. System shows estimated retroactive fee BEFORE submission
+      3. Institution must explicitly acknowledge billing consequence
+      4. WorkflowEngine: HoD → Dean → Registrar → Finance
+      5. On full approval:
+         a. BackfillWindow created { studentId, fromDate, toDate }
+         b. StudentRecordPostingGuard allows writes within this window
+         c. All records posted in window: isBackfilled: true (permanent)
+         d. Retroactive invoice generated immediately
+      6. BackfillWindow auto-expires at toDate
+
+    Full inactive period is billed — no cherry-picking of individual days.
+
+## 6.7 Permanent Deletion
+
+  Preconditions (ALL must be true before workflow can start):
+    1. enrollmentStatus is NOT ACTIVE
+    2. All outstanding financial balances = 0
+    3. No active workflow instances involving the student
+    4. Regulatory retention period passed (default: 7 years post-graduation)
+
+  Workflow: Registrar (typed confirmation: studentNumber) →
+            Deputy VC (approve) → Finance (confirm $0 balance) →
+            System executes
+
+  On execution:
+    - Student name, email, phone, photo → replaced with anonymised IDs
+    - studentNumber retained for statistical integrity
+    - All academic records retained but de-identified
+    - Billing history retained for UniCore financial audit
+    - Auth user record: HARD DELETED (irreversible)
+    - Institution sees anonymised statistical record only
+
+## 6.8 Daily Billing Snapshot
+
+  DailySnapshotJob runs at 02:00 UTC daily.
+  For each ACTIVE institution, for each ACTIVE entity:
+
+    billableCount = SELECT COUNT(*) FROM students
+                    WHERE institutionId = X
+                    AND entityId = Y
+                    AND enrollmentStatus = 'ACTIVE'
+                    AND deletedAt IS NULL
+
+    Stored in DailyBillableSnapshot — immutable after creation.
+    Only UniCore super admin can amend with mandatory reason + audit log.
+
+  Monthly invoice computation:
+    MONTHLY_WATERMARK:    MAX(peak daily count, average daily count)
+    ANNUAL_PEAK:          highest single-day count in the academic year
+    SEMESTER_HEADCOUNT:   count on Semester.censusDate
+
+## 6.9 Billing Models
+
+  MONTHLY_WATERMARK (recommended for most institutions):
+    Bill monthly. Count = MAX(peakDayCount, avgDayCount) for the month.
+    The MAX of both prevents: "deactivate before billing day" trick
+    AND "deactivate for billing day only" trick simultaneously.
+
+  ANNUAL_PEAK (stable enrolment, traditional universities):
+    Bill once per year. Count = highest single-day count in academic year.
+    Minimum commitment: contracted floor count (no refund if below).
+
+  SEMESTER_HEADCOUNT (academic-calendar aligned):
+    Bill per semester. Count = billable students on Semester.censusDate.
+    Backstop: if student accessed platform after census date in the semester,
+    they are counted for that full semester regardless.
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 7 — UNIVERSITY HIERARCHY & AUTHORITY MODEL
+# ════════════════════════════════════════════════════════════════
+
+## 7.1 Position Levels (Authority Ranking)
+
+  Level 1:  VC / President / Rector / Principal (entity head)
+  Level 2:  Deputy VC / Provost / Deputy Principal
+  Level 2:  Registrar (parallel admin authority — equal to Deputy VC)
+  Level 3:  Deans / Directors (Finance Dir., Library Dir., IT Dir.,
+            Student Affairs Dir., HR Dir., Alumni Dir., Sports Dir.,
+            Admissions Dir., Research Dir.)
+  Level 4:  HoD / Bursar / Unit Head / Deputy Bursar
+  Level 5:  Programme Coordinator / Section Head / Sub-unit Head
+  Level 6:  Senior Lecturer / Senior Staff
+  Level 7:  Lecturer / Staff / Adjunct / Tutor
+
+## 7.2 Entity Scope Types
+
+  INSTITUTION   All entities within the institution (VC, Registrar, Deputy VC)
+  ENTITY        One InstitutionEntity (Principal, Entity Registrar)
+  FACULTY       One Faculty OrgUnit within an entity
+  DEPARTMENT    One Department OrgUnit within a faculty
+  PROGRAMME     One Programme OrgUnit within a department
+  UNIT          One Admin Unit OrgUnit
+  SECTION       Own assigned courses and sections only
+  PERSONAL      Own data only (students, staff self-service)
+
+## 7.3 JWT Entity Scope
+
+  entityScope: 'ALL'    → VC, Deputy VC, Registrar, institution Directors
+                           Middleware injects: where { institutionId }
+                           Sees data across ALL entities
+
+  entityScope: 'ENTITY' → All other positions (Principal, Dean, HoD, etc.)
+                           Middleware injects: where { institutionId, entityId }
+                           Sees data within their entity ONLY
+
+## 7.4 Standard Approval Chains (all via WorkflowDefinition records)
+
+  GRADE_ENTRY:
+    Lecturer enters → HoD reviews → Dean approves → Entity Registrar publishes
+
+  GRADE_OVERRIDE:
+    Student requests → Lecturer comments → HoD reviews →
+    Dean approves → Entity Registrar executes
+
+  GRADUATION_CLEARANCE:
+    Programme Coord (credits) → HoD (certify) → Dean (endorse) →
+    Entity Registrar (confirm) → Finance (clear balance) →
+    Library (clear) → VC/Institution Registrar (approve)
+
+  STUDENT_SUSPENSION (disciplinary):
+    HoD (initiate) → Dean of Students (review) →
+    Entity Head (approve) → Deputy VC → VC (ratify) →
+    Institution Registrar (execute)
+
+  STUDENT_REACTIVATION:
+    HoD (recommend) → Dean (endorse) →
+    Entity Registrar (confirm + set date) → System executes
+
+  BACKFILL_REQUEST:
+    HoD (review academic justification) → Dean (approve) →
+    Entity Registrar (final approval) → Finance (retroactive invoice) →
+    System creates BackfillWindow
+
+  STUDENT_PERMANENT_DELETION:
+    Registrar (initiate + typed confirmation) →
+    Deputy VC (approve) → Finance (confirm $0 balance) →
+    System anonymises + hard-deletes auth user
+
+  COURSE_CREATION:
+    Lecturer (propose) → HoD (approve) → Dean (endorse) →
+    Academic Board (ratify) → Entity Registrar (catalog)
+
+  BUDGET_REQUEST:
+    Unit Head (submit) → Entity Director (review) →
+    Entity Finance (assess) → Institution Finance Director (approve) →
+    Deputy VC (sign off if above threshold)
+
+  SCHOLARSHIP_AWARD:
+    Scholarships Committee (score) → Finance Director (validate funds) →
+    Deputy VC (approve) → Institution Registrar (notify)
+
+  LEAVE_REQUEST:
+    Staff (apply) → Line Manager (approve) → HoD (endorse) →
+    HR Director (note)
+
+  STUDENT_TRANSFER (between entities):
+    Source Entity Registrar → Dest Entity Registrar →
+    Institution Registrar (log) → System updates entityId
+    (Student stays ACTIVE throughout — no billing gap)
+
+  ENTITY_CREATION:
+    Institution Admin initiates → System auto-provisions entity
+
+  AFFILIATE_LINK:
+    Entity Admin (request) → Institution VC/Registrar (approve) →
+    System creates AffiliateLink + API key
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 8 — DATA SCOPING RULES (THE LAW)
+# ════════════════════════════════════════════════════════════════
+
+## 8.1 JWT Payload Structure
+
+  interface UniCoreJwtPayload {
+    sub:               string    // userId
+    email:             string
+    institutionId:     string    // always present — tenant boundary
+    entityId:          string    // which entity they belong to
+    entityScope:       'ALL' | 'ENTITY'
+    positionCode:      string    // "VC"|"PRINCIPAL"|"DEAN"|"HOD"|"REG"
+    positionLevel:     number    // 1–7
+    positionScope:     string    // INSTITUTION|ENTITY|FACULTY|DEPT|PERSONAL
+    orgUnitId:         string    // OrgUnit they lead/belong to
+    permissionBundles: string[]  // capability groups
+    permissions:       string[]  // expanded individual permissions
+    isSuperAdmin:      boolean
+  }
+
+## 8.2 PrismaTenantMiddleware Injection Rules
+
+  entityScope 'ALL'    → inject where: { institutionId, deletedAt: null }
+  entityScope 'ENTITY' → inject where: { institutionId, entityId, deletedAt: null }
+  Super admin bypass   → no automatic injection (explicit bypass flag)
+
+  CRITICAL: Services NEVER add institutionId or entityId manually.
+  The middleware handles it for every query automatically.
+  Manual additions create maintenance risk and scope inconsistencies.
+
+## 8.3 Who Sees What
+
+  Platform Super Admin    → ANY institution, ANY entity, ALL data
+  Institution VC/Registrar → ALL entities within their institution
+  Entity Principal/Director → ONLY their entity's data
+  Dean / Director (entity)  → ONLY their faculty/unit within their entity
+  HoD                       → ONLY their department within their entity
+  Lecturer / Staff          → ONLY their assigned sections/courses
+  Student                   → ONLY their own personal data
+  Affiliate (EXTERNAL)      → API-scoped only (verify-student, verify-transcript)
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 9 — UNIVERSAL LAWS (NEVER VIOLATE)
+# ════════════════════════════════════════════════════════════════
+
+These laws apply to every file generated in this project.
+A violation is a bug or a security incident, not a style choice.
+
+LAW 1 — DUAL SCOPE ISOLATION [P0 — SECURITY]
+  Every institution-scoped model MUST have BOTH fields:
+    institutionId  String   ← cross-tenant wall
+    entityId       String   ← cross-entity wall
+  Middleware injects both automatically. No service adds them manually.
+  Missing institutionId on a query = P0 cross-tenant breach.
+  Missing entityId (for ENTITY-scope actor) = P1 cross-entity breach.
+
+LAW 2 — ENTITY SCOPE GUARD [P0 — SECURITY]
+  @UseGuards(EntityScopeGuard) on EVERY controller endpoint that
+  reads or writes entity-scoped data. The guard validates:
+    a) Resource's institutionId matches actor's institutionId
+    b) Resource's entityId matches actor's entityId
+       (UNLESS actor has entityScope: 'ALL')
+  No exception without explicit justification and @SuperAdminOnly.
+
+LAW 3 — STUDENT RECORD POSTING GUARD [P0 — BILLING INTEGRITY]
+  @UseGuards(StudentRecordPostingGuard) on EVERY endpoint that writes
+  any record associated with a student.
+  Guard logic:
+    If student.enrollmentStatus == 'ACTIVE' → allow
+    If approved BackfillWindow covers this date → allow, mark isBackfilled: true
+    Otherwise → throw 403 STUDENT_INACTIVE
+  No bypass except @BypassRecordGuard() which requires @SuperAdminOnly().
+
+LAW 4 — INSTANT LOGOUT ON INACTIVATION [SYNCHRONOUS]
+  When student status changes to INACTIVE (any sub-reason):
+  Within the SAME database transaction, before response is returned:
+    1. DEL refresh:{institutionId}:*:{userId}:*  (flush refresh tokens)
+    2. GET all JTIs for this user, SET token_blocked:{jti} 1 EX {ttl}
+    3. Emit 'session.terminated' to student's WebSocket room
+  This is NOT a background job. It is synchronous and immediate.
+  Student is unreachable on the platform the moment status changes.
+
+LAW 5 — READ-ONLY FOR INACTIVE STUDENTS
+  API: StudentRecordPostingGuard blocks all write operations
+  UI:  All form inputs disabled, all action buttons hidden
+       INACTIVE banner prominently displayed on student profile
+  Permitted for institution on inactive student:
+    View existing profile and all historical records
+    Download existing documents
+    Initiate reactivation workflow
+    Submit backfill request
+    Initiate permanent deletion workflow (if preconditions met)
+
+LAW 6 — STATUS CHANGES ONLY VIA StatusChangeService
+  Student.enrollmentStatus is NEVER written directly anywhere.
+  The ONLY code that writes it is StatusChangeService.changeStatus().
+  Any other path is a bug. Period.
+
+LAW 7 — STATUS CHANGE LOG IS IMMUTABLE
+  StatusChangeLog records: no updatedAt, no deletedAt, no UPDATE, no DELETE.
+  Every status change creates a NEW record. Never amends an existing one.
+  Violations are security incidents, not bugs.
+
+LAW 8 — BACKFILLED RECORDS FLAGGED PERMANENTLY
+  Every record posted via an approved BackfillWindow must have:
+    isBackfilled: true  (set by guard from request.backfillContext)
+    backfillRequestId: string  (reference to the approval)
+  These flags never change. Visible in all views. Cannot be removed.
+
+LAW 9 — SNAPSHOT IMMUTABILITY AFTER INVOICE LOCK
+  DailyBillableSnapshot records are write-once by BillingSnapshotService.
+  After the monthly invoice is generated, they are locked for billing.
+  Only UniCore super admin can amend locked snapshots.
+  Amendment requires mandatory written reason + AuditLog entry.
+  Institution users have READ-ONLY access to snapshots. Never write.
+
+LAW 10 — HIERARCHICAL AUTHORITY ON EVERY WRITE
+  Every write operation checks position level + scope + permission bundle.
+  @RequirePosition() @RequirePermission() @RequireScope() always applied.
+  Never hardcode role names. Always use the Position system.
+  A Dean cannot act on another Faculty's data.
+  An HoD cannot act on another Department's data.
+
+LAW 11 — WORKFLOW ENFORCEMENT
+  All multi-step approvals go through WorkflowEngine only.
+  No service implements its own approval logic.
+  Reactivation, backfill, permanent deletion, grade overrides,
+  graduation clearance — all via WorkflowDefinition records.
+
+LAW 12 — AUDIT EVERY MUTATION
+  AuditLogService.log({
+    institutionId, entityId,
+    actorId, actorPosition,
+    action, entity, entityId_record,
+    oldValues, newValues,
+    ipAddress, userAgent,
+    billingImplication?   (GAIN | LOSS | RETROACTIVE_GAIN | NONE)
+  })
+  Status changes ALWAYS include billingImplication in audit log.
+  Cross-entity operations: isCrossEntity: true flag.
+
+LAW 13 — SOFT DELETE EVERYWHERE
+  No prisma.*.delete() calls anywhere in service code.
+  Standard deletion: set deletedAt = new Date()
+  Permanent deletion (student): anonymise fields + hard-delete Auth user only.
+
+LAW 14 — TYPED, NEVER ANY
+  TypeScript strict mode: ON.
+  No `any`. No `as any`. No `!.` non-null assertions.
+  Use `unknown` + type guards where type is genuinely uncertain.
+  Explicit return types on all service methods and API handlers.
+
+LAW 15 — CURSOR-BASED PAGINATION ON ALL LIST ENDPOINTS
+  Request:  { cursor?: string, limit: number, direction?: 'asc'|'desc' }
+  Response: { data: T[], nextCursor: string | null, total: number }
+  Never use offset pagination in production list endpoints.
+
+LAW 16 — STANDARDISED ERROR FORMAT
+  { statusCode, errorCode, message, details?, timestamp, path, traceId }
+  errorCode namespaced: "STUDENT_001", "BILLING_003", "AUTH_007"
+  All error codes documented in packages/types/src/errors.ts
+
+LAW 17 — NO CROSS-APP IMPORTS
+  apps/api ↔ apps/web ↔ apps/admin: zero direct imports.
+  Cross-app sharing ONLY through packages/*.
+  NestJS code never enters apps/web or apps/admin.
+  Next.js code never enters apps/api.
+
+LAW 18 — ENTITY PROVISIONING ON CREATE
+  Creating an InstitutionEntity MUST trigger full provisioning:
+    a) Default OrgUnit tree (based on entity type template)
+    b) Head position created (Principal/Director/Provost)
+    c) WorkflowDefinitions copied from institution template
+    d) Entity-specific Subscription (if BILLED_INDEPENDENTLY)
+    e) Entity settings initialised from type defaults
+    f) 'entity.provisioned' event emitted
+  Never create a bare entity without full provisioning.
+
+LAW 19 — CONSOLIDATED REPORTING ALWAYS AVAILABLE
+  Institution-wide users (entityScope: ALL) always see data across
+  ALL entities aggregated. Never return partial data to ALL-scope actors.
+  Every report must include an entity breakdown column or row.
+  Consolidated totals must always equal the sum of entity totals.
+
+LAW 20 — OPENAPI DOCS ON EVERY ENDPOINT
+  @ApiTags, @ApiOperation, @ApiResponse on every controller method.
+  All DTOs decorated with @ApiProperty.
+  No undocumented endpoints in production code.
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 10 — DIRECTORY STRUCTURE
+# ════════════════════════════════════════════════════════════════
+
+## 10.1 Monorepo Root
+
+unicore/
+├── .cursorrules                         ← this file (read by Cursor automatically)
+├── UNICORE_MASTER_PROMPT.md             ← phase-by-phase implementation prompts
+├── .github/
+│   └── workflows/
+│       ├── api.yml                      ← NestJS CI/CD
+│       ├── web.yml                      ← Next.js web CI/CD
+│       └── admin.yml                    ← Next.js admin CI/CD
+├── apps/
+│   ├── api/                             ← NestJS (standalone deployable)
+│   ├── web/                             ← Next.js institution portal (standalone)
+│   └── admin/                           ← Next.js super admin (standalone)
+├── packages/
+│   ├── database/                        ← Prisma schema + migrations + seeds
+│   ├── types/                           ← Shared TypeScript interfaces
+│   ├── ui/                              ← Shared shadcn/ui components
+│   ├── utils/                           ← Shared utilities + formatters
+│   └── config/                          ← ESLint, TS, Tailwind base configs
+├── docker-compose.yml                   ← Local dev: postgres, redis, minio, mailhog
+├── docker-compose.prod.yml              ← Production compose
+├── turbo.json                           ← Turborepo pipeline config
+├── pnpm-workspace.yaml
+└── package.json                         ← Root scripts
+
+## 10.2 Backend — apps/api/src/
+
+apps/api/
+├── Dockerfile
+├── .env.example
+├── nest-cli.json
+├── tsconfig.json + tsconfig.build.json
+├── package.json
+├── jest.config.ts
+└── src/
+    ├── main.ts                           Bootstrap, Swagger, global pipes/filters
+    ├── app.module.ts                     Root module
+    │
+    ├── config/                           Configuration per service
+    │   ├── app.config.ts
+    │   ├── database.config.ts
+    │   ├── redis.config.ts
+    │   ├── jwt.config.ts
+    │   ├── mail.config.ts
+    │   ├── s3.config.ts
+    │   └── ai.config.ts
+    │
+    ├── prisma/                           Prisma service + middleware
+    │   ├── prisma.module.ts
+    │   ├── prisma.service.ts
+    │   └── prisma-tenant.middleware.ts   Auto-inject institutionId + entityId
+    │
+    ├── common/                           Shared infrastructure
+    │   ├── decorators/
+    │   │   ├── current-user.decorator.ts
+    │   │   ├── current-entity.decorator.ts
+    │   │   ├── current-institution.decorator.ts
+    │   │   ├── current-position.decorator.ts
+    │   │   ├── require-position.decorator.ts
+    │   │   ├── require-permission.decorator.ts
+    │   │   ├── require-scope.decorator.ts
+    │   │   ├── student-id-param.decorator.ts
+    │   │   ├── bypass-record-guard.decorator.ts
+    │   │   ├── public.decorator.ts
+    │   │   └── super-admin-only.decorator.ts
+    │   ├── filters/
+    │   │   ├── http-exception.filter.ts
+    │   │   └── prisma-exception.filter.ts
+    │   ├── guards/
+    │   │   ├── jwt-auth.guard.ts          (includes JWT blocklist check)
+    │   │   ├── entity-scope.guard.ts
+    │   │   ├── student-record-posting.guard.ts ← CRITICAL billing guard
+    │   │   ├── position.guard.ts
+    │   │   ├── permission.guard.ts
+    │   │   ├── scope.guard.ts
+    │   │   ├── super-admin.guard.ts
+    │   │   └── affiliate-api-key.guard.ts
+    │   ├── interceptors/
+    │   │   ├── audit-log.interceptor.ts
+    │   │   ├── transform.interceptor.ts
+    │   │   └── timeout.interceptor.ts
+    │   ├── middleware/
+    │   │   ├── tenant-entity-resolver.middleware.ts
+    │   │   └── logger.middleware.ts
+    │   ├── pipes/
+    │   │   └── zod-validation.pipe.ts
+    │   └── utils/
+    │       ├── pagination.util.ts
+    │       ├── crypto.util.ts
+    │       └── date.util.ts
+    │
+    ├── jobs/                             BullMQ processors
+    │   ├── queues.module.ts
+    │   ├── billing/
+    │   │   ├── daily-snapshot.processor.ts
+    │   │   ├── monthly-billing.processor.ts
+    │   │   ├── retroactive-billing.processor.ts
+    │   │   └── lock-invoice.processor.ts
+    │   ├── notifications/
+    │   │   ├── email-sender.processor.ts
+    │   │   ├── sms-sender.processor.ts
+    │   │   └── push-sender.processor.ts
+    │   ├── students/
+    │   │   ├── student-import.processor.ts
+    │   │   └── entity-provision.processor.ts
+    │   ├── lms/
+    │   │   └── video-transcode.processor.ts
+    │   └── ai/
+    │       ├── embed-content.processor.ts
+    │       └── generate-insights.processor.ts
+    │
+    ├── gateways/                         WebSocket gateways
+    │   ├── notifications.gateway.ts
+    │   └── monitoring.gateway.ts
+    │
+    └── modules/
+        ├── auth/                         Authentication + entity switcher
+        ├── institution-entities/         Sub-institution management
+        ├── org-structure/                OrgUnits + Positions + Permissions
+        ├── workflow-engine/              Approval chain engine
+        ├── billing/                      Snapshot + invoice + dispute
+        ├── institutions/                 Super admin: tenant management
+        ├── subscriptions/                Super admin: billing + Stripe
+        ├── monitoring/                   Super admin: health + usage
+        ├── feature-flags/                Super admin: feature toggles
+        ├── users/                        User CRUD + entity access
+        ├── students/
+        │   ├── students.module.ts
+        │   ├── status/                   StatusChangeService (sole writer of status)
+        │   └── backfill/                 BackfillRequestService
+        ├── admissions/                   Application portal
+        ├── academic-structure/           AcademicYear, Semester, Course, Section
+        ├── enrollment/                   Course registration + holds
+        ├── grades/                       Grade entry + GPA + transcripts
+        ├── attendance/                   Session QR + attendance records
+        ├── documents/                    Document generation + verification
+        ├── clearance/                    Multi-department clearance
+        ├── lms/
+        │   ├── course-builder/
+        │   ├── assessments/
+        │   ├── progress/
+        │   └── discussions/
+        ├── finance/
+        │   ├── fees/
+        │   ├── payments/
+        │   │   └── gateways/             Stripe, Flutterwave, Paystack, Paymob
+        │   ├── accounts/
+        │   └── scholarships/
+        ├── staff/                        StaffProfile + HR
+        ├── leave/                        Leave management
+        ├── appraisal/                    Staff appraisals
+        ├── elections/                    Student/staff elections (blind voting)
+        ├── meetings/                     Meetings + governance + AI minutes
+        ├── alumni/                       Alumni network + mentorship
+        ├── sports/                       Teams + fixtures + eligibility
+        ├── notifications/                Multi-channel notification engine
+        ├── ai/                           AI service + RAG + tutor
+        ├── analytics/                    Reporting + dashboards
+        ├── customization/                Institution + entity settings
+        └── integrations/                 Zoom, WhatsApp, Calendar, etc.
+
+## 10.3 Frontend — apps/web/src/ (Institution Portal)
+
+apps/web/
+├── Dockerfile
+├── .env.example + .env.local
+├── next.config.ts
+├── tailwind.config.ts
+├── tsconfig.json + package.json
+├── middleware.ts                         Auth + entity routing
+├── components.json                       shadcn config
+└── src/
+    ├── app/
+    │   ├── layout.tsx                    Root layout (providers)
+    │   ├── not-found.tsx + error.tsx
+    │   │
+    │   ├── (auth)/                       Public auth routes
+    │   │   ├── login/page.tsx
+    │   │   ├── register/page.tsx
+    │   │   ├── forgot-password/page.tsx
+    │   │   ├── reset-password/page.tsx
+    │   │   └── verify-mfa/page.tsx
+    │   │
+    │   └── (institution)/                All protected routes
+    │       ├── layout.tsx                Main shell: sidebar + topbar + entity switcher
+    │       ├── dashboard/page.tsx
+    │       │
+    │       ├── entities/                 Entity management (VC/Registrar)
+    │       │   ├── page.tsx
+    │       │   ├── new/page.tsx
+    │       │   └── [id]/page.tsx
+    │       │
+    │       ├── students/
+    │       │   ├── page.tsx              Student registry
+    │       │   ├── new/page.tsx          New student wizard
+    │       │   └── [id]/
+    │       │       ├── page.tsx          Student profile (full)
+    │       │       ├── academic/page.tsx
+    │       │       ├── financial/page.tsx
+    │       │       ├── documents/page.tsx
+    │       │       ├── attendance/page.tsx
+    │       │       └── status/page.tsx   Status timeline + change
+    │       │
+    │       ├── admissions/
+    │       │   ├── page.tsx
+    │       │   ├── cycles/[cycleId]/page.tsx
+    │       │   └── applications/[appId]/page.tsx
+    │       │
+    │       ├── academics/
+    │       │   ├── page.tsx
+    │       │   ├── programmes/[id]/page.tsx
+    │       │   ├── courses/[id]/page.tsx
+    │       │   └── timetable/page.tsx
+    │       │
+    │       ├── enrollment/
+    │       │   ├── page.tsx
+    │       │   └── register/page.tsx     Student course registration
+    │       │
+    │       ├── grades/
+    │       │   ├── page.tsx
+    │       │   ├── entry/page.tsx        Faculty grade entry
+    │       │   └── approval/page.tsx
+    │       │
+    │       ├── lms/
+    │       │   ├── page.tsx              Course dashboard
+    │       │   └── [courseId]/
+    │       │       ├── page.tsx          Course + lesson viewer
+    │       │       ├── assessments/[id]/page.tsx
+    │       │       ├── grades/page.tsx
+    │       │       └── discuss/page.tsx
+    │       │
+    │       ├── teach/[courseId]/         Faculty course management
+    │       │   ├── page.tsx              Course builder
+    │       │   ├── gradebook/page.tsx
+    │       │   └── analytics/page.tsx
+    │       │
+    │       ├── finance/
+    │       │   ├── page.tsx
+    │       │   ├── fees/page.tsx
+    │       │   ├── payments/page.tsx
+    │       │   ├── scholarships/page.tsx
+    │       │   └── reports/page.tsx
+    │       │
+    │       ├── billing/                  Institution billing dashboard
+    │       │   ├── page.tsx
+    │       │   ├── invoice/[id]/page.tsx
+    │       │   ├── disputes/page.tsx
+    │       │   └── snapshot/page.tsx
+    │       │
+    │       ├── staff/
+    │       │   ├── page.tsx
+    │       │   ├── [id]/page.tsx
+    │       │   ├── leave/page.tsx
+    │       │   └── appraisals/page.tsx
+    │       │
+    │       ├── elections/
+    │       │   ├── page.tsx
+    │       │   └── [electionId]/
+    │       │       ├── page.tsx
+    │       │       └── vote/page.tsx
+    │       │
+    │       ├── meetings/
+    │       │   ├── page.tsx
+    │       │   └── [meetingId]/page.tsx
+    │       │
+    │       ├── alumni/
+    │       │   ├── page.tsx
+    │       │   ├── directory/page.tsx
+    │       │   ├── events/page.tsx
+    │       │   └── mentorship/page.tsx
+    │       │
+    │       ├── sports/
+    │       │   ├── page.tsx
+    │       │   ├── teams/[teamId]/page.tsx
+    │       │   ├── fixtures/page.tsx
+    │       │   └── facilities/page.tsx
+    │       │
+    │       ├── workflow/
+    │       │   ├── inbox/page.tsx        My pending approvals
+    │       │   ├── initiated/page.tsx    Requests I started
+    │       │   └── [instanceId]/page.tsx Review + act
+    │       │
+    │       └── settings/
+    │           ├── page.tsx
+    │           ├── org-structure/page.tsx
+    │           ├── positions/page.tsx
+    │           ├── branding/page.tsx
+    │           ├── modules/page.tsx
+    │           ├── integrations/page.tsx
+    │           ├── notifications/page.tsx
+    │           └── custom-forms/page.tsx
+    │
+    ├── components/
+    │   ├── layout/
+    │   │   ├── sidebar.tsx
+    │   │   ├── topbar.tsx
+    │   │   ├── entity-switcher.tsx       ← critical component
+    │   │   ├── breadcrumbs.tsx
+    │   │   └── mobile-nav.tsx
+    │   │
+    │   ├── ui/                           shadcn + custom shared components
+    │   │   ├── data-table/
+    │   │   ├── page-header.tsx
+    │   │   ├── stat-card.tsx
+    │   │   ├── skeleton-table.tsx
+    │   │   ├── empty-state.tsx
+    │   │   ├── confirm-dialog.tsx
+    │   │   └── file-uploader.tsx
+    │   │
+    │   ├── students/
+    │   │   ├── student-table.tsx
+    │   │   ├── student-form.tsx
+    │   │   ├── student-card.tsx
+    │   │   ├── gpa-chart.tsx
+    │   │   ├── academic-risk-panel.tsx   AI component
+    │   │   ├── status/
+    │   │   │   ├── inactive-banner.tsx   ← shown on all inactive student pages
+    │   │   │   ├── status-timeline.tsx   ← StatusChangeLog visual history
+    │   │   │   └── reactivation-modal.tsx
+    │   │   └── backfill/
+    │   │       └── backfill-modal.tsx    ← backfill request + billing preview
+    │   │
+    │   ├── lms/
+    │   │   ├── lesson-viewer/
+    │   │   │   ├── video-player.tsx      HLS.js
+    │   │   │   ├── pdf-viewer.tsx
+    │   │   │   ├── text-lesson.tsx
+    │   │   │   └── scorm-viewer.tsx
+    │   │   ├── quiz-engine/
+    │   │   │   ├── quiz-shell.tsx
+    │   │   │   ├── question-renderer.tsx
+    │   │   │   ├── timer.tsx
+    │   │   │   └── question-navigator.tsx
+    │   │   ├── course-builder/
+    │   │   │   ├── module-tree.tsx       DnD reorder
+    │   │   │   └── lesson-editor.tsx
+    │   │   └── ai-tutor/
+    │   │       ├── tutor-panel.tsx
+    │   │       └── tutor-message.tsx
+    │   │
+    │   ├── finance/
+    │   │   ├── payment-form.tsx
+    │   │   ├── transaction-table.tsx
+    │   │   └── balance-card.tsx
+    │   │
+    │   ├── billing/
+    │   │   ├── snapshot-chart.tsx
+    │   │   ├── invoice-breakdown.tsx
+    │   │   └── dispute-modal.tsx
+    │   │
+    │   ├── elections/
+    │   │   ├── candidate-card.tsx
+    │   │   ├── voting-booth.tsx
+    │   │   └── results-chart.tsx
+    │   │
+    │   ├── workflow/
+    │   │   ├── workflow-card.tsx
+    │   │   ├── workflow-timeline.tsx
+    │   │   └── action-panel.tsx
+    │   │
+    │   └── charts/
+    │       ├── enrollment-trend.tsx
+    │       ├── grade-distribution.tsx
+    │       ├── revenue-chart.tsx
+    │       └── attendance-heatmap.tsx
+    │
+    ├── hooks/
+    │   ├── use-entity-context.ts
+    │   ├── use-student-status.ts         ← check ACTIVE/INACTIVE + canPostRecords
+    │   ├── use-permission.ts
+    │   ├── use-position.ts
+    │   ├── use-institution.ts
+    │   ├── use-debounce.ts
+    │   ├── use-infinite-scroll.ts
+    │   └── use-websocket.ts
+    │
+    ├── lib/
+    │   ├── api-client.ts                 Axios with auth interceptors
+    │   ├── query-client.ts               TanStack Query config
+    │   ├── auth.ts                       NextAuth v5 config
+    │   └── utils.ts                      cn() + shared helpers
+    │
+    ├── queries/                          TanStack Query hooks per domain
+    │   ├── students.queries.ts
+    │   ├── enrollment.queries.ts
+    │   ├── grades.queries.ts
+    │   ├── lms.queries.ts
+    │   ├── finance.queries.ts
+    │   ├── billing.queries.ts
+    │   ├── workflow.queries.ts
+    │   └── ...
+    │
+    ├── stores/                           Zustand (UI state only)
+    │   ├── sidebar.store.ts
+    │   ├── entity.store.ts
+    │   └── notification.store.ts
+    │
+    └── validators/                       Zod schemas (mirror backend DTOs)
+        ├── student.schema.ts
+        ├── enrollment.schema.ts
+        ├── billing.schema.ts
+        └── ...
+
+## 10.4 Frontend — apps/admin/src/ (Super Admin Portal)
+
+apps/admin/
+├── Dockerfile + .env.example + .env.local
+├── next.config.ts + tailwind.config.ts + tsconfig.json
+├── middleware.ts                         Super admin auth guard
+└── src/
+    ├── app/
+    │   ├── (auth)/login/page.tsx         Super admin only login
+    │   └── (admin)/
+    │       ├── layout.tsx                Admin shell (dark theme)
+    │       ├── dashboard/page.tsx        Platform overview KPIs
+    │       ├── institutions/
+    │       │   ├── page.tsx              Institutions table
+    │       │   ├── new/page.tsx          Onboarding wizard
+    │       │   └── [id]/
+    │       │       ├── page.tsx          Institution detail
+    │       │       ├── entities/page.tsx Entity management
+    │       │       ├── modules/page.tsx
+    │       │       ├── subscription/page.tsx
+    │       │       ├── billing/page.tsx  Billing config + snapshots
+    │       │       ├── usage/page.tsx
+    │       │       └── audit-log/page.tsx
+    │       ├── billing/
+    │       │   ├── page.tsx              Platform revenue dashboard
+    │       │   ├── invoices/page.tsx
+    │       │   ├── disputes/page.tsx     All pending disputes
+    │       │   └── disputes/[id]/page.tsx Dispute resolution
+    │       ├── monitoring/
+    │       │   ├── page.tsx              System health dashboard
+    │       │   ├── usage/page.tsx
+    │       │   └── errors/page.tsx
+    │       ├── feature-flags/page.tsx
+    │       └── settings/page.tsx
+    │
+    └── components/
+        ├── layout/ (admin-sidebar, admin-topbar)
+        ├── institutions/ (table, wizard, health-score, module-toggles)
+        ├── billing/ (revenue-chart, invoice-table, dispute-resolution)
+        └── monitoring/ (usage-chart, active-sessions, system-health)
+
+## 10.5 Shared Packages
+
+packages/database/
+  prisma/
+    schema.prisma                         Single source of truth for DB schema
+    migrations/                           Auto-generated migrations
+    seeds/
+      index.ts
+      super-admin.seed.ts
+      demo-institution.seed.ts
+      demo-entities.seed.ts               Main + Extramural + Distance Learning
+      demo-students.seed.ts               Students in various statuses
+      demo-data.seed.ts                   Courses, sections, enrollments
+
+packages/types/src/
+  auth.types.ts                           JWT payload, session types
+  institution.types.ts
+  entity.types.ts                         InstitutionEntity types
+  student.types.ts                        Student + status types
+  billing.types.ts                        Billing + snapshot + invoice types
+  student-status.types.ts                 Status enums + transitions
+  api.types.ts                            API response wrappers
+  pagination.types.ts
+  errors.ts                               All error codes documented
+  index.ts
+
+packages/ui/src/components/              Shared shadcn base components
+packages/utils/src/                      Formatters, validators, constants
+packages/config/                         ESLint, TypeScript, Tailwind configs
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 11 — CODING STANDARDS
+# ════════════════════════════════════════════════════════════════
+
+## NestJS Standards
+- One responsibility per service method — no god methods
+- Controllers are THIN: validate input → call service → return response
+- Services contain ALL business logic
+- Repositories contain ALL Prisma queries
+- Middleware injects scope — services NEVER add institutionId/entityId manually
+- Student.enrollmentStatus ONLY written by StatusChangeService.changeStatus()
+- Instant logout: synchronous within status change transaction
+- StudentRecordPostingGuard applied globally on all student-write endpoints
+- Constructor injection always — never property injection
+- No circular module imports — explicit module registration
+- ConfigService for ALL env vars — never process.env directly
+- Async/await always — no raw Promise chains
+- BullMQ jobs: attempts: 3, backoff: exponential, removeOnComplete: false
+
+## Next.js Standards
+- Server Components by default — Client Components only for interactivity
+- 'use client' at the top of Client Components
+- Server Components fetch via direct API calls (no useEffect for initial data)
+- Client-side mutations via TanStack Query useMutation
+- useEntityContext() available in all institution-scoped pages
+- useStudentStatus(studentId) available for all student-related forms
+- INACTIVE student pages: full read-only mode (inputs disabled + banner)
+- loading.tsx + Suspense + Skeleton for loading states
+- error.tsx + ErrorBoundary for error states
+- TanStack Query: staleTime + cacheTime configured per query type
+
+## TypeScript Standards
+- Strict mode ON — tsconfig: { "strict": true }
+- Interfaces for object shapes, types for unions and primitives
+- Enums must match Prisma enums exactly
+- No non-null assertions (!.) — use optional chaining (?.)
+- Explicit return types on ALL service methods and API handlers
+- Generic types for reusable utilities
+
+## Naming Conventions
+- Files:        kebab-case   (status-change.service.ts)
+- Classes:      PascalCase   (StatusChangeService)
+- Interfaces:   I prefix     (IStatusChangeDto, IBillableCount)
+- Enums:        PascalCase   (EnrollmentStatus, InactiveReason)
+- DB tables:    snake_case via @@map  (status_change_logs)
+- DB columns:   camelCase in Prisma, snake_case in DB via @map
+- API routes:   kebab-case   (/institution-entities, /billing/snapshots)
+- React comps:  PascalCase   (InactiveBanner.tsx, EntitySwitcher.tsx)
+- Hooks:        use prefix   (useStudentStatus.ts, useEntityContext.ts)
+- Stores:       Store suffix (entityStore.ts, sidebarStore.ts)
+- Query keys:   string[]     (['students', entityId, studentId, 'status'])
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 12 — SECURITY REQUIREMENTS
+# ════════════════════════════════════════════════════════════════
+
+1.  Never log passwords, tokens, MFA secrets, or payment card data
+2.  Student instant logout: synchronous within status change transaction
+3.  JWT blocklist: active tokens invalidated immediately on inactivation
+4.  StudentRecordPostingGuard: no bypass without @SuperAdminOnly
+5.  DailyBillableSnapshot: READ only for institution users — never WRITE
+6.  StatusChangeLog: IMMUTABLE — no UPDATE or DELETE ever
+7.  BackfillRequest: billing acknowledgment enforced before workflow starts
+8.  Permanent deletion: typed confirmation + full workflow + irreversible
+9.  Cross-entity access: CRITICAL security event → AuditLog + alert
+10. EXTERNAL affiliate API: STUDENT_VERIFY and TRANSCRIPT_VERIFY only
+    Returns only: enrolled: boolean, programme: string (no PII)
+11. Presigned S3 URLs: max 1 hour expiry
+12. File uploads: magic byte MIME type validation (not extension)
+13. Auth rate limiting: 5 attempts per 15 minutes on auth endpoints
+14. Refresh token rotation: old token invalidated on every use
+15. CORS: whitelist institution domains + entity custom domains only
+16. Helmet.js: CSP, HSTS, X-Frame-Options, X-Content-Type-Options
+17. Entity switcher: always issues fresh JWT — never mutates existing token
+18. Entity deletion: BLOCKED if entity has ACTIVE students (hard block)
+19. Webhook signatures: ALWAYS verified before processing payloads
+20. Sensitive field encryption: salary, payment gateway configs, MFA secrets,
+    SSO configs → AES-256-GCM with per-institution derived keys
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 13 — TESTING REQUIREMENTS
+# ════════════════════════════════════════════════════════════════
+
+Coverage target: 80% minimum on all modules.
+
+## Critical Tests (must pass before ANY deployment)
+
+BILLING INTEGRITY:
+  [ ] ACTIVE student → counted in DailyBillableSnapshot
+  [ ] INACTIVE student (any sub-reason) → NOT counted
+  [ ] Status → INACTIVE → student session terminated synchronously
+  [ ] INACTIVE student: POST /grades → 403 STUDENT_INACTIVE
+  [ ] INACTIVE student: POST /attendance → 403 STUDENT_INACTIVE
+  [ ] INACTIVE student: POST /enrollments → 403 STUDENT_INACTIVE
+  [ ] INACTIVE student: POST /lms/submissions → 403 STUDENT_INACTIVE
+  [ ] INACTIVE student: GET /students/:id → 200 (read allowed)
+  [ ] Approved BackfillWindow → POST /grades allowed for approved period
+  [ ] Backfill records → isBackfilled: true on all records
+  [ ] Backfill approval → retroactive invoice generated
+  [ ] Backfill records outside approved window → 403
+  [ ] Permanent deletion → auth user deleted → student cannot log in
+  [ ] Permanent deletion → academic records anonymised + retained
+  [ ] Student transfer → status stays ACTIVE → snapshot unchanged
+  [ ] StatusChangeLog → no UPDATE query ever executed
+  [ ] DailyBillableSnapshot → no institution user can write/update it
+
+ENTITY ISOLATION:
+  [ ] Entity A user: GET /students → only Entity A students returned
+  [ ] Entity A user: GET /students/{Entity B student id} → 403 or 404
+  [ ] Institution VC (entityScope: ALL): GET /students → all entities returned
+  [ ] Entity switcher: cannot switch to a different institution's entity
+
+## Standard Tests Per Module
+  Unit tests:        every service method (mocked dependencies)
+  Integration tests: every controller endpoint (Supertest + Testcontainers)
+  DB tests:          Testcontainers (real PostgreSQL, not SQLite mock)
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 14 — DEFINITION OF DONE
+# ════════════════════════════════════════════════════════════════
+
+A feature is ONLY done when ALL of the following are complete:
+
+Schema & Data:
+  [ ] Prisma schema updated with institutionId + entityId on all scoped models
+  [ ] Migration file generated and tested
+  [ ] Seed data updated if needed
+
+Backend:
+  [ ] Service methods complete with correct business logic
+  [ ] Status changes ONLY via StatusChangeService
+  [ ] StudentRecordPostingGuard applied on all student-write endpoints
+  [ ] EntityScopeGuard on all entity-scoped endpoints
+  [ ] PositionGuard + PermissionGuard applied
+  [ ] WorkflowEngine integration (if approval needed)
+  [ ] AuditLog call on every mutation (with entityId + billingImplication)
+  [ ] DTOs with class-validator on all controller methods
+  [ ] OpenAPI decorators (@ApiTags, @ApiOperation, @ApiResponse)
+
+Testing:
+  [ ] Unit tests for all service methods (80%+ coverage)
+  [ ] Integration tests for all controller endpoints
+  [ ] Entity isolation test passing
+  [ ] Billing integrity tests passing (if student-related feature)
+  [ ] StatusChangeLog immutability verified (if status-related)
+
+Frontend:
+  [ ] Page component complete with loading + error + empty states
+  [ ] TanStack Query hook with correct cache keys
+  [ ] Zod form schema matching backend DTO
+  [ ] Entity context visible in UI (entity badge on records)
+  [ ] INACTIVE student: banner shown + all inputs disabled
+  [ ] Status timeline on student profile (if student feature)
+  [ ] Entity switcher works (if multi-entity user)
+
+Quality:
+  [ ] No TypeScript errors (strict mode)
+  [ ] No ESLint errors
+  [ ] Notification triggered on all user-facing actions
+  [ ] Consolidated view works for institution-wide users
+  [ ] Mobile responsive (if user-facing page)

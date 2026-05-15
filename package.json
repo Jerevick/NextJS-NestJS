@@ -1,0 +1,36 @@
+{
+  "name": "unicore",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "typecheck": "turbo run typecheck",
+    "db:generate": "prisma generate --schema packages/database/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema packages/database/prisma/schema.prisma",
+    "db:migrate:deploy": "node --env-file=packages/.env node_modules/prisma/build/index.js migrate deploy --schema packages/database/prisma/schema.prisma",
+    "db:validate": "prisma validate --schema packages/database/prisma/schema.prisma",
+    "db:seed": "pnpm --dir packages/database exec tsx prisma/seed.ts",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.0",
+    "@commitlint/config-conventional": "^19.6.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "prettier": "catalog:",
+    "prisma": "^6.19.3",
+    "turbo": "^2.3.3",
+    "typescript": "catalog:"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,md}": [
+      "prettier --write"
+    ]
+  },
+  "dependencies": {
+    "@sentry/nextjs": "10"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "name": "@unicore/database",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "prisma generate && tsup src/index.ts --format esm,cjs --dts --clean",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prisma": "prisma",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "migrate:deploy": "prisma migrate deploy"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.2.1"
+  },
+  "devDependencies": {
+    "@unicore/eslint-config": "workspace:*",
+    "@unicore/typescript-config": "workspace:*",
+    "bcryptjs": "^2.4.3",
+    "eslint": "catalog:",
+    "prisma": "^6.2.1",
+    "tsx": "^4.19.2",
+    "tsup": "^8.3.5",
+    "typescript": "catalog:"
+  }
+}

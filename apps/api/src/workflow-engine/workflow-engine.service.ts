@@ -1,0 +1,378 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { WorkflowStatus } from '@prisma/client';
+import type { AuthUser } from '../auth/auth.types';
+import { AuditService } from '../audit/audit.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { WorkflowAssigneeResolver } from './workflow-assignee.resolver';
+import { WorkflowCompletionHandler } from './workflow-completion.handler';
+import type { InitiateWorkflowDto, ProcessWorkflowStepDto, WorkflowHistoryEntry } from './workflow.types';
+import { parseWorkflowHistory, parseWorkflowSteps } from './workflow.types';
+
+@Injectable()
+export class WorkflowEngineService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly assigneeResolver: WorkflowAssigneeResolver,
+    private readonly completion: WorkflowCompletionHandler,
+    private readonly audit: AuditService,
+  ) {}
+
+  async findDefinition(institutionId: string, entityId: string, code: string) {
+    const entitySpecific = await this.prisma.workflowDefinition.findFirst({
+      where: { institutionId, entityId, code, isActive: true },
+    });
+    if (entitySpecific) {
+      return entitySpecific;
+    }
+    return this.prisma.workflowDefinition.findFirst({
+      where: { institutionId, entityId: null, code, isActive: true },
+    });
+  }
+
+  async initiateWorkflow(dto: InitiateWorkflowDto) {
+    const definition = await this.findDefinition(dto.institutionId, dto.entityId, dto.definitionCode);
+    if (!definition) {
+      throw new NotFoundException(`Workflow definition not found: ${dto.definitionCode}`);
+    }
+
+    const steps = parseWorkflowSteps(definition.steps);
+    if (steps.length === 0) {
+      throw new BadRequestException('Workflow definition has no steps');
+    }
+
+    const firstStep = steps[0];
+    const assignee = await this.assigneeResolver.resolveStepAssignee(
+      dto.institutionId,
+      dto.entityId,
+      firstStep,
+    );
+    if (!assignee) {
+      throw new BadRequestException(
+        `No active holder for position ${firstStep.assignedTo.positionCode} on this campus`,
+      );
+    }
+
+    const dueAt = new Date(Date.now() + firstStep.slaHours * 60 * 60 * 1000);
+
+    const instance = await this.prisma.workflowInstance.create({
+      data: {
+        institutionId: dto.institutionId,
+        entityId: dto.entityId,
+        definitionId: definition.id,
+        definitionCode: definition.code,
+        entityType: dto.entityType,
+        entityId_record: dto.entityId_record,
+        currentStep: 1,
+        status: WorkflowStatus.IN_PROGRESS,
+        initiatedBy: dto.initiatedBy,
+        dueAt,
+        metadata: (dto.metadata ?? {}) as object,
+        currentAssigneeUserId: assignee.userId,
+        currentStepName: firstStep.name,
+        assigneePositionCode: assignee.positionCode,
+        history: [],
+      },
+      include: {
+        definition: { select: { name: true, code: true, scope: true } },
+        entity: { select: { id: true, code: true, name: true } },
+      },
+    });
+
+    this.audit.append({
+      institutionId: dto.institutionId,
+      actorId: dto.initiatedBy,
+      action: 'workflow.initiated',
+      entity: 'WorkflowInstance',
+      entityId: instance.id,
+      newValues: {
+        definitionCode: definition.code,
+        entityType: dto.entityType,
+        entityId_record: dto.entityId_record,
+      },
+    });
+
+    return instance;
+  }
+
+  async processStep(actor: AuthUser, dto: ProcessWorkflowStepDto) {
+    const instance = await this.prisma.workflowInstance.findFirst({
+      where: { id: dto.instanceId, institutionId: actor.institutionId },
+      include: { definition: true },
+    });
+    if (!instance) {
+      throw new NotFoundException('Workflow instance not found');
+    }
+    if (
+      instance.status !== WorkflowStatus.IN_PROGRESS &&
+      instance.status !== WorkflowStatus.ESCALATED
+    ) {
+      throw new BadRequestException('Workflow is not open for actions');
+    }
+
+    if (instance.currentAssigneeUserId !== actor.userId && !actor.permissions.includes('*')) {
+      throw new ForbiddenException('You are not the assignee for the current workflow step');
+    }
+
+    const steps = parseWorkflowSteps(instance.definition.steps);
+    const stepConfig = steps.find((s) => s.stepNumber === instance.currentStep);
+    if (!stepConfig) {
+      throw new BadRequestException('Current step configuration missing');
+    }
+
+    const history = parseWorkflowHistory(instance.history);
+    const entry: WorkflowHistoryEntry = {
+      step: instance.currentStep,
+      stepName: stepConfig.name,
+      actorId: dto.actorId,
+      actorPositionCode: instance.assigneePositionCode ?? undefined,
+      action: dto.action,
+      notes: dto.notes?.trim(),
+      decidedAt: new Date().toISOString(),
+    };
+    history.push(entry);
+
+    if (dto.action === 'REJECT') {
+      const rejected = await this.prisma.workflowInstance.update({
+        where: { id: instance.id },
+        data: {
+          status: WorkflowStatus.REJECTED,
+          completedAt: new Date(),
+          completedBy: actor.userId,
+          history: history as object,
+          currentAssigneeUserId: null,
+        },
+      });
+      await this.completion.handleRejected(
+        instance.definitionCode,
+        instance.institutionId,
+        instance.entityId_record,
+        actor.userId,
+        dto.notes,
+      );
+      return rejected;
+    }
+
+    if (dto.action === 'REQUEST_INFO') {
+      return this.prisma.workflowInstance.update({
+        where: { id: instance.id },
+        data: {
+          history: history as object,
+          currentAssigneeUserId: instance.initiatedBy,
+          currentStepName: 'Awaiting initiator response',
+          assigneePositionCode: null,
+        },
+      });
+    }
+
+    if (dto.action === 'ESCALATE') {
+      const escalated = await this.assigneeResolver.resolveEscalationAssignee(
+        instance.institutionId,
+        instance.entityId,
+        stepConfig,
+      );
+      if (!escalated) {
+        throw new BadRequestException('Escalation assignee could not be resolved');
+      }
+      const dueAt = new Date(Date.now() + stepConfig.slaHours * 60 * 60 * 1000);
+      return this.prisma.workflowInstance.update({
+        where: { id: instance.id },
+        data: {
+          status: WorkflowStatus.ESCALATED,
+          history: history as object,
+          currentAssigneeUserId: escalated.userId,
+          assigneePositionCode: escalated.positionCode,
+          dueAt,
+        },
+      });
+    }
+
+    const isLastStep = instance.currentStep >= steps.length;
+    if (!isLastStep) {
+      const nextStep = steps[instance.currentStep];
+      const nextAssignee = await this.assigneeResolver.resolveStepAssignee(
+        instance.institutionId,
+        instance.entityId,
+        nextStep,
+      );
+      if (!nextAssignee) {
+        throw new BadRequestException(
+          `No active holder for position ${nextStep.assignedTo.positionCode}`,
+        );
+      }
+      const dueAt = new Date(Date.now() + nextStep.slaHours * 60 * 60 * 1000);
+      return this.prisma.workflowInstance.update({
+        where: { id: instance.id },
+        data: {
+          currentStep: instance.currentStep + 1,
+          history: history as object,
+          dueAt,
+          currentAssigneeUserId: nextAssignee.userId,
+          currentStepName: nextStep.name,
+          assigneePositionCode: nextAssignee.positionCode,
+          status: WorkflowStatus.IN_PROGRESS,
+          metadata: {
+            ...(instance.metadata as Record<string, unknown>),
+            ...(dto.additionalData ?? {}),
+          } as object,
+        },
+      });
+    }
+
+    const metadata = {
+      ...(instance.metadata as Record<string, unknown>),
+      ...(dto.additionalData ?? {}),
+    };
+
+    const approved = await this.prisma.workflowInstance.update({
+      where: { id: instance.id },
+      data: {
+        status: WorkflowStatus.APPROVED,
+        completedAt: new Date(),
+        completedBy: actor.userId,
+        history: history as object,
+        currentAssigneeUserId: null,
+        metadata: metadata as object,
+      },
+    });
+
+    await this.completion.handleCompleted(
+      instance.definitionCode,
+      instance.institutionId,
+      instance.entityId_record,
+      actor.userId,
+      metadata,
+    );
+
+    return approved;
+  }
+
+  async getInbox(actor: AuthUser, limit = 20) {
+    const rows = await this.prisma.workflowInstance.findMany({
+      where: {
+        institutionId: actor.institutionId,
+        currentAssigneeUserId: actor.userId,
+        status: { in: [WorkflowStatus.IN_PROGRESS, WorkflowStatus.ESCALATED] },
+      },
+      take: Math.min(limit, 50),
+      orderBy: { dueAt: 'asc' },
+      include: {
+        definition: { select: { name: true, code: true } },
+        entity: { select: { code: true, name: true } },
+        initiator: { select: { email: true, profile: true } },
+      },
+    });
+    return { data: rows };
+  }
+
+  async getInitiated(actor: AuthUser, limit = 20) {
+    const rows = await this.prisma.workflowInstance.findMany({
+      where: {
+        institutionId: actor.institutionId,
+        initiatedBy: actor.userId,
+      },
+      take: Math.min(limit, 50),
+      orderBy: { initiatedAt: 'desc' },
+      include: {
+        definition: { select: { name: true, code: true } },
+        entity: { select: { code: true, name: true } },
+      },
+    });
+    return { data: rows };
+  }
+
+  async getById(actor: AuthUser, id: string) {
+    const row = await this.prisma.workflowInstance.findFirst({
+      where: { id, institutionId: actor.institutionId },
+      include: {
+        definition: true,
+        entity: { select: { code: true, name: true } },
+        initiator: { select: { email: true, profile: true } },
+      },
+    });
+    if (!row) {
+      throw new NotFoundException('Workflow instance not found');
+    }
+    return row;
+  }
+
+  async checkSlaBreaches(): Promise<number> {
+    const now = new Date();
+    const breached = await this.prisma.workflowInstance.findMany({
+      where: {
+        dueAt: { lt: now },
+        status: { in: [WorkflowStatus.IN_PROGRESS, WorkflowStatus.ESCALATED] },
+      },
+      take: 100,
+      include: { definition: true },
+    });
+
+    let count = 0;
+    for (const instance of breached) {
+      const steps = parseWorkflowSteps(instance.definition.steps);
+      const stepConfig = steps.find((s) => s.stepNumber === instance.currentStep);
+      if (!stepConfig) {
+        continue;
+      }
+      const escalated = await this.assigneeResolver.resolveEscalationAssignee(
+        instance.institutionId,
+        instance.entityId,
+        stepConfig,
+      );
+      if (!escalated) {
+        continue;
+      }
+      const dueAt = new Date(Date.now() + stepConfig.slaHours * 60 * 60 * 1000);
+      await this.prisma.workflowInstance.update({
+        where: { id: instance.id },
+        data: {
+          status: WorkflowStatus.ESCALATED,
+          currentAssigneeUserId: escalated.userId,
+          assigneePositionCode: escalated.positionCode,
+          dueAt,
+        },
+      });
+      this.audit.append({
+        institutionId: instance.institutionId,
+        actorId: instance.initiatedBy,
+        action: 'workflow.sla_breach',
+        entity: 'WorkflowInstance',
+        entityId: instance.id,
+        newValues: { escalatedTo: escalated.positionCode },
+      });
+      count += 1;
+    }
+    return count;
+  }
+
+  async seedDefinitionsForInstitution(institutionId: string): Promise<number> {
+    const { INSTITUTION_WORKFLOW_DEFINITIONS } = await import('./workflow-definition.defaults');
+    let created = 0;
+    for (const def of INSTITUTION_WORKFLOW_DEFINITIONS) {
+      const exists = await this.prisma.workflowDefinition.findFirst({
+        where: { institutionId, entityId: null, code: def.code },
+      });
+      if (exists) {
+        continue;
+      }
+      await this.prisma.workflowDefinition.create({
+        data: {
+          institutionId,
+          entityId: null,
+          name: def.name,
+          code: def.code,
+          scope: def.scope,
+          triggerEntity: def.triggerEntity,
+          steps: def.steps as object,
+          isActive: true,
+        },
+      });
+      created += 1;
+    }
+    return created;
+  }
+}

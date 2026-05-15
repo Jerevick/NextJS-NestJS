@@ -1,0 +1,37 @@
+{
+  "name": "@unicore/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@t3-oss/env-nextjs": "catalog:",
+    "@tanstack/react-query": "^5.62.8",
+    "@unicore/types": "workspace:*",
+    "@unicore/ui": "workspace:*",
+    "@unicore/utils": "workspace:*",
+    "framer-motion": "^11.15.0",
+    "next": "^15.1.4",
+    "next-auth": "5.0.0-beta.25",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.75.0",
+    "recharts": "^2.15.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@unicore/eslint-config": "workspace:*",
+    "@unicore/typescript-config": "workspace:*",
+    "eslint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

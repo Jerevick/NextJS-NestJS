@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        env:
+          DATABASE_URL: postgresql://unicore:unicore@localhost:5432/unicore?schema=public
+      - run: pnpm lint
+      - run: pnpm typecheck
+        env:
+          DATABASE_URL: postgresql://unicore:unicore@localhost:5432/unicore?schema=public
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+          JWT_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
+          JWT_REFRESH_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
+          AUTH_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
+      - run: pnpm build
+        env:
+          DATABASE_URL: postgresql://unicore:unicore@localhost:5432/unicore?schema=public
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+          JWT_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
+          JWT_REFRESH_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
+          AUTH_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
