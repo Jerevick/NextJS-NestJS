@@ -20,6 +20,6 @@ import { PermissionsGuard } from '../common/guards/permissions.guard';
     ReactivationRequestService,
     PermissionsGuard,
   ],
-  exports: [StatusChangeService, ReactivationRequestService, StudentDeletionService],
+  exports: [StudentsService, StatusChangeService, ReactivationRequestService, StudentDeletionService],
 })
 export class StudentsModule {}

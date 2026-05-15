@@ -15,6 +15,7 @@ import { PermissionsGuard } from '../common/guards/permissions.guard';
 import type { AuthUser } from '../auth/auth.types';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { ListStudentsQueryDto } from './dto/list-students-query.dto';
+import { ConfirmGraduationDto } from './dto/confirm-graduation.dto';
 import { InitiatePermanentDeletionDto } from './deletion/dto/initiate-permanent-deletion.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { StudentsService } from './students.service';
@@ -28,6 +29,16 @@ export class StudentsController {
   @RequirePermissions('students.read')
   list(@CurrentUser() user: AuthUser, @Query() query: ListStudentsQueryDto) {
     return this.students.list(user, query);
+  }
+
+  @Post(':id/confirm-graduation')
+  @RequirePermissions('students.write')
+  confirmGraduation(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: ConfirmGraduationDto,
+  ) {
+    return this.students.confirmGraduation(user, id, dto);
   }
 
   @Post(':id/permanent-deletion')

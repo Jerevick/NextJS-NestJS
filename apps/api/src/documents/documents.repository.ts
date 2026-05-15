@@ -43,6 +43,15 @@ export class DocumentsRepository {
     });
   }
 
+  findByVerificationCode(code: string) {
+    return this.prisma.document.findFirst({
+      where: { verificationCode: code, deletedAt: null },
+      include: {
+        institution: { select: { id: true, name: true, slug: true } },
+      },
+    });
+  }
+
   buildListWhere(args: {
     institutionId: string;
     ownerId?: string;

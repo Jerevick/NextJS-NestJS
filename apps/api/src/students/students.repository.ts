@@ -204,6 +204,41 @@ export class StudentsRepository {
     });
   }
 
+  findStudentByUserId(institutionId: string, userId: string) {
+    return this.prisma.student.findFirst({
+      where: { institutionId, userId, deletedAt: null },
+      select: { id: true, studentNumber: true },
+    });
+  }
+
+  createStudentForExistingUser(args: {
+    institutionId: string;
+    entityId: string;
+    userId: string;
+    programId: string;
+    studentNumber: string;
+    currentLevel: number;
+    admissionDate?: Date;
+  }) {
+    return this.prisma.student.create({
+      data: {
+        userId: args.userId,
+        institutionId: args.institutionId,
+        entityId: args.entityId,
+        studentNumber: args.studentNumber,
+        programId: args.programId,
+        currentLevel: args.currentLevel,
+        admissionDate: args.admissionDate ?? new Date(),
+        enrollmentStatus: 'ACTIVE',
+      },
+      include: {
+        user: { select: { id: true, email: true, profile: true, isActive: true } },
+        program: { select: { id: true, name: true, code: true } },
+        entity: { select: { id: true, code: true, name: true, type: true, status: true } },
+      },
+    });
+  }
+
   async updateStudent(institutionId: string, id: string, data: Prisma.StudentUpdateInput) {
     const existing = await this.prisma.student.findFirst({
       where: { id, institutionId, deletedAt: null },

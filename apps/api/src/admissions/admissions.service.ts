@@ -16,6 +16,7 @@ import type { ListCyclesQueryDto } from './dto/list-cycles-query.dto';
 import type { UpdateAdmissionCycleDto } from './dto/update-admission-cycle.dto';
 import type { UpdateApplicationDto } from './dto/update-application.dto';
 import type { UpdateApplicationFormDto } from './dto/update-application-form.dto';
+import { StudentsService } from '../students/students.service';
 import { AdmissionsRepository } from './admissions.repository';
 
 @Injectable()
@@ -23,7 +24,12 @@ export class AdmissionsService {
   constructor(
     private readonly repo: AdmissionsRepository,
     private readonly audit: AuditService,
+    private readonly students: StudentsService,
   ) {}
+
+  enrollStudentFromApplication(actor: AuthUser, applicationId: string) {
+    return this.students.enrollApplicantAsStudent(actor, applicationId);
+  }
 
   private assertDateOrder(open: Date, close: Date) {
     if (Number.isNaN(open.getTime()) || Number.isNaN(close.getTime())) {

@@ -8,6 +8,7 @@ import { WorkflowEngineService } from '../workflow-engine/workflow-engine.servic
 import type { CreateStudentDto } from './dto/create-student.dto';
 import type { InitiatePermanentDeletionDto } from './deletion/dto/initiate-permanent-deletion.dto';
 import type { ListStudentsQueryDto } from './dto/list-students-query.dto';
+import type { ConfirmGraduationDto } from './dto/confirm-graduation.dto';
 import type { UpdateStudentDto } from './dto/update-student.dto';
 import { StatusChangeService } from './status/status-change.service';
 import { StudentsRepository, type StudentWithUserProgram } from './students.repository';
@@ -323,6 +324,7 @@ export class StudentsService {
       inactiveSince: student.inactiveSince,
       admissionDate: student.admissionDate,
       expectedGraduationDate: student.expectedGraduationDate,
+      graduationConfirmedAt: student.graduationConfirmedAt,
       guardians: student.guardians,
       emergencyContacts: student.emergencyContacts,
       specialNeeds: student.specialNeeds,
@@ -354,6 +356,128 @@ export class StudentsService {
       semester: e.semester,
       course: e.section.course,
       sectionId: e.sectionId,
+    };
+  }
+
+  async enrollApplicantAsStudent(actor: AuthUser, applicationId: string) {
+    const app = await this.prisma.application.findFirst({
+      where: { id: applicationId, institutionId: actor.institutionId, deletedAt: null },
+      include: {
+        applicant: { select: { id: true, email: true, profile: true, role: true } },
+        program: { select: { id: true, code: true, entityId: true } },
+        student: { select: { id: true, studentNumber: true } },
+      },
+    });
+    if (!app) {
+      throw new NotFoundException('Application not found');
+    }
+    if (app.acceptedStudentId && app.student) {
+      return { studentId: app.student.id, studentNumber: app.student.studentNumber, existing: true as const };
+    }
+    const existingStudent = await this.repo.findStudentByUserId(actor.institutionId, app.applicantId);
+    if (existingStudent) {
+      throw new ConflictException('Applicant already has a student record');
+    }
+    const program = await this.repo.findProgramInInstitution(actor.institutionId, app.programId);
+    if (!program) {
+      throw new NotFoundException('Program not found');
+    }
+    const entityId = program.entityId;
+    const studentNumber = await this.buildStudentNumberForProgram(
+      actor.institutionId,
+      program.id,
+      program.code,
+      new Date(),
+    );
+    const student = await this.repo.createStudentForExistingUser({
+      institutionId: actor.institutionId,
+      entityId,
+      userId: app.applicantId,
+      programId: program.id,
+      studentNumber,
+      currentLevel: 1,
+      admissionDate: new Date(),
+    });
+    await this.prisma.user.update({
+      where: { id: app.applicantId },
+      data: { role: 'STUDENT' },
+    });
+    await this.prisma.application.update({
+      where: { id: app.id },
+      data: {
+        status: 'ACCEPTED',
+        acceptedStudentId: student.id,
+        reviewedById: actor.userId,
+        reviewedAt: new Date(),
+      },
+    });
+    this.audit.append({
+      institutionId: actor.institutionId,
+      actorId: actor.userId,
+      action: 'application.enroll_student',
+      entity: 'Application',
+      entityId: app.id,
+      newValues: { studentId: student.id, studentNumber: student.studentNumber },
+    });
+    return {
+      studentId: student.id,
+      studentNumber: student.studentNumber,
+      existing: false as const,
+    };
+  }
+
+  async confirmGraduation(actor: AuthUser, studentId: string, dto: ConfirmGraduationDto) {
+    const prior = await this.repo.findById(actor.institutionId, studentId);
+    if (!prior) {
+      throw new NotFoundException('Student not found');
+    }
+    if (actor.entityScope === 'ENTITY' && prior.entityId !== actor.entityId) {
+      throw new NotFoundException('Student not found');
+    }
+    if (prior.enrollmentStatus !== StudentEnrollmentStatusEnum.ACTIVE) {
+      throw new BadRequestException('Only ACTIVE students can be confirmed for graduation');
+    }
+
+    await this.statusChanges.changeEnrollmentStatus({
+      institutionId: actor.institutionId,
+      actorUserId: actor.userId,
+      studentId,
+      toStatus: StudentEnrollmentStatusEnum.GRADUATED,
+      reason: dto.reason.trim(),
+      inactiveReason: 'GRADUATED',
+    });
+
+    const withGradDate = await this.prisma.student.update({
+      where: { id: studentId },
+      data: { graduationConfirmedAt: new Date() },
+      include: {
+        user: { select: { id: true, email: true, profile: true, isActive: true } },
+        program: { select: { id: true, name: true, code: true } },
+        entity: { select: { id: true, code: true, name: true, type: true, status: true } },
+      },
+    });
+
+    this.audit.append({
+      institutionId: actor.institutionId,
+      actorId: actor.userId,
+      action: 'student.graduation_confirmed',
+      entity: 'Student',
+      entityId: studentId,
+      oldValues: { enrollmentStatus: prior.enrollmentStatus },
+      newValues: {
+        enrollmentStatus: StudentEnrollmentStatusEnum.GRADUATED,
+        graduationConfirmedAt: withGradDate.graduationConfirmedAt?.toISOString() ?? null,
+        notes: dto.notes ?? null,
+      },
+    });
+
+    return {
+      id: withGradDate.id,
+      studentNumber: withGradDate.studentNumber,
+      enrollmentStatus: withGradDate.enrollmentStatus,
+      graduationConfirmedAt: withGradDate.graduationConfirmedAt,
+      inactiveReason: withGradDate.inactiveReason,
+      inactiveSince: withGradDate.inactiveSince,
     };
   }
 

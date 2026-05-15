@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { DocumentStatus } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
@@ -93,6 +94,7 @@ export class DocumentsService {
       generatedAt?: Date | null;
       issuedAt?: Date | null;
       expiresAt?: Date | null;
+      verificationCode?: string;
     } = {};
     if (dto.status !== undefined) {
       data.status = dto.status;
@@ -124,6 +126,12 @@ export class DocumentsService {
       }
       data.expiresAt = d;
     }
+    if (dto.status === 'ISSUED' && !existing.verificationCode) {
+      data.verificationCode = randomBytes(16).toString('hex');
+      if (!data.issuedAt) {
+        data.issuedAt = new Date();
+      }
+    }
     if (Object.keys(data).length === 0) {
       throw new BadRequestException('No fields to update');
     }
@@ -152,6 +160,24 @@ export class DocumentsService {
       },
     });
     return this.serializeDocument(updated);
+  }
+
+  async verifyByCode(code: string) {
+    const row = await this.repo.findByVerificationCode(code.trim());
+    if (!row) {
+      return { valid: false as const };
+    }
+    const revoked = row.status === 'REVOKED';
+    const expired = row.expiresAt !== null && row.expiresAt.getTime() < Date.now();
+    return {
+      valid: !revoked && !expired,
+      documentType: row.type,
+      title: row.title,
+      issuedDate: row.issuedAt,
+      institution: row.institution.name,
+      isRevoked: revoked,
+      isExpired: expired,
+    };
   }
 
   async remove(actor: AuthUser, id: string) {
@@ -250,6 +276,7 @@ export class DocumentsService {
       generatedAt: row.generatedAt,
       issuedAt: row.issuedAt,
       expiresAt: row.expiresAt,
+      verificationCode: row.status === 'ISSUED' ? row.verificationCode : null,
       owner: row.owner,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

@@ -1389,6 +1389,7 @@ model Student {
   inactiveSince          DateTime?
   admissionDate          DateTime?
   expectedGraduationDate DateTime?
+  graduationConfirmedAt  DateTime?
   guardians              Json                       @default("[]")
   emergencyContacts      Json                       @default("[]")
   specialNeeds           Json                       @default("{}")
@@ -1686,11 +1687,12 @@ model Document {
   status        DocumentStatus @default(REQUESTED)
   requestedAt   DateTime       @default(now())
   generatedAt   DateTime?
-  issuedAt      DateTime?
-  expiresAt     DateTime?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  deletedAt     DateTime?
+  issuedAt          DateTime?
+  expiresAt         DateTime?
+  verificationCode  String?        @unique
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  deletedAt         DateTime?
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   owner       User        @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)

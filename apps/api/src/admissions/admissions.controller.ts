@@ -61,6 +61,13 @@ export class AdmissionsController {
     return this.admissions.updateApplication(user, applicationId, dto);
   }
 
+  @Post('applications/:applicationId/enroll-student')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('admissions.write')
+  enrollStudent(@CurrentUser() user: AuthUser, @Param('applicationId') applicationId: string) {
+    return this.admissions.enrollStudentFromApplication(user, applicationId);
+  }
+
   @Delete('applications/:applicationId')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('admissions.write')
