@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { buildApiHeaders, apiBase } from '@/lib/server-api';
 import { hasPermission } from '@/lib/permissions';
 import { ApplicationStatusForm } from '../application-status-form';
+import { EnrollStudentButton } from '../enroll-student-button';
 
 const primary = '#1e3a5f';
 const muted = '#64748b';
@@ -79,6 +80,12 @@ export default async function ApplicationDetailPage({
       <section style={{ marginTop: '1.5rem' }}>
         <h2 style={{ fontSize: '1rem', color: primary }}>Decision</h2>
         <ApplicationStatusForm applicationId={app.id} currentStatus={app.status} canWrite={canWrite} />
+        <EnrollStudentButton
+          applicationId={app.id}
+          canWrite={canWrite}
+          hasStudent={Boolean(app.student)}
+          acceptedStatus={app.status === 'ACCEPTED'}
+        />
         {app.student ? (
           <p style={{ marginTop: '0.75rem', fontSize: '0.9rem' }}>
             Linked student:{' '}

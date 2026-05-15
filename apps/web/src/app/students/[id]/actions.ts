@@ -112,3 +112,61 @@ export async function requestStudentDocument(
   }
   return { ok: 'Document request created.' };
 }
+
+export type ConfirmGraduationState = { error?: string; ok?: string };
+
+export async function confirmGraduation(
+  _prevState: ConfirmGraduationState,
+  formData: FormData,
+): Promise<ConfirmGraduationState> {
+  const session = await auth();
+  const token = session?.accessToken;
+  if (!token) {
+    return { error: 'Not signed in.' };
+  }
+  if (!hasPermission(session.user?.permissions, 'students.write')) {
+    return { error: 'Missing students.write permission.' };
+  }
+
+  const studentId = String(formData.get('studentId') ?? '').trim();
+  const reason = String(formData.get('reason') ?? '').trim();
+  const notes = String(formData.get('notes') ?? '').trim();
+  const studentPath = String(formData.get('studentProfilePath') ?? '').trim();
+
+  if (!studentId || reason.length < 3) {
+    return { error: 'A justification of at least 3 characters is required.' };
+  }
+
+  const res = await fetch(`${apiBase}/students/${encodeURIComponent(studentId)}/confirm-graduation`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ reason, ...(notes ? { notes } : {}) }),
+  });
+
+  const raw = await res.text();
+  if (!res.ok) {
+    let message = `Graduation confirmation failed (${res.status}).`;
+    try {
+      const j = JSON.parse(raw) as { message?: string | string[] };
+      if (typeof j.message === 'string') {
+        message = j.message;
+      } else if (Array.isArray(j.message)) {
+        message = j.message.join(' ');
+      }
+    } catch {
+      if (raw) {
+        message = raw.slice(0, 400);
+      }
+    }
+    return { error: message };
+  }
+
+  if (studentPath.startsWith('/students/')) {
+    revalidatePath(studentPath);
+  }
+  revalidatePath('/students');
+  return { ok: 'Graduation confirmed. Student is now GRADUATED and no longer billable.' };
+}

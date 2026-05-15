@@ -424,7 +424,9 @@ export class LmsAssessmentsService {
       ...this.serializeAssessment(row),
       settings: row.settings,
       rubric: row.rubric,
-      weight: Number(row.weight),
+      weight: typeof row.weight === 'object' && row.weight !== null && 'toNumber' in row.weight
+        ? Number((row.weight as { toNumber: () => number }).toNumber())
+        : Number(row.weight),
       questions: row.questions.map((q) => ({
         id: q.id,
         type: q.type,
@@ -435,14 +437,19 @@ export class LmsAssessmentsService {
     };
   }
 
-  private serializeSubmission(
-    row: Prisma.LmsSubmissionGetPayload<{
-      include: {
-        student: { select: { id: true; studentNumber: true } };
-        assessment?: { select: { id: true; title: true } };
-      };
-    }>,
-  ) {
+  private serializeSubmission(row: {
+    id: string;
+    assessmentId: string;
+    studentId: string;
+    status: string;
+    submittedAt: Date | null;
+    gradedAt: Date | null;
+    feedback: string | null;
+    grade: unknown;
+    answers: unknown;
+    student: { studentNumber: string };
+    assessment?: { title: string };
+  }) {
     return {
       id: row.id,
       assessmentId: row.assessmentId,

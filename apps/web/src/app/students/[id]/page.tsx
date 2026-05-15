@@ -5,6 +5,7 @@ import { appendOptionalEntityHeader } from '@/lib/api-headers';
 import { hasPermission } from '@/lib/permissions';
 import { InactiveStudentBanner } from '@/components/students/status/inactive-banner';
 import { StudentStatusTimeline, type StatusChangeRow } from '@/components/students/status/status-timeline';
+import { ConfirmGraduationForm } from '@/components/students/status/confirm-graduation-form';
 import { DropEnrollmentForm } from './drop-enrollment-form';
 import { RequestDocumentForm } from './request-document-form';
 

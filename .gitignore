@@ -14,3 +14,7 @@ coverage
 *.tsbuildinfo
 prisma/*.db
 apps/api/dist
+
+
+#Ignore vscode AI rules
+.github\instructions\codacy.instructions.md

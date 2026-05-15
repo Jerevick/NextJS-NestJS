@@ -21,6 +21,7 @@ import { OrgStructureModule } from './org-structure/org-structure.module';
 import { WorkflowEngineModule } from './workflow-engine/workflow-engine.module';
 import { InstitutionsModule } from './institutions/institutions.module';
 import { LmsFeatureModule } from './lms/lms.module';
+import { LmsAssessmentsModule } from './lms-assessments/lms-assessments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueuesModule } from './queues/queues.module';
 import { RoomsModule } from './rooms/rooms.module';
@@ -80,6 +81,7 @@ import { SessionsModule } from './sessions/sessions.module';
     MonitoringModule,
     SuperAdminModule,
     LmsFeatureModule,
+    LmsAssessmentsModule,
   ],
   providers: [
     TenantMiddleware,
