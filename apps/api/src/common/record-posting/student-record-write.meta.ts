@@ -35,4 +35,9 @@ export type StudentRecordWriteDescriptor =
       entriesField: string;
       studentIdField: string;
       sessionDateField: string;
+    }
+  | {
+      mode: 'lmsSubmissionIdParam';
+      param: string;
+      recordDate?: StudentRecordDateSource;
     };

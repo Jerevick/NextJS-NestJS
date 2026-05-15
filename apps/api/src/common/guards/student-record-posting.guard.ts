@@ -154,6 +154,21 @@ export class StudentRecordPostingGuard implements CanActivate {
         }
         return [{ studentId: row.studentId, recordDate: row.sessionDate }];
       }
+      case 'lmsSubmissionIdParam': {
+        const submissionId = this.readString(params[descriptor.param]);
+        if (!submissionId) {
+          throw new NotFoundException('Submission id missing from route');
+        }
+        const row = await this.prisma.lmsSubmission.findFirst({
+          where: { id: submissionId, institutionId },
+          select: { studentId: true },
+        });
+        if (!row) {
+          throw new NotFoundException('LMS submission not found');
+        }
+        const recordDate = await this.resolveRecordDate(descriptor.recordDate, body, params, institutionId);
+        return [{ studentId: row.studentId, recordDate }];
+      }
       case 'bulkBodyAttendance': {
         const sessionRaw = body[descriptor.sessionDateField];
         if (typeof sessionRaw !== 'string' || !sessionRaw.trim()) {
