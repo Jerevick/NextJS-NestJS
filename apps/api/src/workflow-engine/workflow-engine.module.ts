@@ -3,6 +3,7 @@ import { AuditModule } from '../audit/audit.module';
 import { BillingCoreModule } from '../billing/billing-core.module';
 import { GradesModule } from '../grades/grades.module';
 import { FinanceModule } from '../finance/finance.module';
+import { StaffModule } from '../staff/staff.module';
 import { ProgressionModule } from '../progression/progression.module';
 import { StudentsModule } from '../students/students.module';
 import { WorkflowAssigneeResolver } from './workflow-assignee.resolver';
@@ -21,6 +22,7 @@ import { AnyPermissionsGuard } from '../common/guards/any-permissions.guard';
     forwardRef(() => GradesModule),
     ProgressionModule,
     forwardRef(() => FinanceModule),
+    forwardRef(() => StaffModule),
   ],
   controllers: [WorkflowEngineController],
   providers: [

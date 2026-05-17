@@ -15,6 +15,7 @@ import { StatusChangeService } from '../students/status/status-change.service';
 import { GradesRepository } from '../grades/grades.repository';
 import { ResitGradeService } from '../progression/resit-grade.service';
 import { FinanceService } from '../finance/finance.service';
+import { StaffService } from '../staff/staff.service';
 
 @Injectable()
 export class WorkflowCompletionHandler {
@@ -31,6 +32,8 @@ export class WorkflowCompletionHandler {
     private readonly resitGrades: ResitGradeService,
     @Inject(forwardRef(() => FinanceService))
     private readonly finance: FinanceService,
+    @Inject(forwardRef(() => StaffService))
+    private readonly staff: StaffService,
   ) {}
 
   async handleCompleted(
@@ -94,6 +97,12 @@ export class WorkflowCompletionHandler {
           entityId_record,
           actorUserId,
         );
+        break;
+      case 'LEAVE_REQUEST':
+        await this.staff.completeLeaveFromWorkflow(institutionId, entityId_record);
+        break;
+      case 'STAFF_APPRAISAL':
+        await this.staff.completeAppraisalFromWorkflow(institutionId, entityId_record);
         break;
       default:
         this.log.debug(`No completion handler for workflow ${definitionCode}`);
@@ -161,6 +170,12 @@ export class WorkflowCompletionHandler {
           entityId_record,
           actorUserId,
         );
+        break;
+      case 'LEAVE_REQUEST':
+        await this.staff.rejectLeaveFromWorkflow(institutionId, entityId_record);
+        break;
+      case 'STAFF_APPRAISAL':
+        await this.staff.rejectAppraisalFromWorkflow(institutionId, entityId_record);
         break;
       default:
         break;

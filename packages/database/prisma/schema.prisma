@@ -192,6 +192,12 @@ model Institution {
   financeBankIntegrations        FinanceBankIntegration[]
   financeBulkChargeJobs          FinanceBulkChargeJob[]
   userNotifications              UserNotification[]
+  staffProfiles                  StaffProfile[]
+  leaveTypes                     LeaveType[]
+  leaveBalances                  LeaveBalance[]
+  leaveRequests                  LeaveRequest[]
+  staffAppraisals                StaffAppraisal[]
+  workloadRecords                WorkloadRecord[]
 }
 
 model InstitutionEntity {
@@ -238,6 +244,12 @@ model InstitutionEntity {
   financeScholarshipApplications FinanceScholarshipApplication[]
   financeBankIntegrations       FinanceBankIntegration[]
   financeBulkChargeJobs         FinanceBulkChargeJob[]
+  staffProfiles                 StaffProfile[]
+  leaveTypes                    LeaveType[]
+  leaveBalances                 LeaveBalance[]
+  leaveRequests                 LeaveRequest[]
+  staffAppraisals               StaffAppraisal[]
+  workloadRecords               WorkloadRecord[]
 
   @@unique([institutionId, code])
   @@index([institutionId])
@@ -383,8 +395,9 @@ model OrgUnit {
   institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
   parent      OrgUnit?          @relation("OrgUnitTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children    OrgUnit[]         @relation("OrgUnitTree")
-  positions   Position[]
+  children      OrgUnit[]       @relation("OrgUnitTree")
+  positions     Position[]
+  staffProfiles StaffProfile[]
 
   @@unique([institutionId, entityId, code])
   @@index([institutionId, entityId, deletedAt])
@@ -410,8 +423,9 @@ model Position {
 
   institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
-  orgUnit     OrgUnit             @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
-  holders     PositionHolder[]
+  orgUnit       OrgUnit           @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
+  holders       PositionHolder[]
+  staffProfiles StaffProfile[]
 
   @@unique([institutionId, entityId, orgUnitId, code])
   @@index([institutionId, entityId, deletedAt])
@@ -718,6 +732,8 @@ model User {
   progressionDecisionsCreated ProgressionDecision[] @relation("ProgressionDecisionCreator")
   studentProgressionHoldsPlaced StudentProgressionHold[] @relation("ProgressionHoldPlacedBy")
   notifications                 UserNotification[]
+  staffProfile                  StaffProfile?
+  staffAppraisalsAsReviewer     StaffAppraisal[]       @relation("AppraisalReviewer")
 
   @@unique([institutionId, email])
   @@index([institutionId])
@@ -794,6 +810,7 @@ model AcademicYear {
   studentAcademicSessionRecords StudentAcademicSessionRecord[]
   feeStructures            FeeStructure[]
   financeScholarshipAwards FinanceScholarshipAward[]
+  leaveBalances            LeaveBalance[]
 
   @@index([institutionId])
 }
@@ -826,6 +843,7 @@ model Semester {
   timetables   Timetable[]
   progressionDecisions ProgressionDecision[]
   studentProgressionHolds StudentProgressionHold[]
+  workloadRecords       WorkloadRecord[]
 
   @@index([institutionId])
   @@index([academicYearId])
@@ -2498,4 +2516,197 @@ model UserNotification {
 
   @@index([userId, readAt])
   @@index([institutionId, userId, createdAt])
+}
+
+// --- HR & staff (Phase 10) ---
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  VISITING
+}
+
+enum LeaveStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum AppraisalType {
+  ANNUAL
+  PROBATION
+  MID_YEAR
+}
+
+enum AppraisalStatus {
+  DRAFT
+  SELF_REVIEW
+  PENDING_REVIEW
+  PENDING_ENDORSEMENT
+  COMPLETED
+  REJECTED
+}
+
+model StaffProfile {
+  id                 String           @id @default(cuid())
+  institutionId      String
+  entityId           String
+  userId             String           @unique
+  staffNumber        String
+  orgUnitId          String
+  positionId         String
+  employmentType     EmploymentType   @default(FULL_TIME)
+  contractStart      DateTime?
+  contractEnd        DateTime?
+  salary             Json?
+  qualifications     Json             @default("[]")
+  specializations    String[]         @default([])
+  publications       Json             @default("[]")
+  researchInterests  String[]         @default([])
+  officeLocation     String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  deletedAt          DateTime?
+
+  institution   Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity        InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgUnit       OrgUnit           @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+  position      Position          @relation(fields: [positionId], references: [id], onDelete: Restrict)
+  leaveBalances LeaveBalance[]
+  leaveRequests         LeaveRequest[]
+  leaveRequestsCovering LeaveRequest[] @relation("LeaveCoveringStaff")
+  appraisals            StaffAppraisal[]
+  workloadRecords       WorkloadRecord[]
+
+  @@unique([institutionId, staffNumber])
+  @@index([institutionId, entityId, deletedAt])
+  @@index([orgUnitId])
+}
+
+model LeaveType {
+  id               String   @id @default(cuid())
+  institutionId    String
+  entityId         String
+  name             String
+  code             String
+  annualAllocation Int      @default(0)
+  carryOverLimit   Int      @default(0)
+  requiresApproval Boolean  @default(true)
+  isPaid           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  institution   Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity        InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  balances      LeaveBalance[]
+  leaveRequests LeaveRequest[]
+
+  @@unique([institutionId, entityId, code])
+  @@index([institutionId, entityId])
+}
+
+model LeaveBalance {
+  id             String   @id @default(cuid())
+  institutionId  String
+  entityId       String
+  staffId        String
+  leaveTypeId    String
+  academicYearId String
+  allocated      Int      @default(0)
+  used           Int      @default(0)
+  pending        Int      @default(0)
+  carriedOver    Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  institution  Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity       InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  staff        StaffProfile      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  leaveType    LeaveType         @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear      @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, leaveTypeId, academicYearId])
+  @@index([institutionId, entityId])
+}
+
+model LeaveRequest {
+  id                 String      @id @default(cuid())
+  institutionId      String
+  entityId           String
+  staffId            String
+  leaveTypeId        String
+  startDate          DateTime
+  endDate            DateTime
+  durationDays       Int
+  reason             String
+  supportingDocKey   String?
+  status             LeaveStatus @default(PENDING)
+  workflowInstanceId String?
+  coveringStaffId    String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  institution    Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity         InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  staff          StaffProfile      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  leaveType      LeaveType         @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  coveringStaff  StaffProfile?     @relation("LeaveCoveringStaff", fields: [coveringStaffId], references: [id], onDelete: SetNull)
+
+  @@index([institutionId, entityId, status])
+  @@index([staffId])
+}
+
+model StaffAppraisal {
+  id                 String          @id @default(cuid())
+  institutionId      String
+  entityId           String
+  staffId            String
+  reviewerId         String?
+  periodStart        DateTime
+  periodEnd          DateTime
+  type               AppraisalType   @default(ANNUAL)
+  kpiScores          Json            @default("{}")
+  selfAssessment     String?
+  reviewerComments   String?
+  peerFeedback       Json            @default("[]")
+  overallRating      Decimal?        @db.Decimal(4, 2)
+  status             AppraisalStatus @default(DRAFT)
+  workflowInstanceId String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  staff       StaffProfile      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  reviewer    User?             @relation("AppraisalReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([institutionId, entityId, status])
+  @@index([staffId])
+}
+
+model WorkloadRecord {
+  id               String   @id @default(cuid())
+  institutionId    String
+  entityId         String
+  staffId          String
+  semesterId       String
+  assignedSections Json     @default("[]")
+  totalCreditHours Int      @default(0)
+  maxCreditHours   Int      @default(18)
+  researchHours    Int      @default(0)
+  adminHours       Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  staff       StaffProfile      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  semester    Semester          @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, semesterId])
+  @@index([institutionId, entityId])
 }

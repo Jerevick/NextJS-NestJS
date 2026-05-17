@@ -384,6 +384,57 @@ export const INSTITUTION_WORKFLOW_DEFINITIONS: WorkflowDefinitionSeed[] = [
     ],
   },
   {
+    code: 'LEAVE_REQUEST',
+    name: 'Staff leave request',
+    scope: 'ENTITY',
+    triggerEntity: 'LeaveRequest',
+    steps: [
+      {
+        stepNumber: 1,
+        name: 'Line manager review',
+        assignedTo: { positionCode: 'HOD' },
+        slaHours: 48,
+        scope: 'ENTITY',
+      },
+      {
+        stepNumber: 2,
+        name: 'Dean endorsement',
+        assignedTo: { positionCode: 'DEAN' },
+        slaHours: 48,
+        scope: 'ENTITY',
+      },
+      {
+        stepNumber: 3,
+        name: 'HR Director approval',
+        assignedTo: { positionCode: 'BURSAR' },
+        slaHours: 48,
+        scope: 'INSTITUTION',
+      },
+    ],
+  },
+  {
+    code: 'STAFF_APPRAISAL',
+    name: 'Staff performance appraisal',
+    scope: 'ENTITY',
+    triggerEntity: 'StaffAppraisal',
+    steps: [
+      {
+        stepNumber: 1,
+        name: 'HoD review',
+        assignedTo: { positionCode: 'HOD' },
+        slaHours: 72,
+        scope: 'ENTITY',
+      },
+      {
+        stepNumber: 2,
+        name: 'Dean endorsement',
+        assignedTo: { positionCode: 'DEAN' },
+        slaHours: 72,
+        scope: 'ENTITY',
+      },
+    ],
+  },
+  {
     code: 'AEGROTAT',
     name: 'Aegrotat progression',
     scope: 'ENTITY',

@@ -24,6 +24,7 @@ import { InstitutionsModule } from './institutions/institutions.module';
 import { LmsFeatureModule } from './lms/lms.module';
 import { LmsAssessmentsModule } from './lms-assessments/lms-assessments.module';
 import { FinanceModule } from './modules/finance';
+import { StaffModule } from './modules/staff';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProgressionModule } from './progression/progression.module';
@@ -91,6 +92,7 @@ import { SessionsModule } from './sessions/sessions.module';
     LmsFeatureModule,
     LmsAssessmentsModule,
     FinanceModule,
+    StaffModule,
     NotificationsModule,
   ],
   providers: [

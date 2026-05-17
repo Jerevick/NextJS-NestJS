@@ -129,6 +129,13 @@ export default async function DashboardPage() {
             Finance
           </Link>
         ) : null}
+        {session?.user &&
+        (hasPermission(session.user.permissions, 'staff.read') ||
+          hasPermission(session.user.permissions, 'staff.write')) ? (
+          <Link href="/staff" style={{ color: '#2563eb' }}>
+            Staff & HR
+          </Link>
+        ) : null}
         {session?.user && canAccessBillingNav(session.user.permissions) ? (
           <Link href="/billing/disputes" style={{ color: '#2563eb' }}>
             Billing disputes

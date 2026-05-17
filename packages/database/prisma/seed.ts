@@ -160,6 +160,8 @@ async function main() {
         code: 'progression.write',
         label: 'Manage academic progression rules, decisions, and holds',
       },
+      { code: 'staff.read', label: 'Read staff directory, leave, and workload' },
+      { code: 'staff.write', label: 'Manage staff profiles, leave types, and workload' },
     ],
     skipDuplicates: true,
   });
@@ -193,6 +195,8 @@ async function main() {
     'students.permanent_delete',
     'progression.read',
     'progression.write',
+    'staff.read',
+    'staff.write',
   ] as const;
   const registrarPerms = await prisma.permission.findMany({
     where: { code: { in: [...registrarPermCodes] } },

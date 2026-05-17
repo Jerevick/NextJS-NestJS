@@ -333,14 +333,22 @@ Track progress against [`UNICORE_MASTER_PROMPT.md`](./UNICORE_MASTER_PROMPT.md) 
 
 ---
 
-## Phase 10 — HR & staff (~0%)
+## Phase 10 — HR & staff (~75%)
 
 ### Prompt 10.1
 
-| Item                                        | Status |
-| ------------------------------------------- | ------ |
-| Staff profiles, leave, appraisals, workload | ⬜     |
-| `/staff/*` UI                               | ⬜     |
+| Item                                                        | Status |
+| ----------------------------------------------------------- | ------ |
+| Prisma HR models (StaffProfile, Leave, Appraisal, Workload) | ✅     |
+| Staff profiles CRUD (dual-scoped)                           | ✅     |
+| Leave types, balances, requests + `LEAVE_REQUEST` workflow  | ✅     |
+| Appraisals + `STAFF_APPRAISAL` workflow                     | ✅     |
+| Workload records + capacity heatmap                         | ✅     |
+| Org chart API (`GET /staff/org-chart`)                      | ✅     |
+| Permissions `staff.read` / `staff.write`                    | ✅     |
+| `/staff` hub UI                                             | ✅     |
+| FullCalendar leave UI, profile create forms                 | 🟡     |
+| AI workload distribution suggestion                         | 🟡     |
 
 ---
 

@@ -110,14 +110,14 @@ export const DEFAULT_PERMISSION_BUNDLES: Array<{
   {
     code: 'STAFF_MANAGE',
     name: 'Staff — manage',
-    description: 'HR staff records',
-    permissions: ['students.read'],
+    description: 'HR staff records, leave types, workload',
+    permissions: ['staff.read', 'staff.write'],
   },
   {
     code: 'STAFF_VIEW',
     name: 'Staff — view',
-    description: 'Read staff directory',
-    permissions: ['students.read'],
+    description: 'Read staff directory and leave calendar',
+    permissions: ['staff.read'],
   },
   {
     code: 'REPORTS_INSTITUTION',
