@@ -3,7 +3,8 @@ import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 import MicrosoftEntraID from 'next-auth/providers/microsoft-entra-id';
 
-const apiBase = process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiBase =
+  process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 const googleOAuthEnabled =
   process.env.NEXT_PUBLIC_GOOGLE_OAUTH === '1' &&
@@ -67,6 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               entityId?: string;
               entityScope?: string;
               permissions: string[];
+              studentId?: string;
             };
           };
           const u = body.user;
@@ -81,6 +83,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             entityId: u.entityId,
             entityScope: u.entityScope,
             permissions: u.permissions,
+            studentId: u.studentId,
             accessToken: magic,
             rememberMe: false,
           };
@@ -125,6 +128,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             entityId?: string;
             entityScope?: string;
             permissions: string[];
+            studentId?: string;
           };
         };
         return {
@@ -135,6 +139,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           entityId: data.user.entityId,
           entityScope: data.user.entityScope,
           permissions: data.user.permissions,
+          studentId: data.user.studentId,
           accessToken: data.accessToken,
           rememberMe,
         };
@@ -170,6 +175,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.accessToken = (user as { accessToken?: string }).accessToken;
         token.entityId = (user as { entityId?: string }).entityId;
         token.entityScope = (user as { entityScope?: string }).entityScope;
+        token.studentId = (user as { studentId?: string }).studentId;
         token.omitEntityHeader = false;
         if ((user as { rememberMe?: boolean }).rememberMe) {
           token.remember = true;
@@ -190,6 +196,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.entityId = (token.entityId as string | undefined) ?? '';
         session.user.entityScope = (token.entityScope as 'ALL' | 'ENTITY' | undefined) ?? 'ENTITY';
         session.user.omitEntityHeader = token.omitEntityHeader === true;
+        session.user.studentId = token.studentId as string | undefined;
       }
       if (token.accessToken) {
         session.accessToken = token.accessToken as string;

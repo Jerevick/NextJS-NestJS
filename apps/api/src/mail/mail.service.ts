@@ -24,10 +24,20 @@ export class MailService {
   }
 
   async sendMagicLink(to: string, subject: string, text: string, html?: string): Promise<void> {
+    await this.sendEmail(to, subject, text, html);
+  }
+
+  async sendEmail(
+    to: string,
+    subject: string,
+    text: string,
+    html?: string,
+    attachments?: Array<{ filename: string; content: Buffer }>,
+  ): Promise<void> {
     const from = process.env.SMTP_FROM?.trim() ?? 'noreply@unicore.local';
     const transport = this.transporter();
     if (!transport) {
-      this.log.warn(`Magic link email (no SMTP_HOST). To: ${to}\n${text}`);
+      this.log.warn(`Email (no SMTP_HOST). To: ${to} · ${subject}\n${text}`);
       return;
     }
     await transport.sendMail({
@@ -36,6 +46,7 @@ export class MailService {
       subject,
       text,
       html: html ?? `<pre>${text}</pre>`,
+      attachments,
     });
   }
 }

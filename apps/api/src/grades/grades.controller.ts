@@ -21,6 +21,7 @@ import { CreateGradingScaleDto } from './dto/create-grading-scale.dto';
 import { ListGradeOverridesQueryDto } from './dto/list-grade-overrides-query.dto';
 import { UpdateEnrollmentGradeDto } from './dto/update-enrollment-grade.dto';
 import { UpdateGradingScaleDto } from './dto/update-grading-scale.dto';
+import { PatchGradeComponentWeightsDto } from './dto/patch-grade-component-weights.dto';
 import { GradesService } from './grades.service';
 
 @Controller('grades')
@@ -53,7 +54,11 @@ export class GradesController {
   @Post('enrollments/:enrollmentId/override-requests')
   @UseGuards(AnyPermissionsGuard)
   @RequireAnyPermissions('grades.write', 'grades.enter', 'grades.amend_approved')
-  @StudentRecordWrite({ mode: 'enrollmentIdParam', param: 'enrollmentId', recordDate: { kind: 'now' } })
+  @StudentRecordWrite({
+    mode: 'enrollmentIdParam',
+    param: 'enrollmentId',
+    recordDate: { kind: 'now' },
+  })
   createOverrideRequest(
     @CurrentUser() user: AuthUser,
     @Param('enrollmentId') enrollmentId: string,
@@ -67,6 +72,16 @@ export class GradesController {
   @RequireAnyPermissions('grades.read', 'grades.write', 'grades.enter')
   effectiveGovernance(@CurrentUser() user: AuthUser) {
     return this.grades.getEffectiveGradeGovernance(user);
+  }
+
+  @Patch('settings/component-weights')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('grades.write')
+  patchGradeComponentWeights(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: PatchGradeComponentWeightsDto,
+  ) {
+    return this.grades.patchGradeComponentWeights(user, dto);
   }
 
   @Get('scales')
@@ -86,7 +101,11 @@ export class GradesController {
   @Patch('scales/:id')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('grades.write')
-  updateScale(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: UpdateGradingScaleDto) {
+  updateScale(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateGradingScaleDto,
+  ) {
     return this.grades.updateGradingScale(user, id, dto);
   }
 
@@ -107,7 +126,11 @@ export class GradesController {
   @Patch('enrollments/:enrollmentId')
   @UseGuards(AnyPermissionsGuard)
   @RequireAnyPermissions('grades.write', 'grades.enter')
-  @StudentRecordWrite({ mode: 'enrollmentIdParam', param: 'enrollmentId', recordDate: { kind: 'now' } })
+  @StudentRecordWrite({
+    mode: 'enrollmentIdParam',
+    param: 'enrollmentId',
+    recordDate: { kind: 'now' },
+  })
   updateEnrollmentGrade(
     @CurrentUser() user: AuthUser,
     @Param('enrollmentId') enrollmentId: string,

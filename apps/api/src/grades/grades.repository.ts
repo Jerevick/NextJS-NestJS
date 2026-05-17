@@ -21,6 +21,35 @@ export class GradesRepository {
     });
   }
 
+  /** Deep-merge `grades` slice into `Institution.settings` without dropping other roots (enrollment, etc.). */
+  mergeInstitutionGradesSetting(institutionId: string, gradesPatch: Record<string, unknown>) {
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.institution.findFirst({
+        where: { id: institutionId, deletedAt: null },
+        select: { settings: true },
+      });
+      if (!row) {
+        return null;
+      }
+      const top =
+        row.settings !== null && typeof row.settings === 'object' && !Array.isArray(row.settings)
+          ? ({ ...(row.settings as Record<string, unknown>) } as Record<string, unknown>)
+          : {};
+      const gradesPrev =
+        top.grades !== null && typeof top.grades === 'object' && !Array.isArray(top.grades)
+          ? ({ ...(top.grades as Record<string, unknown>) } as Record<string, unknown>)
+          : {};
+      const mergedGrades = { ...gradesPrev, ...gradesPatch };
+      top.grades = mergedGrades as Prisma.JsonValue;
+
+      await tx.institution.update({
+        where: { id: institutionId },
+        data: { settings: top as Prisma.InputJsonValue },
+      });
+      return row;
+    });
+  }
+
   findSection(institutionId: string, sectionId: string): Promise<SectionInstructor | null> {
     return this.prisma.section.findFirst({
       where: { id: sectionId, institutionId, deletedAt: null },
@@ -78,6 +107,7 @@ export class GradesRepository {
         section: {
           select: {
             id: true,
+            entityId: true,
             instructorId: true,
             courseId: true,
             semesterId: true,

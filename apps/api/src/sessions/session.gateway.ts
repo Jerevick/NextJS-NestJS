@@ -1,7 +1,33 @@
 import { Logger } from '@nestjs/common';
-import { OnGatewayConnection, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
+import {
+  ConnectedSocket,
+  MessageBody,
+  OnGatewayConnection,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+} from '@nestjs/websockets';
+import type { JwtAccessPayload } from '@unicore/types';
 import * as jwt from 'jsonwebtoken';
 import type { Server, Socket } from 'socket.io';
+import type { AuthUser } from '../auth/auth.types';
+import { AuthService } from '../auth/auth.service';
+import { LmsAssessmentsService } from '../lms-assessments/lms-assessments.service';
+
+type QuizDraftSaveBody = {
+  submissionId?: string;
+  answers?: Record<string, string>;
+};
+
+type QuizDraftSaveAck =
+  | { ok: true; serverNow: string; expiresAt: string | null }
+  | { ok: false; error: string };
+
+declare module 'socket.io' {
+  interface SocketData {
+    actor?: AuthUser;
+  }
+}
 
 @WebSocketGateway({
   namespace: '/realtime',
@@ -9,6 +35,11 @@ import type { Server, Socket } from 'socket.io';
 })
 export class SessionGateway implements OnGatewayConnection {
   private readonly log = new Logger(SessionGateway.name);
+
+  constructor(
+    private readonly auth: AuthService,
+    private readonly lmsAssessments: LmsAssessmentsService,
+  ) {}
 
   @WebSocketServer()
   server!: Server;
@@ -25,15 +56,45 @@ export class SessionGateway implements OnGatewayConnection {
       client.disconnect(true);
       return;
     }
-    try {
-      const payload = jwt.verify(token, secret) as { sub?: string };
-      if (typeof payload.sub !== 'string' || !payload.sub) {
-        throw new Error('invalid sub');
+    void (async () => {
+      try {
+        const payload = jwt.verify(token, secret) as JwtAccessPayload;
+        const actor = await this.auth.validateJwtPayload(payload);
+        client.data.actor = actor;
+        void client.join(`user:${payload.sub}`);
+      } catch (err) {
+        this.log.debug(`WS auth failed: ${err instanceof Error ? err.message : String(err)}`);
+        client.disconnect(true);
       }
-      void client.join(`user:${payload.sub}`);
+    })();
+  }
+
+  /** Prompt **8.2 (3)** — quiz draft autosave channel (REST PATCH remains fallback). */
+  @SubscribeMessage('quiz.draft.save')
+  async handleQuizDraftSave(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: QuizDraftSaveBody,
+  ): Promise<QuizDraftSaveAck> {
+    const actor = client.data.actor;
+    if (!actor) {
+      return { ok: false, error: 'Unauthorized' };
+    }
+    const submissionId = typeof body?.submissionId === 'string' ? body.submissionId.trim() : '';
+    if (!submissionId) {
+      return { ok: false, error: 'submissionId is required' };
+    }
+    try {
+      const saved = await this.lmsAssessments.saveQuizDraft(actor, submissionId, {
+        answers: body.answers,
+      });
+      return {
+        ok: true,
+        serverNow: saved.serverNow,
+        expiresAt: saved.expiresAt,
+      };
     } catch (err) {
-      this.log.debug(`WS auth failed: ${err instanceof Error ? err.message : String(err)}`);
-      client.disconnect(true);
+      const message = err instanceof Error ? err.message : 'Autosave failed';
+      return { ok: false, error: message };
     }
   }
 

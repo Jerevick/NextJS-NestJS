@@ -66,7 +66,11 @@ export class AcademicController {
   @Post('years/:yearId/semesters')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('academic.write')
-  createSemester(@CurrentUser() user: AuthUser, @Param('yearId') yearId: string, @Body() dto: CreateSemesterDto) {
+  createSemester(
+    @CurrentUser() user: AuthUser,
+    @Param('yearId') yearId: string,
+    @Body() dto: CreateSemesterDto,
+  ) {
     return this.academic.createSemester(user, yearId, dto);
   }
 
@@ -80,7 +84,11 @@ export class AcademicController {
   @Patch('years/:yearId')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('academic.write')
-  updateYear(@CurrentUser() user: AuthUser, @Param('yearId') yearId: string, @Body() dto: UpdateAcademicYearDto) {
+  updateYear(
+    @CurrentUser() user: AuthUser,
+    @Param('yearId') yearId: string,
+    @Body() dto: UpdateAcademicYearDto,
+  ) {
     return this.academic.updateYear(user, yearId, dto);
   }
 
@@ -301,7 +309,14 @@ export class AcademicController {
   /** Flat program list for registrar flows (student roster filters, new student). */
   @Get('catalog/programs')
   @UseGuards(AnyPermissionsGuard)
-  @RequireAnyPermissions('students.read', 'students.write', 'academic.read', 'academic.write')
+  @RequireAnyPermissions(
+    'students.read',
+    'students.write',
+    'academic.read',
+    'academic.write',
+    'finance.read',
+    'finance.write',
+  )
   listProgramsCatalog(@CurrentUser() user: AuthUser) {
     return this.academic.listProgramsForInstitution(user);
   }
@@ -356,7 +371,11 @@ export class AcademicController {
   @Patch('courses/:courseId')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('academic.write')
-  updateCourse(@CurrentUser() user: AuthUser, @Param('courseId') courseId: string, @Body() dto: UpdateCourseDto) {
+  updateCourse(
+    @CurrentUser() user: AuthUser,
+    @Param('courseId') courseId: string,
+    @Body() dto: UpdateCourseDto,
+  ) {
     return this.academic.updateCourse(user, courseId, dto);
   }
 

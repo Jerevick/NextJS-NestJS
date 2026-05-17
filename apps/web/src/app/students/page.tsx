@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { auth } from '@/auth';
+import { StudentsDataGrid, type StudentGridRow } from '@/components/data-grids/students-data-grid';
 import { hasPermission } from '@/lib/permissions';
 
-const apiBase = process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiBase =
+  process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 const ENROLLMENT_STATUSES = [
   'ACTIVE',
@@ -20,6 +22,11 @@ type StudentRow = {
   enrollmentStatus: string;
   currentLevel: number;
   program: { id: string; name: string; code: string };
+  academicMetrics?: {
+    cumulativeGpa: number | null;
+    creditHoursCompleted?: number;
+    academicStanding: string;
+  } | null;
 };
 
 type ListResponse = {
@@ -48,7 +55,10 @@ function buildStudentsQuery(sp: {
   if (sp.programId?.trim()) {
     qs.set('programId', sp.programId.trim());
   }
-  if (sp.enrollmentStatus?.trim() && ENROLLMENT_STATUSES.includes(sp.enrollmentStatus as (typeof ENROLLMENT_STATUSES)[number])) {
+  if (
+    sp.enrollmentStatus?.trim() &&
+    ENROLLMENT_STATUSES.includes(sp.enrollmentStatus as (typeof ENROLLMENT_STATUSES)[number])
+  ) {
     qs.set('enrollmentStatus', sp.enrollmentStatus.trim());
   }
   return qs.toString();
@@ -66,7 +76,10 @@ function buildStudentsExportQuery(sp: {
   if (sp.programId?.trim()) {
     qs.set('programId', sp.programId.trim());
   }
-  if (sp.enrollmentStatus?.trim() && ENROLLMENT_STATUSES.includes(sp.enrollmentStatus as (typeof ENROLLMENT_STATUSES)[number])) {
+  if (
+    sp.enrollmentStatus?.trim() &&
+    ENROLLMENT_STATUSES.includes(sp.enrollmentStatus as (typeof ENROLLMENT_STATUSES)[number])
+  ) {
     qs.set('enrollmentStatus', sp.enrollmentStatus.trim());
   }
   return qs.toString();
@@ -126,12 +139,14 @@ export default async function StudentsPage({
   }
 
   const payload = (await listRes.json()) as ListResponse;
-  const programs: ProgramOption[] = catalogRes.ok ? ((await catalogRes.json()) as ProgramOption[]) : [];
+  const programs: ProgramOption[] = catalogRes.ok
+    ? ((await catalogRes.json()) as ProgramOption[])
+    : [];
   const exportQuery = buildStudentsExportQuery(sp);
   const exportHref = exportQuery ? `/students/export?${exportQuery}` : '/students/export';
 
   return (
-    <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 960 }}>
+    <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 1100 }}>
       <nav
         style={{
           marginBottom: '1.5rem',
@@ -203,7 +218,7 @@ export default async function StudentsPage({
           <input
             name="search"
             type="search"
-            placeholder="Number or email"
+            placeholder="Name, student number, or email"
             defaultValue={sp.search ?? ''}
             style={{ padding: '0.45rem' }}
           />
@@ -221,7 +236,11 @@ export default async function StudentsPage({
         </label>
         <label style={{ display: 'grid', gap: 4, fontSize: '0.85rem' }}>
           <span>Enrollment status</span>
-          <select name="enrollmentStatus" defaultValue={sp.enrollmentStatus ?? ''} style={{ padding: '0.45rem' }}>
+          <select
+            name="enrollmentStatus"
+            defaultValue={sp.enrollmentStatus ?? ''}
+            style={{ padding: '0.45rem' }}
+          >
             <option value="">Any status</option>
             {ENROLLMENT_STATUSES.map((s) => (
               <option key={s} value={s}>
@@ -234,7 +253,10 @@ export default async function StudentsPage({
           <button type="submit" style={{ padding: '0.45rem 0.9rem', fontWeight: 600 }}>
             Apply
           </button>
-          <Link href="/students" style={{ padding: '0.45rem 0', alignSelf: 'center', color: '#64748b' }}>
+          <Link
+            href="/students"
+            style={{ padding: '0.45rem 0', alignSelf: 'center', color: '#64748b' }}
+          >
             Reset
           </Link>
           <a
@@ -255,41 +277,34 @@ export default async function StudentsPage({
         </div>
       </form>
       {!catalogRes.ok ? (
-        <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '-0.5rem', marginBottom: '1rem' }}>
+        <p
+          style={{
+            fontSize: '0.8rem',
+            color: '#94a3b8',
+            marginTop: '-0.5rem',
+            marginBottom: '1rem',
+          }}
+        >
           Program filter unavailable ({catalogRes.status}). Search and status filters still apply.
         </p>
       ) : null}
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
-              <th style={{ padding: '0.5rem 0' }}>Number</th>
-              <th style={{ padding: '0.5rem 0' }}>Email</th>
-              <th style={{ padding: '0.5rem 0' }}>Program</th>
-              <th style={{ padding: '0.5rem 0' }}>Level</th>
-              <th style={{ padding: '0.5rem 0' }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {payload.data.map((s) => (
-              <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <td style={{ padding: '0.45rem 0' }}>
-                  <Link href={`/students/${s.id}`} style={{ color: '#1e3a5f', fontWeight: 600 }}>
-                    {s.studentNumber}
-                  </Link>
-                </td>
-                <td style={{ padding: '0.45rem 0' }}>{s.email}</td>
-                <td style={{ padding: '0.45rem 0' }}>
-                  {s.program?.code} — {s.program?.name}
-                </td>
-                <td style={{ padding: '0.45rem 0' }}>{s.currentLevel ?? '—'}</td>
-                <td style={{ padding: '0.45rem 0' }}>{s.enrollmentStatus}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <StudentsDataGrid
+        rows={payload.data.map(
+          (s): StudentGridRow => ({
+            id: s.id,
+            studentNumber: s.studentNumber,
+            email: s.email ?? '',
+            programCode: s.program?.code ?? '',
+            programName: s.program?.name ?? '',
+            currentLevel: s.currentLevel ?? 0,
+            enrollmentStatus: s.enrollmentStatus,
+            cumulativeGpa: s.academicMetrics?.cumulativeGpa ?? null,
+            creditHoursCompleted: Math.round(s.academicMetrics?.creditHoursCompleted ?? 0),
+            academicStanding: s.academicMetrics?.academicStanding ?? '—',
+          }),
+        )}
+      />
       {payload.data.length === 0 ? (
         <p style={{ marginTop: '1rem', color: '#64748b' }}>No students match these filters.</p>
       ) : null}

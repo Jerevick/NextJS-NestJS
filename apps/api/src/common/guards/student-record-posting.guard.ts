@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import type { StudentEnrollmentStatusEnum } from '@prisma/client';
 import type { AuthUser } from '../../auth/auth.types';
@@ -18,6 +20,8 @@ import {
   type StudentRecordDateSource,
   type StudentRecordWriteDescriptor,
 } from '../record-posting/student-record-write.meta';
+import { verifyAttendanceSessionToken } from '../../attendance/attendance-qr.util';
+import { sessionDateUtcStart } from '../../attendance/attendance-session-date.util';
 
 type HttpRequest = {
   user?: AuthUser;
@@ -33,6 +37,7 @@ export class StudentRecordPostingGuard implements CanActivate {
   constructor(
     private readonly prisma: PrismaService,
     private readonly reflector: Reflector,
+    private readonly config: ConfigService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -72,14 +77,20 @@ export class StudentRecordPostingGuard implements CanActivate {
 
     delete req.backfillContext;
 
-    const targets = await this.resolveTargets(descriptor, req, user.institutionId);
+    const targets = await this.resolveTargets(descriptor, req, user);
     if (targets.length === 0) {
       return true;
     }
 
     const isBulk = descriptor.mode === 'bulkBodyAttendance';
     for (const t of targets) {
-      await this.assertCanPostForStudent(user.institutionId, t.studentId, t.recordDate, req, isBulk);
+      await this.assertCanPostForStudent(
+        user.institutionId,
+        t.studentId,
+        t.recordDate,
+        req,
+        isBulk,
+      );
     }
 
     return true;
@@ -88,8 +99,9 @@ export class StudentRecordPostingGuard implements CanActivate {
   private async resolveTargets(
     descriptor: StudentRecordWriteDescriptor,
     req: HttpRequest,
-    institutionId: string,
+    user: AuthUser,
   ): Promise<ResolvedTarget[]> {
+    const institutionId = user.institutionId;
     const body = this.readBody(req);
     const params = req.params ?? {};
 
@@ -99,7 +111,12 @@ export class StudentRecordPostingGuard implements CanActivate {
         if (!studentId) {
           throw new NotFoundException('Student id missing from body');
         }
-        const recordDate = await this.resolveRecordDate(descriptor.recordDate, body, params, institutionId);
+        const recordDate = await this.resolveRecordDate(
+          descriptor.recordDate,
+          body,
+          params,
+          institutionId,
+        );
         return [{ studentId, recordDate }];
       }
       case 'paramStudentId': {
@@ -107,7 +124,12 @@ export class StudentRecordPostingGuard implements CanActivate {
         if (!studentId) {
           throw new NotFoundException('Student id missing from route');
         }
-        const recordDate = await this.resolveRecordDate(descriptor.recordDate, body, params, institutionId);
+        const recordDate = await this.resolveRecordDate(
+          descriptor.recordDate,
+          body,
+          params,
+          institutionId,
+        );
         return [{ studentId, recordDate }];
       }
       case 'enrollmentIdParam': {
@@ -122,7 +144,12 @@ export class StudentRecordPostingGuard implements CanActivate {
         if (!row) {
           throw new NotFoundException('Enrollment not found');
         }
-        const recordDate = await this.resolveRecordDate(descriptor.recordDate, body, params, institutionId);
+        const recordDate = await this.resolveRecordDate(
+          descriptor.recordDate,
+          body,
+          params,
+          institutionId,
+        );
         return [{ studentId: row.studentId, recordDate }];
       }
       case 'gradeOverrideIdParam': {
@@ -137,7 +164,12 @@ export class StudentRecordPostingGuard implements CanActivate {
         if (!row) {
           throw new NotFoundException('Grade override not found');
         }
-        const recordDate = await this.resolveRecordDate(descriptor.recordDate, body, params, institutionId);
+        const recordDate = await this.resolveRecordDate(
+          descriptor.recordDate,
+          body,
+          params,
+          institutionId,
+        );
         return [{ studentId: row.enrollment.studentId, recordDate }];
       }
       case 'attendanceIdParam': {
@@ -166,7 +198,12 @@ export class StudentRecordPostingGuard implements CanActivate {
         if (!row) {
           throw new NotFoundException('LMS submission not found');
         }
-        const recordDate = await this.resolveRecordDate(descriptor.recordDate, body, params, institutionId);
+        const recordDate = await this.resolveRecordDate(
+          descriptor.recordDate,
+          body,
+          params,
+          institutionId,
+        );
         return [{ studentId: row.studentId, recordDate }];
       }
       case 'bulkBodyAttendance': {
@@ -174,7 +211,15 @@ export class StudentRecordPostingGuard implements CanActivate {
         if (typeof sessionRaw !== 'string' || !sessionRaw.trim()) {
           throw new NotFoundException('Session date missing from body');
         }
-        const recordDate = this.parseIsoDate(sessionRaw);
+        let recordDate: Date;
+        try {
+          recordDate = sessionDateUtcStart(sessionRaw.trim());
+        } catch (e: unknown) {
+          if (e instanceof BadRequestException) {
+            throw e;
+          }
+          throw new BadRequestException('Invalid sessionDate');
+        }
         const entriesRaw = body[descriptor.entriesField];
         if (!Array.isArray(entriesRaw) || entriesRaw.length === 0) {
           throw new NotFoundException('Attendance entries missing from body');
@@ -195,6 +240,38 @@ export class StudentRecordPostingGuard implements CanActivate {
           throw new NotFoundException('No valid attendance entries');
         }
         return out;
+      }
+      case 'attendanceSelfScanToken': {
+        const token = this.readString(body[descriptor.tokenField]);
+        if (!token) {
+          throw new BadRequestException('Attendance session token missing from body');
+        }
+        const secret = this.config.get<string>('JWT_SECRET');
+        if (!secret?.trim()) {
+          throw new BadRequestException('Server misconfiguration: JWT_SECRET');
+        }
+        let payload: ReturnType<typeof verifyAttendanceSessionToken>;
+        try {
+          payload = verifyAttendanceSessionToken(secret, token);
+        } catch {
+          throw new ForbiddenException('Invalid or expired attendance session token');
+        }
+        if (payload.institutionId !== institutionId) {
+          throw new ForbiddenException('Attendance token institution mismatch');
+        }
+        if (!user.studentId) {
+          throw new ForbiddenException('Student account is not linked to a student record');
+        }
+        let recordDate: Date;
+        try {
+          recordDate = sessionDateUtcStart(payload.sessionDate.trim());
+        } catch (e: unknown) {
+          if (e instanceof BadRequestException) {
+            throw e;
+          }
+          throw new BadRequestException('Invalid session date in attendance token');
+        }
+        return [{ studentId: user.studentId, recordDate }];
       }
     }
   }

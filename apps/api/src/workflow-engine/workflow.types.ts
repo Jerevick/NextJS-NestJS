@@ -37,6 +37,21 @@ export interface InitiateWorkflowDto {
   metadata?: Record<string, unknown>;
 }
 
+/** Resolved workflow row ready for Prisma create (used in finance atomic commits). */
+export type PreparedWorkflowInitiation = {
+  definitionId: string;
+  definitionCode: string;
+  institutionId: string;
+  entityId: string;
+  entityType: string;
+  initiatedBy: string;
+  metadata: Record<string, unknown>;
+  currentAssigneeUserId: string;
+  currentStepName: string;
+  assigneePositionCode: string;
+  dueAt: Date;
+};
+
 export interface ProcessWorkflowStepDto {
   instanceId: string;
   actorId: string;

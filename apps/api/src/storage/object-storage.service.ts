@@ -37,6 +37,13 @@ export class ObjectStorageService {
     return this.putLocal(key, body);
   }
 
+  async putBuffer(key: string, body: Buffer, contentType: string): Promise<PutObjectResult> {
+    if (this.s3Enabled()) {
+      return this.putS3Binary(key, body, contentType);
+    }
+    return this.putLocalBinary(key, body);
+  }
+
   getDownloadUrl(key: string): string | null {
     if (key.startsWith('local://')) {
       const rel = key.slice('local://'.length);
@@ -48,6 +55,43 @@ export class ObjectStorageService {
       return null;
     }
     return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+  }
+
+  private async putLocalBinary(relativeKey: string, body: Buffer): Promise<PutObjectResult> {
+    const fullPath = join(this.localRoot, relativeKey);
+    await mkdir(dirname(fullPath), { recursive: true });
+    await writeFile(fullPath, body);
+    const key = `local://${relativeKey}`;
+    return { key, url: `file://${fullPath}` };
+  }
+
+  private async putS3Binary(
+    key: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<PutObjectResult> {
+    const bucket = this.config.get<string>('AWS_S3_BUCKET')!.trim();
+    const region = this.config.get<string>('AWS_REGION')!.trim();
+    const endpoint = this.config.get<string>('AWS_S3_ENDPOINT')?.trim();
+
+    const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const client = new S3Client({
+      region,
+      ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
+    });
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
+    const url = endpoint
+      ? `${endpoint.replace(/\/$/, '')}/${bucket}/${key}`
+      : `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+    this.log.log(`Uploaded binary s3://${bucket}/${key}`);
+    return { key, url };
   }
 
   private async putLocal(relativeKey: string, body: string): Promise<PutObjectResult> {

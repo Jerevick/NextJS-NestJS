@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule, ThrottlerStorageService } from '@nestjs/throttler';
 import { AcademicModule } from './academic/academic.module';
@@ -22,7 +23,10 @@ import { WorkflowEngineModule } from './workflow-engine/workflow-engine.module';
 import { InstitutionsModule } from './institutions/institutions.module';
 import { LmsFeatureModule } from './lms/lms.module';
 import { LmsAssessmentsModule } from './lms-assessments/lms-assessments.module';
+import { FinanceModule } from './modules/finance';
+import { NotificationsModule } from './notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ProgressionModule } from './progression/progression.module';
 import { QueuesModule } from './queues/queues.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { StudentsModule } from './students/students.module';
@@ -44,13 +48,16 @@ import { SessionsModule } from './sessions/sessions.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRootAsync({
       imports: [RedisModule],
       inject: [RedisService],
       useFactory: (redis: RedisService) => {
         const throttlers = [{ name: 'default', ttl: 60_000, limit: 200 }];
-        const storage = redis.isEnabled() ? new RedisThrottlerStorage(redis) : new ThrottlerStorageService();
+        const storage = redis.isEnabled()
+          ? new RedisThrottlerStorage(redis)
+          : new ThrottlerStorageService();
         return { throttlers, storage };
       },
     }),
@@ -72,8 +79,9 @@ import { SessionsModule } from './sessions/sessions.module';
     AttendanceModule,
     BackfillModule,
     HealthModule,
-    StudentsModule,
-    EnrollmentModule,
+    StudentsModule.register(),
+    ProgressionModule,
+    EnrollmentModule.register(),
     DocumentsModule,
     GradesModule,
     RoomsModule,
@@ -82,6 +90,8 @@ import { SessionsModule } from './sessions/sessions.module';
     SuperAdminModule,
     LmsFeatureModule,
     LmsAssessmentsModule,
+    FinanceModule,
+    NotificationsModule,
   ],
   providers: [
     TenantMiddleware,

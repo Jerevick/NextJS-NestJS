@@ -4,6 +4,14 @@ import { appendOptionalEntityHeader } from '@/lib/api-headers';
 import { canAccessBillingNav, hasPermission } from '@/lib/permissions';
 import { BillingTrendChart, type BillableTrendPoint } from './billing-trend-chart';
 import {
+  BillingInvoicesDataGrid,
+  BillingSnapshotsDataGrid,
+  BillingSummariesDataGrid,
+  type DailySnapshotGridRow,
+  type InvoiceGridRow,
+  type MonthlySummaryGridRow,
+} from '@/components/data-grids/billing-data-grids';
+import {
   ComputeMonthlyForm,
   FinalizeInvoiceForm,
   GenerateDraftForm,
@@ -90,12 +98,19 @@ export default async function BillingPage() {
   const { year, month } = defaultBillingPeriod();
   const prev = prevYm(year, month);
   const qs = new URLSearchParams({ year: String(year), month: String(month), limit: '50' });
-  const qsPrev = new URLSearchParams({ year: String(prev.year), month: String(prev.month), limit: '50' });
+  const qsPrev = new URLSearchParams({
+    year: String(prev.year),
+    month: String(prev.month),
+    limit: '50',
+  });
 
   const [invRes, sumRes, sumPrevRes, snapRes, statsRes] = await Promise.all([
     fetch(`${apiBase}/billing/invoices?limit=20`, { headers, cache: 'no-store' }),
     fetch(`${apiBase}/billing/monthly-summaries?${qs.toString()}`, { headers, cache: 'no-store' }),
-    fetch(`${apiBase}/billing/monthly-summaries?${qsPrev.toString()}`, { headers, cache: 'no-store' }),
+    fetch(`${apiBase}/billing/monthly-summaries?${qsPrev.toString()}`, {
+      headers,
+      cache: 'no-store',
+    }),
     fetch(`${apiBase}/billing/snapshots/daily?limit=120`, { headers, cache: 'no-store' }),
     fetch(`${apiBase}/institutions/${session.user.institutionId}/entities/consolidated/stats`, {
       headers,
@@ -180,8 +195,8 @@ export default async function BillingPage() {
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 1100 }}>
       <h1 style={{ marginTop: 0 }}>Billing</h1>
       <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
-        Headcount context for <strong>{periodLabel}</strong> (previous UTC calendar month). Institution:{' '}
-        <span style={mono}>{session.user.institutionId}</span>
+        Headcount context for <strong>{periodLabel}</strong> (previous UTC calendar month).
+        Institution: <span style={mono}>{session.user.institutionId}</span>
       </p>
       <nav style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <Link href="/dashboard" style={{ color: '#2563eb' }}>
@@ -211,10 +226,26 @@ export default async function BillingPage() {
             background: '#f0fdf4',
           }}
         >
-          <p style={{ margin: 0, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#166534' }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '0.72rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              color: '#166534',
+            }}
+          >
             Billable students (ACTIVE) today
           </p>
-          <p style={{ margin: '0.35rem 0 0', fontSize: '1.75rem', fontWeight: 800, color: '#14532d', ...mono }}>
+          <p
+            style={{
+              margin: '0.35rem 0 0',
+              fontSize: '1.75rem',
+              fontWeight: 800,
+              color: '#14532d',
+              ...mono,
+            }}
+          >
             {totals.billableStudentCount.toLocaleString()}
           </p>
           <p style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: '#3f6212' }}>
@@ -230,10 +261,28 @@ export default async function BillingPage() {
             background: '#fff',
           }}
         >
-          <p style={{ margin: 0, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b' }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '0.72rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              color: '#64748b',
+            }}
+          >
             Monthly watermark total ({periodLabel})
           </p>
-          <p style={{ margin: '0.35rem 0 0', fontSize: '1.35rem', fontWeight: 700, color: '#0f172a', ...mono }}>{wm}</p>
+          <p
+            style={{
+              margin: '0.35rem 0 0',
+              fontSize: '1.35rem',
+              fontWeight: 700,
+              color: '#0f172a',
+              ...mono,
+            }}
+          >
+            {wm}
+          </p>
           <p style={{ margin: '0.45rem 0 0', fontSize: '0.82rem', color: '#64748b' }}>
             vs prior month watermark sum:{' '}
             <strong style={{ color: delta >= 0 ? '#15803d' : '#b91c1c' }}>
@@ -249,10 +298,26 @@ export default async function BillingPage() {
             background: '#fefce8',
           }}
         >
-          <p style={{ margin: 0, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#854d0e' }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '0.72rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              color: '#854d0e',
+            }}
+          >
             Draft invoices
           </p>
-          <p style={{ margin: '0.35rem 0 0', fontSize: '1.35rem', fontWeight: 700, color: '#713f12', ...mono }}>
+          <p
+            style={{
+              margin: '0.35rem 0 0',
+              fontSize: '1.35rem',
+              fontWeight: 700,
+              color: '#713f12',
+              ...mono,
+            }}
+          >
             {draftInvoices.length}
           </p>
           <p style={{ margin: '0.45rem 0 0', fontSize: '0.82rem', color: '#854d0e' }}>
@@ -280,7 +345,8 @@ export default async function BillingPage() {
                   ...mono,
                 }}
               >
-                {e.code}: <strong style={{ color: '#15803d' }}>{e.billableStudentCount}</strong> billable ·{' '}
+                {e.code}: <strong style={{ color: '#15803d' }}>{e.billableStudentCount}</strong>{' '}
+                billable ·{' '}
                 <span style={{ color: '#64748b' }}>{e.inactiveStudentCount} inactive</span>
               </span>
             ))}
@@ -288,16 +354,28 @@ export default async function BillingPage() {
         </section>
       ) : null}
 
-      <section style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: 10 }}>
-        <h2 style={{ marginTop: 0, fontSize: '1.05rem' }}>30-day billable trend (daily snapshots)</h2>
+      <section
+        style={{
+          marginBottom: '2rem',
+          padding: '1rem',
+          border: '1px solid #e2e8f0',
+          borderRadius: 10,
+        }}
+      >
+        <h2 style={{ marginTop: 0, fontSize: '1.05rem' }}>
+          30-day billable trend (daily snapshots)
+        </h2>
         <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: 0 }}>
-          Sum of snapshot <span style={mono}>billableCount</span> across campuses per UTC day — drives monthly watermarks.
+          Sum of snapshot <span style={mono}>billableCount</span> across campuses per UTC day —
+          drives monthly watermarks.
         </p>
         <BillingTrendChart points={trendPoints} valueLabel="Billable (sum of entities)" />
       </section>
 
       {canWrite ? (
-        <section style={{ marginBottom: '2rem', padding: '1rem', background: '#f8fafc', borderRadius: 8 }}>
+        <section
+          style={{ marginBottom: '2rem', padding: '1rem', background: '#f8fafc', borderRadius: 8 }}
+        >
           <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>Actions</h2>
           <RunSnapshotsForm />
           <ComputeMonthlyForm year={year} month={month} />
@@ -307,7 +385,9 @@ export default async function BillingPage() {
       ) : null}
 
       {isSuper ? (
-        <section style={{ marginBottom: '2rem', padding: '1rem', background: '#fff7ed', borderRadius: 8 }}>
+        <section
+          style={{ marginBottom: '2rem', padding: '1rem', background: '#fff7ed', borderRadius: 8 }}
+        >
           <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>Platform: snapshot lock / unlock</h2>
           <p style={{ fontSize: '0.85rem', color: '#9a3412' }}>
             Requires wildcard permission. Every change is audit-logged with your reason.
@@ -321,104 +401,61 @@ export default async function BillingPage() {
 
       <section style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.1rem' }}>Invoices</h2>
-        {!invRes.ok ? <p style={{ color: '#b91c1c' }}>Could not load invoices ({invRes.status}).</p> : null}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '0.5rem' }}>Status</th>
-                <th style={{ padding: '0.5rem' }}>Amount</th>
-                <th style={{ padding: '0.5rem' }}>Retro</th>
-                <th style={{ padding: '0.5rem' }}>Locked</th>
-                <th style={{ padding: '0.5rem' }}>Due</th>
-                <th style={{ padding: '0.5rem' }}>Id</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(invoices.data ?? []).map((r) => {
-                const overdue =
-                  r.status === 'OPEN' &&
-                  r.dueDate &&
-                  new Date(r.dueDate).getTime() < now.getTime();
-                return (
-                  <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9', background: overdue ? '#fef2f2' : undefined }}>
-                    <td style={{ padding: '0.5rem' }}>{r.status}</td>
-                    <td style={{ padding: '0.5rem', ...mono }}>{r.amount}</td>
-                    <td style={{ padding: '0.5rem' }}>{r.isRetroactive ? 'yes' : '—'}</td>
-                    <td style={{ padding: '0.5rem' }}>{r.lockedAt ? 'yes' : '—'}</td>
-                    <td style={{ padding: '0.5rem', color: overdue ? '#b91c1c' : undefined }}>
-                      {r.dueDate ? r.dueDate.slice(0, 10) : '—'}
-                      {overdue ? ' overdue' : ''}
-                    </td>
-                    <td style={{ padding: '0.5rem', fontSize: '0.75rem' }}>
-                      <Link href={`/billing/invoice/${encodeURIComponent(r.id)}`} style={{ color: '#2563eb' }}>
-                        View
-                      </Link>
-                      <span style={{ color: '#94a3b8', margin: '0 0.35rem' }}>|</span>
-                      <span style={mono}>{r.id.slice(0, 10)}…</span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        {!invRes.ok ? (
+          <p style={{ color: '#b91c1c' }}>Could not load invoices ({invRes.status}).</p>
+        ) : null}
+        <BillingInvoicesDataGrid
+          rows={(invoices.data ?? []).map((r): InvoiceGridRow => {
+            const due = r.dueDate;
+            const overdue =
+              r.status === 'OPEN' && due !== null && new Date(due).getTime() < now.getTime();
+            return {
+              id: r.id,
+              status: r.status,
+              amount: r.amount,
+              isRetroactive: r.isRetroactive,
+              lockedAt: r.lockedAt,
+              dueDate: r.dueDate,
+              overdue,
+            };
+          })}
+        />
       </section>
 
       <section style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.1rem' }}>Monthly summaries ({periodLabel})</h2>
-        {!sumRes.ok ? <p style={{ color: '#b91c1c' }}>Could not load summaries ({sumRes.status}).</p> : null}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '0.5rem' }}>Campus</th>
-                <th style={{ padding: '0.5rem' }}>Watermark</th>
-                <th style={{ padding: '0.5rem' }}>Peak</th>
-                <th style={{ padding: '0.5rem' }}>Avg</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(summaries.data ?? []).map((r) => (
-                <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '0.5rem' }}>
-                    {r.entity ? `${r.entity.code} — ${r.entity.name}` : '—'}
-                  </td>
-                  <td style={{ padding: '0.5rem', ...mono }}>{r.watermarkCount}</td>
-                  <td style={{ padding: '0.5rem', ...mono }}>{r.peakDailyCount}</td>
-                  <td style={{ padding: '0.5rem', ...mono }}>{r.averageDailyCount}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {!sumRes.ok ? (
+          <p style={{ color: '#b91c1c' }}>Could not load summaries ({sumRes.status}).</p>
+        ) : null}
+        <BillingSummariesDataGrid
+          rows={(summaries.data ?? []).map(
+            (r): MonthlySummaryGridRow => ({
+              id: r.id,
+              campus: r.entity ? `${r.entity.code} — ${r.entity.name}` : '—',
+              watermarkCount: r.watermarkCount,
+              peakDailyCount: r.peakDailyCount,
+              averageDailyCount: String(r.averageDailyCount),
+            }),
+          )}
+        />
       </section>
 
       <section>
         <h2 style={{ fontSize: '1.1rem' }}>Recent daily snapshots</h2>
-        {!snapRes.ok ? <p style={{ color: '#b91c1c' }}>Could not load snapshots ({snapRes.status}).</p> : null}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '0.5rem' }}>Date (UTC)</th>
-                <th style={{ padding: '0.5rem' }}>Campus</th>
-                <th style={{ padding: '0.5rem' }}>Billable</th>
-                <th style={{ padding: '0.5rem' }}>Locked</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(snapshots.data ?? []).map((r) => (
-                <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '0.5rem', ...mono }}>{r.snapshotDate?.slice(0, 10)}</td>
-                  <td style={{ padding: '0.5rem' }}>{r.entity?.code ?? '—'}</td>
-                  <td style={{ padding: '0.5rem', ...mono }}>{r.billableCount}</td>
-                  <td style={{ padding: '0.5rem' }}>{r.isLockedForBilling ? 'yes' : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {!snapRes.ok ? (
+          <p style={{ color: '#b91c1c' }}>Could not load snapshots ({snapRes.status}).</p>
+        ) : null}
+        <BillingSnapshotsDataGrid
+          rows={(snapshots.data ?? []).map(
+            (r): DailySnapshotGridRow => ({
+              id: r.id,
+              snapshotDate: r.snapshotDate ?? '',
+              campus: r.entity?.code ?? '—',
+              billableCount: r.billableCount,
+              isLockedForBilling: r.isLockedForBilling,
+            }),
+          )}
+        />
       </section>
     </main>
   );

@@ -2,7 +2,11 @@ import Link from 'next/link';
 import { auth } from '@/auth';
 import { buildApiHeaders, apiBase } from '@/lib/server-api';
 import { hasPermission } from '@/lib/permissions';
-import { GradeRowForm } from './grade-row-form';
+import {
+  GradeEntryDataGrid,
+  type GradeComponentWeightBand,
+  type GradeEntryGridRow,
+} from '@/components/data-grids/grade-entry-data-grid';
 
 const primary = '#1e3a5f';
 const muted = '#64748b';
@@ -25,6 +29,11 @@ type GradeJson = {
   letterGrade?: string;
   gradePoints?: number;
   workflowStatus?: string;
+  components?: Record<string, unknown>;
+};
+
+type GovEffective = {
+  componentWeights?: { key: string; label?: string; weight: number }[];
 };
 
 type EnrollmentRow = {
@@ -44,7 +53,8 @@ function semesterLabel(s: SemesterOption): string {
 
 function studentLabel(row: EnrollmentRow): string {
   const p = row.student.profile;
-  const name = p?.firstName || p?.lastName ? [p.firstName, p.lastName].filter(Boolean).join(' ') : null;
+  const name =
+    p?.firstName || p?.lastName ? [p.firstName, p.lastName].filter(Boolean).join(' ') : null;
   return name ? `${name} (${row.student.studentNumber})` : row.student.studentNumber;
 }
 
@@ -83,10 +93,13 @@ export default async function GradeEntryPage({
   const semesterId = sp.semesterId?.trim();
 
   if (sectionId) {
-    const enrollRes = await fetch(`${apiBase}/grades/sections/${encodeURIComponent(sectionId)}/enrollments`, {
-      headers,
-      cache: 'no-store',
-    });
+    const [enrollRes, govRes] = await Promise.all([
+      fetch(`${apiBase}/grades/sections/${encodeURIComponent(sectionId)}/enrollments`, {
+        headers,
+        cache: 'no-store',
+      }),
+      fetch(`${apiBase}/grades/governance/effective`, { headers, cache: 'no-store' }),
+    ]);
 
     if (!enrollRes.ok) {
       return (
@@ -99,8 +112,53 @@ export default async function GradeEntryPage({
 
     const enrollments = (await enrollRes.json()) as EnrollmentRow[];
 
+    const govJson = govRes.ok ? ((await govRes.json()) as GovEffective) : null;
+    const rawWeights =
+      govJson?.componentWeights?.filter(
+        (w): w is { key: string; label?: string; weight: number } =>
+          typeof w?.key === 'string' &&
+          w.key.length > 0 &&
+          typeof w.weight === 'number' &&
+          Number.isFinite(w.weight),
+      ) ?? [];
+
+    const componentWeights: GradeComponentWeightBand[] = rawWeights.map(
+      (w): GradeComponentWeightBand => ({
+        key: w.key,
+        label: typeof w.label === 'string' && w.label.trim().length ? w.label.trim() : w.key,
+        weight: w.weight,
+      }),
+    );
+
+    const policyNote =
+      componentWeights.length > 0 ? (
+        <p
+          style={{
+            color: muted,
+            fontSize: '0.82rem',
+            marginTop: '-0.5rem',
+            marginBottom: '1rem',
+            maxWidth: 720,
+          }}
+        >
+          This institution weights final scores by{' '}
+          {componentWeights
+            .map((w) => `${w.label} (${Math.round(w.weight * 1000) / 10}%)`)
+            .join(', ')}
+          . Saving derives the aggregate course score (and maps to letter points when the default
+          grading scale defines bands).
+        </p>
+      ) : null;
+
     return (
-      <main style={{ padding: '2rem 1.5rem', maxWidth: 960, margin: '0 auto', fontFamily: '"IBM Plex Sans", system-ui' }}>
+      <main
+        style={{
+          padding: '2rem 1.5rem',
+          maxWidth: 1060,
+          margin: '0 auto',
+          fontFamily: '"IBM Plex Sans", system-ui',
+        }}
+      >
         <nav style={{ marginBottom: '1rem' }}>
           <Link href="/grades/entry" style={{ color: primary }}>
             ← Change section
@@ -108,45 +166,61 @@ export default async function GradeEntryPage({
         </nav>
         <h1 style={{ fontFamily: '"Crimson Pro", Georgia, serif', color: primary }}>Grade entry</h1>
         <p style={{ color: muted, fontSize: '0.9rem' }}>{enrollments.length} enrolled student(s)</p>
+        {policyNote}
+        {hasPermission(session.user.permissions, 'grades.write') ? (
+          <p style={{ marginTop: policyNote ? 0 : '0.65rem', fontSize: '0.85rem' }}>
+            <Link href="/settings/grading-weights" style={{ color: primary, fontWeight: 600 }}>
+              Configure grading component weights →
+            </Link>
+          </p>
+        ) : null}
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem', fontSize: '0.88rem' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', color: muted }}>
-              <th style={{ padding: '0.5rem 0' }}>Student</th>
-              <th style={{ padding: '0.5rem 0' }}>Current grade</th>
-              <th style={{ padding: '0.5rem 0' }}>Entry</th>
-            </tr>
-          </thead>
-          <tbody>
-            {enrollments.map((row) => (
-              <GradeRowForm
-                key={row.id}
-                enrollmentId={row.id}
-                sectionId={sectionId}
-                studentLabel={studentLabel(row)}
-                initialGrade={row.grade}
-              />
-            ))}
-          </tbody>
-        </table>
+        <GradeEntryDataGrid
+          sectionId={sectionId}
+          componentWeights={componentWeights}
+          rows={enrollments.map((row): GradeEntryGridRow => {
+            const g = row.grade ?? {};
+            const gradeDisplay = `${g.letterGrade ?? '—'}${g.gradePoints !== undefined ? ` (${g.gradePoints})` : ''}`;
+            return {
+              id: row.id,
+              studentLabel: studentLabel(row),
+              gradeDisplay,
+              sectionId,
+              initialGrade: row.grade,
+            };
+          })}
+        />
       </main>
     );
   }
 
-  const semRes = await fetch(`${apiBase}/academic/catalog/semesters`, { headers, cache: 'no-store' });
+  const semRes = await fetch(`${apiBase}/academic/catalog/semesters`, {
+    headers,
+    cache: 'no-store',
+  });
   const semesters = semRes.ok ? ((await semRes.json()) as SemesterOption[]) : [];
 
   let sections: SectionOption[] = [];
   if (semesterId) {
-    const secRes = await fetch(`${apiBase}/academic/semesters/${encodeURIComponent(semesterId)}/sections`, {
-      headers,
-      cache: 'no-store',
-    });
+    const secRes = await fetch(
+      `${apiBase}/academic/semesters/${encodeURIComponent(semesterId)}/sections`,
+      {
+        headers,
+        cache: 'no-store',
+      },
+    );
     sections = secRes.ok ? ((await secRes.json()) as SectionOption[]) : [];
   }
 
   return (
-    <main style={{ padding: '2rem 1.5rem', maxWidth: 640, margin: '0 auto', fontFamily: '"IBM Plex Sans", system-ui' }}>
+    <main
+      style={{
+        padding: '2rem 1.5rem',
+        maxWidth: 640,
+        margin: '0 auto',
+        fontFamily: '"IBM Plex Sans", system-ui',
+      }}
+    >
       <nav style={{ marginBottom: '1rem' }}>
         <Link href="/dashboard" style={{ color: muted }}>
           Dashboard
@@ -154,7 +228,8 @@ export default async function GradeEntryPage({
       </nav>
       <h1 style={{ fontFamily: '"Crimson Pro", Georgia, serif', color: primary }}>Grade entry</h1>
       <p style={{ color: muted, fontSize: '0.9rem' }}>
-        Select a semester and section to enter scores. Use Draft, then Submit for HoD review per your workflow.
+        Select a semester and section to enter scores. Use Draft, then Submit for HoD review per
+        your workflow.
       </p>
 
       {semesters.length === 0 ? (
@@ -163,7 +238,12 @@ export default async function GradeEntryPage({
         <form method="get" style={{ marginTop: '1.5rem', display: 'grid', gap: '1rem' }}>
           <label style={{ display: 'grid', gap: 6 }}>
             Semester
-            <select name="semesterId" required defaultValue={semesterId ?? ''} style={{ padding: '0.5rem' }}>
+            <select
+              name="semesterId"
+              required
+              defaultValue={semesterId ?? ''}
+              style={{ padding: '0.5rem' }}
+            >
               <option value="" disabled>
                 Select…
               </option>

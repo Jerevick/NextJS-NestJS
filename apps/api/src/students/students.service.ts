@@ -1,4 +1,10 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import type { GpaRepeatPolicy } from '@prisma/client';
 import { Prisma, StudentEnrollmentStatusEnum } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import type { AuthUser } from '../auth/auth.types';
@@ -9,24 +15,20 @@ import type { CreateStudentDto } from './dto/create-student.dto';
 import type { InitiatePermanentDeletionDto } from './deletion/dto/initiate-permanent-deletion.dto';
 import type { ListStudentsQueryDto } from './dto/list-students-query.dto';
 import type { ConfirmGraduationDto } from './dto/confirm-graduation.dto';
+import type { ImportStudentsBatchDto } from './dto/import-students-batch.dto';
 import type { UpdateStudentDto } from './dto/update-student.dto';
 import { StatusChangeService } from './status/status-change.service';
-import { StudentsRepository, type StudentWithUserProgram } from './students.repository';
+import {
+  StudentsRepository,
+  type EnrollmentForGpaRow,
+  type StudentWithUserProgram,
+} from './students.repository';
+import { GpaComputationService } from '../progression/gpa-computation.service';
+import { ProgressionService } from '../progression/progression.service';
 
 type InstitutionSettings = {
   studentNumberFormat?: string;
 };
-
-function readGradePoints(grade: unknown): number | null {
-  if (!grade || typeof grade !== 'object') {
-    return null;
-  }
-  const g = grade as { gradePoints?: unknown };
-  if (typeof g.gradePoints === 'number' && !Number.isNaN(g.gradePoints)) {
-    return g.gradePoints;
-  }
-  return null;
-}
 
 export type AcademicStanding = 'GOOD' | 'PROBATION' | 'SUSPENSION';
 
@@ -38,6 +40,8 @@ export class StudentsService {
     private readonly statusChanges: StatusChangeService,
     private readonly prisma: PrismaService,
     private readonly workflows: WorkflowEngineService,
+    private readonly progression: ProgressionService,
+    private readonly gpaComputation: GpaComputationService,
   ) {}
 
   private defaultFormat() {
@@ -56,7 +60,8 @@ export class StudentsService {
     const ref = admissionDate ?? new Date();
     const year = ref.getFullYear();
     const yearStart = new Date(year, 0, 1);
-    const seq = (await this.repo.countStudentsForNumbering(institutionId, programId, yearStart)) + 1;
+    const seq =
+      (await this.repo.countStudentsForNumbering(institutionId, programId, yearStart)) + 1;
     const seqPadded = String(seq).padStart(3, '0');
     const safeCode = programCode.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12) || 'PG';
     return template
@@ -67,9 +72,42 @@ export class StudentsService {
 
   async list(actor: AuthUser, query: ListStudentsQueryDto) {
     const limit = query.limit ?? 20;
+    const entityScopeId = actor.entityScope === 'ENTITY' ? actor.entityId : undefined;
+
+    if (query.search?.trim()) {
+      const ids = await this.repo.searchStudentIdsPage({
+        institutionId: actor.institutionId,
+        entityId: entityScopeId,
+        search: query.search,
+        programId: query.programId,
+        enrollmentStatus: query.enrollmentStatus,
+        cursor: query.cursor,
+        take: limit + 1,
+      });
+      const total = await this.repo.countSearchMatches({
+        institutionId: actor.institutionId,
+        entityId: entityScopeId,
+        search: query.search,
+        programId: query.programId,
+        enrollmentStatus: query.enrollmentStatus,
+      });
+
+      let nextCursor: string | undefined;
+      let pageIds = ids;
+      if (ids.length > limit) {
+        pageIds = ids.slice(0, limit);
+        nextCursor = pageIds[pageIds.length - 1];
+      }
+
+      const rows = await this.repo.findOrderedByIds(pageIds, actor.institutionId);
+      const data = await this.attachListAcademicMetrics(actor.institutionId, rows);
+      return { data, nextCursor, total };
+    }
+
     const whereInput = this.repo.buildWhere({
       institutionId: actor.institutionId,
-      search: query.search,
+      entityId: entityScopeId,
+      search: undefined,
       programId: query.programId,
       enrollmentStatus: query.enrollmentStatus,
     });
@@ -80,8 +118,9 @@ export class StudentsService {
       nextCursor = last?.id;
     }
     const total = await this.repo.countWhere(whereInput);
+    const data = await this.attachListAcademicMetrics(actor.institutionId, rows);
     return {
-      data: rows.map((s) => this.serializeListItem(s)),
+      data,
       nextCursor,
       total,
     };
@@ -92,7 +131,7 @@ export class StudentsService {
     if (!row) {
       throw new NotFoundException('Student not found');
     }
-    return this.serializeDetail(row);
+    return await this.serializeDetail(row);
   }
 
   async listStatusChangeLogs(actor: AuthUser, studentId: string) {
@@ -196,6 +235,40 @@ export class StudentsService {
     }
   }
 
+  async importBatch(actor: AuthUser, dto: ImportStudentsBatchDto) {
+    const errors: { index: number; message: string }[] = [];
+    const created: Awaited<ReturnType<StudentsService['create']>>[] = [];
+    for (let index = 0; index < dto.rows.length; index++) {
+      try {
+        const row = await this.create(actor, dto.rows[index]!);
+        created.push(row);
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        errors.push({ index, message });
+      }
+    }
+
+    this.audit.append({
+      institutionId: actor.institutionId,
+      actorId: actor.userId,
+      action: 'students.import_batch',
+      entity: 'Student',
+      newValues: {
+        requested: dto.rows.length,
+        created: created.length,
+        failed: errors.length,
+      },
+    });
+
+    return {
+      requested: dto.rows.length,
+      createdCount: created.length,
+      errorCount: errors.length,
+      data: created,
+      errors,
+    };
+  }
+
   async update(actor: AuthUser, id: string, dto: UpdateStudentDto) {
     const prior = await this.repo.findById(actor.institutionId, id);
     if (!prior) {
@@ -207,7 +280,9 @@ export class StudentsService {
         throw new NotFoundException('Program not found');
       }
       if (program.entityId !== prior.entityId) {
-        throw new BadRequestException('Program belongs to a different campus entity than this student');
+        throw new BadRequestException(
+          'Program belongs to a different campus entity than this student',
+        );
       }
     }
 
@@ -308,6 +383,76 @@ export class StudentsService {
     return { ok: true as const, id };
   }
 
+  private async attachListAcademicMetrics(institutionId: string, rows: StudentWithUserProgram[]) {
+    if (rows.length === 0) {
+      return [];
+    }
+    const enrollments = await this.repo.findEnrollmentsForGpaByStudentIds(
+      institutionId,
+      rows.map((r) => r.id),
+    );
+    const byStudent = new Map<string, EnrollmentForGpaRow[]>();
+    for (const e of enrollments) {
+      const list = byStudent.get(e.studentId) ?? [];
+      list.push(e);
+      byStudent.set(e.studentId, list);
+    }
+    const programIds = [...new Set(rows.map((r) => r.programId))];
+    const policyByProgram = new Map<string, GpaRepeatPolicy>();
+    for (const pid of programIds) {
+      policyByProgram.set(pid, await this.progression.resolveGpaRepeatPolicy(institutionId, pid));
+    }
+
+    return rows.map((s) => {
+      const policy = policyByProgram.get(s.programId) ?? 'BEST_OF_ATTEMPTS';
+      const ents = byStudent.get(s.id) ?? [];
+      const summary = this.summarizeEnrollmentMetrics(ents, policy, s.enrollmentStatus);
+      return {
+        ...this.serializeListItem(s),
+        academicMetrics: {
+          cumulativeGpa: summary.gpa,
+          creditHoursAttempted: summary.creditHoursAttempted,
+          creditHoursCompleted: summary.creditHoursEarned,
+          academicStanding: summary.standing,
+        },
+      };
+    });
+  }
+
+  /** GPA + credits from enrollment rows using programme repeat policy (Phase 7 list + detail). */
+  private summarizeEnrollmentMetrics(
+    enrollmentRows: Array<Pick<EnrollmentForGpaRow, 'status' | 'grade' | 'semester' | 'section'>>,
+    policy: GpaRepeatPolicy,
+    enrollmentStatus: StudentEnrollmentStatusEnum,
+  ): {
+    gpa: number | null;
+    creditHoursAttempted: number;
+    creditHoursEarned: number;
+    standing: AcademicStanding;
+  } {
+    const gpaRows = this.gpaComputation.rowsFromEnrollments(
+      enrollmentRows.map((e) => ({
+        status: e.status,
+        grade: e.grade,
+        semester: e.semester,
+        section: e.section,
+      })),
+    );
+    const summary = this.gpaComputation.summarizeWithPolicy(gpaRows, policy);
+    let standing: AcademicStanding = 'GOOD';
+    if (enrollmentStatus === StudentEnrollmentStatusEnum.SUSPENDED) {
+      standing = 'SUSPENSION';
+    } else if (summary.cumulativeGpa !== null && summary.cumulativeGpa < 2) {
+      standing = 'PROBATION';
+    }
+    return {
+      gpa: summary.cumulativeGpa,
+      creditHoursAttempted: summary.creditHoursAttempted,
+      creditHoursEarned: summary.creditHoursEarned,
+      standing,
+    };
+  }
+
   private serializeListItem(student: StudentWithUserProgram) {
     return {
       id: student.id,
@@ -333,10 +478,16 @@ export class StudentsService {
     };
   }
 
-  private serializeDetail(row: NonNullable<Awaited<ReturnType<StudentsRepository['findById']>>>) {
+  private async serializeDetail(
+    row: NonNullable<Awaited<ReturnType<StudentsRepository['findById']>>>,
+  ) {
     const base = this.serializeListItem(row);
-    const metrics = this.computeMetrics(row);
-    return { ...base, enrollments: row.enrollments.map((e) => this.serializeEnrollment(e)), metrics };
+    const metrics = await this.computeMetrics(row);
+    return {
+      ...base,
+      enrollments: row.enrollments.map((e) => this.serializeEnrollment(e)),
+      metrics,
+    };
   }
 
   private serializeEnrollment(e: {
@@ -345,8 +496,10 @@ export class StudentsService {
     grade: Prisma.JsonValue;
     enrolledAt: Date;
     sectionId: string;
+    originalSemesterId: string | null;
+    enrollmentAttemptNumber: number;
     semester: { id: string; name: string; startDate: Date };
-    section: { course: { code: string; title: string; creditHours: number } };
+    section: { course: { id: string; code: string; title: string; creditHours: number } };
   }) {
     return {
       id: e.id,
@@ -356,6 +509,8 @@ export class StudentsService {
       semester: e.semester,
       course: e.section.course,
       sectionId: e.sectionId,
+      originalSemesterId: e.originalSemesterId,
+      enrollmentAttemptNumber: e.enrollmentAttemptNumber,
     };
   }
 
@@ -372,9 +527,16 @@ export class StudentsService {
       throw new NotFoundException('Application not found');
     }
     if (app.acceptedStudentId && app.student) {
-      return { studentId: app.student.id, studentNumber: app.student.studentNumber, existing: true as const };
+      return {
+        studentId: app.student.id,
+        studentNumber: app.student.studentNumber,
+        existing: true as const,
+      };
     }
-    const existingStudent = await this.repo.findStudentByUserId(actor.institutionId, app.applicantId);
+    const existingStudent = await this.repo.findStudentByUserId(
+      actor.institutionId,
+      app.applicantId,
+    );
     if (existingStudent) {
       throw new ConflictException('Applicant already has a student record');
     }
@@ -548,32 +710,23 @@ export class StudentsService {
     return { workflowInstanceId: workflow.id, studentId: student.id };
   }
 
-  private computeMetrics(
+  private async computeMetrics(
     row: NonNullable<Awaited<ReturnType<StudentsRepository['findById']>>>,
-  ): { gpa: number | null; creditHoursAttempted: number; creditHoursEarned: number; standing: AcademicStanding } {
-    let weighted = 0;
-    let creditsGraded = 0;
-    let creditHoursAttempted = 0;
-    let creditHoursEarned = 0;
-    for (const e of row.enrollments) {
-      const ch = e.section.course.creditHours;
-      creditHoursAttempted += ch;
-      const gp = readGradePoints(e.grade);
-      if (gp !== null) {
-        weighted += gp * ch;
-        creditsGraded += ch;
-      }
-      if (e.status === 'COMPLETED' && gp !== null && gp >= 1) {
-        creditHoursEarned += ch;
-      }
-    }
-    const gpa = creditsGraded > 0 ? Math.round((weighted / creditsGraded) * 100) / 100 : null;
-    let standing: AcademicStanding = 'GOOD';
-    if (row.enrollmentStatus === 'SUSPENDED') {
-      standing = 'SUSPENSION';
-    } else if (gpa !== null && gpa < 2) {
-      standing = 'PROBATION';
-    }
-    return { gpa, creditHoursAttempted, creditHoursEarned, standing };
+  ): Promise<{
+    gpa: number | null;
+    creditHoursAttempted: number;
+    creditHoursEarned: number;
+    standing: AcademicStanding;
+    gpaRepeatPolicy: GpaRepeatPolicy;
+  }> {
+    const policy = await this.progression.resolveGpaRepeatPolicy(row.institutionId, row.program.id);
+    const summary = this.summarizeEnrollmentMetrics(row.enrollments, policy, row.enrollmentStatus);
+    return {
+      gpa: summary.gpa,
+      creditHoursAttempted: summary.creditHoursAttempted,
+      creditHoursEarned: summary.creditHoursEarned,
+      standing: summary.standing,
+      gpaRepeatPolicy: policy,
+    };
   }
 }

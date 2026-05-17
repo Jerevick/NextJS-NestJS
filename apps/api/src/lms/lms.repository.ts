@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import type { LmsLesson, LmsLessonType, LmsModule, Prisma } from '@prisma/client';
+import {
+  EnrollmentRowStatus,
+  type LmsLesson,
+  type LmsLessonType,
+  type LmsModule,
+  type Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const courseInstanceInclude = {
@@ -7,6 +13,7 @@ const courseInstanceInclude = {
     include: {
       course: { select: { id: true, code: true, title: true } },
       semester: { select: { id: true, name: true } },
+      instructor: { select: { id: true, email: true, profile: true } },
     },
   },
 } as const;
@@ -19,6 +26,39 @@ const activeLessonResources: Prisma.LmsLesson$resourcesArgs = {
 @Injectable()
 export class LmsRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  private buildCourseInstanceListWhere(
+    institutionId: string,
+    opts: { sectionId?: string; scopeEntityId?: string; enrolledStudentId?: string },
+  ): Prisma.LmsCourseInstanceWhereInput {
+    const enrollmentFilter =
+      opts.enrolledStudentId !== undefined && opts.enrolledStudentId !== ''
+        ? {
+            some: {
+              studentId: opts.enrolledStudentId,
+              institutionId,
+              deletedAt: null,
+              status: { in: [EnrollmentRowStatus.ENROLLED, EnrollmentRowStatus.COMPLETED] },
+            },
+          }
+        : undefined;
+
+    const sectionNested: Prisma.SectionWhereInput | undefined =
+      opts.scopeEntityId !== undefined || enrollmentFilter !== undefined
+        ? {
+            deletedAt: null,
+            ...(opts.scopeEntityId ? { entityId: opts.scopeEntityId } : {}),
+            ...(enrollmentFilter ? { enrollments: enrollmentFilter } : {}),
+          }
+        : undefined;
+
+    return {
+      institutionId,
+      deletedAt: null,
+      ...(opts.sectionId ? { sectionId: opts.sectionId } : {}),
+      ...(sectionNested !== undefined ? { section: { is: sectionNested } } : {}),
+    };
+  }
 
   findSectionInInstitution(
     institutionId: string,
@@ -42,9 +82,7 @@ export class LmsRepository {
         id,
         institutionId,
         deletedAt: null,
-        ...(scopeEntityId
-          ? { section: { is: { entityId: scopeEntityId, deletedAt: null } } }
-          : {}),
+        ...(scopeEntityId ? { section: { is: { entityId: scopeEntityId, deletedAt: null } } } : {}),
       },
       include: {
         ...courseInstanceInclude,
@@ -73,9 +111,7 @@ export class LmsRepository {
         sectionId,
         institutionId,
         deletedAt: null,
-        ...(scopeEntityId
-          ? { section: { is: { entityId: scopeEntityId, deletedAt: null } } }
-          : {}),
+        ...(scopeEntityId ? { section: { is: { entityId: scopeEntityId, deletedAt: null } } } : {}),
       },
       include: courseInstanceInclude,
     });
@@ -83,16 +119,19 @@ export class LmsRepository {
 
   listCourseInstances(
     institutionId: string,
-    args: { sectionId?: string; take: number; cursor?: string; scopeEntityId?: string },
+    args: {
+      sectionId?: string;
+      take: number;
+      cursor?: string;
+      scopeEntityId?: string;
+      enrolledStudentId?: string;
+    },
   ): Promise<Prisma.LmsCourseInstanceGetPayload<{ include: typeof courseInstanceInclude }>[]> {
-    const where: Prisma.LmsCourseInstanceWhereInput = {
-      institutionId,
-      deletedAt: null,
-      ...(args.sectionId ? { sectionId: args.sectionId } : {}),
-      ...(args.scopeEntityId
-        ? { section: { is: { entityId: args.scopeEntityId, deletedAt: null } } }
-        : {}),
-    };
+    const where = this.buildCourseInstanceListWhere(institutionId, {
+      sectionId: args.sectionId,
+      scopeEntityId: args.scopeEntityId,
+      enrolledStudentId: args.enrolledStudentId,
+    });
     return this.prisma.lmsCourseInstance.findMany({
       where,
       take: args.take + 1,
@@ -102,17 +141,186 @@ export class LmsRepository {
     });
   }
 
-  countCourseInstances(institutionId: string, sectionId?: string, scopeEntityId?: string): Promise<number> {
+  countCourseInstances(
+    institutionId: string,
+    sectionId?: string,
+    scopeEntityId?: string,
+    enrolledStudentId?: string,
+  ): Promise<number> {
+    const where = this.buildCourseInstanceListWhere(institutionId, {
+      sectionId,
+      scopeEntityId,
+      enrolledStudentId,
+    });
     return this.prisma.lmsCourseInstance.count({
+      where,
+    });
+  }
+
+  touchStudentProgressLastAccessed(
+    institutionId: string,
+    studentId: string,
+    courseInstanceId: string,
+  ) {
+    return this.prisma.lmsStudentProgress.upsert({
+      where: {
+        studentId_courseInstanceId: { studentId, courseInstanceId },
+      },
+      create: {
+        studentId,
+        courseInstanceId,
+        institutionId,
+        completedLessons: [],
+        completedModules: [],
+        progressPercent: 0,
+        timeSpent: 0,
+        lastAccessedAt: new Date(),
+      },
+      update: {
+        lastAccessedAt: new Date(),
+      },
+    });
+  }
+
+  listStudentProgressByCourses(
+    institutionId: string,
+    studentId: string,
+    courseInstanceIds: string[],
+  ) {
+    if (courseInstanceIds.length === 0) {
+      return Promise.resolve(
+        [] as {
+          courseInstanceId: string;
+          progressPercent: unknown;
+          lastAccessedAt: Date | null;
+          completedLessons: string[];
+        }[],
+      );
+    }
+    return this.prisma.lmsStudentProgress.findMany({
+      where: {
+        institutionId,
+        studentId,
+        courseInstanceId: { in: courseInstanceIds },
+      },
+      select: {
+        courseInstanceId: true,
+        progressPercent: true,
+        lastAccessedAt: true,
+        completedLessons: true,
+      },
+    });
+  }
+
+  /** Published lessons per course, ordered module `sortOrder` then lesson `sortOrder`. */
+  listPublishedLessonIdsInSyllabusOrder(
+    institutionId: string,
+    courseInstanceIds: string[],
+  ): Promise<Map<string, string[]>> {
+    if (courseInstanceIds.length === 0) {
+      return Promise.resolve(new Map());
+    }
+    return this.prisma.lmsLesson
+      .findMany({
+        where: {
+          institutionId,
+          deletedAt: null,
+          isPublished: true,
+          module: {
+            institutionId,
+            deletedAt: null,
+            courseInstanceId: { in: courseInstanceIds },
+          },
+        },
+        select: {
+          id: true,
+          sortOrder: true,
+          module: {
+            select: {
+              courseInstanceId: true,
+              sortOrder: true,
+            },
+          },
+        },
+      })
+      .then((rows) => {
+        const byCourse = new Map<string, typeof rows>();
+        for (const r of rows) {
+          const cid = r.module.courseInstanceId;
+          const list = byCourse.get(cid) ?? [];
+          list.push(r);
+          byCourse.set(cid, list);
+        }
+        const out = new Map<string, string[]>();
+        for (const [cid, list] of byCourse) {
+          list.sort((a, b) => {
+            const mo = a.module.sortOrder - b.module.sortOrder;
+            if (mo !== 0) {
+              return mo;
+            }
+            return a.sortOrder - b.sortOrder;
+          });
+          out.set(
+            cid,
+            list.map((l) => l.id),
+          );
+        }
+        return out;
+      });
+  }
+
+  /**
+   * Counts assessments due within the horizon that the student has not yet submitted in a terminal state.
+   */
+  async countDueSoonOpenAssessmentsByCourse(
+    institutionId: string,
+    studentId: string,
+    courseInstanceIds: string[],
+    horizonDays: number,
+  ): Promise<Map<string, number>> {
+    const out = new Map<string, number>();
+    if (courseInstanceIds.length === 0) {
+      return out;
+    }
+    for (const id of courseInstanceIds) {
+      out.set(id, 0);
+    }
+
+    const now = new Date();
+    const horizonEnd = new Date(now.getTime() + horizonDays * 86_400_000);
+
+    const assessments = await this.prisma.lmsAssessment.findMany({
       where: {
         institutionId,
         deletedAt: null,
-        ...(sectionId ? { sectionId } : {}),
-        ...(scopeEntityId
-          ? { section: { is: { entityId: scopeEntityId, deletedAt: null } } }
-          : {}),
+        courseInstanceId: { in: courseInstanceIds },
+        dueDate: { gte: now, lte: horizonEnd },
       },
+      select: { id: true, courseInstanceId: true },
     });
+    if (assessments.length === 0) {
+      return out;
+    }
+
+    const assessmentIds = assessments.map((a) => a.id);
+    const terminal = await this.prisma.lmsSubmission.findMany({
+      where: {
+        institutionId,
+        studentId,
+        assessmentId: { in: assessmentIds },
+        status: { in: ['SUBMITTED', 'LATE', 'GRADED'] },
+      },
+      select: { assessmentId: true },
+    });
+    const doneIds = new Set(terminal.map((t) => t.assessmentId));
+
+    for (const a of assessments) {
+      if (doneIds.has(a.id)) {
+        continue;
+      }
+      out.set(a.courseInstanceId, (out.get(a.courseInstanceId) ?? 0) + 1);
+    }
+    return out;
   }
 
   createCourseInstance(data: {
@@ -145,7 +353,11 @@ export class LmsRepository {
     });
   }
 
-  softDeleteCourseInstance(id: string, institutionId: string, at: Date): Promise<Prisma.BatchPayload> {
+  softDeleteCourseInstance(
+    id: string,
+    institutionId: string,
+    at: Date,
+  ): Promise<Prisma.BatchPayload> {
     return this.prisma.lmsCourseInstance.updateMany({
       where: { id, institutionId, deletedAt: null },
       data: { deletedAt: at },
@@ -155,11 +367,9 @@ export class LmsRepository {
   findContentModule(
     institutionId: string,
     moduleId: string,
-  ): Promise<
-    Prisma.LmsModuleGetPayload<{
-      include: { courseInstance: { select: { id: true; institutionId: true } } };
-    }> | null
-  > {
+  ): Promise<Prisma.LmsModuleGetPayload<{
+    include: { courseInstance: { select: { id: true; institutionId: true } } };
+  }> | null> {
     return this.prisma.lmsModule.findFirst({
       where: { id: moduleId, institutionId, deletedAt: null },
       include: { courseInstance: { select: { id: true, institutionId: true } } },
@@ -169,9 +379,11 @@ export class LmsRepository {
   listModulesForCourseInstance(
     institutionId: string,
     courseInstanceId: string,
-  ): Promise<Prisma.LmsModuleGetPayload<{
+  ): Promise<
+    Prisma.LmsModuleGetPayload<{
       include: { lessons: { include: { resources: typeof activeLessonResources } } };
-    }>[]> {
+    }>[]
+  > {
     return this.prisma.lmsModule.findMany({
       where: { courseInstanceId, institutionId, deletedAt: null },
       orderBy: { sortOrder: 'asc' },
@@ -216,7 +428,11 @@ export class LmsRepository {
     });
   }
 
-  softDeleteContentModule(id: string, institutionId: string, at: Date): Promise<Prisma.BatchPayload> {
+  softDeleteContentModule(
+    id: string,
+    institutionId: string,
+    at: Date,
+  ): Promise<Prisma.BatchPayload> {
     return this.prisma.lmsModule.updateMany({
       where: { id, institutionId, deletedAt: null },
       data: { deletedAt: at },
@@ -243,7 +459,9 @@ export class LmsRepository {
   listLessonsForModule(
     institutionId: string,
     moduleId: string,
-  ): Promise<Prisma.LmsLessonGetPayload<{ include: { resources: typeof activeLessonResources } }>[]> {
+  ): Promise<
+    Prisma.LmsLessonGetPayload<{ include: { resources: typeof activeLessonResources } }>[]
+  > {
     return this.prisma.lmsLesson.findMany({
       where: { moduleId, institutionId, deletedAt: null },
       orderBy: { sortOrder: 'asc' },
@@ -308,14 +526,12 @@ export class LmsRepository {
   findLessonDetailById(
     institutionId: string,
     lessonId: string,
-  ): Promise<
-    Prisma.LmsLessonGetPayload<{
-      include: {
-        resources: typeof activeLessonResources;
-        module: { select: { id: true; title: true; courseInstanceId: true } };
-      };
-    }> | null
-  > {
+  ): Promise<Prisma.LmsLessonGetPayload<{
+    include: {
+      resources: typeof activeLessonResources;
+      module: { select: { id: true; title: true; courseInstanceId: true } };
+    };
+  }> | null> {
     return this.prisma.lmsLesson.findFirst({
       where: { id: lessonId, institutionId, deletedAt: null },
       include: {
@@ -325,10 +541,7 @@ export class LmsRepository {
     });
   }
 
-  listLessonResources(
-    institutionId: string,
-    lessonId: string,
-  ) {
+  listLessonResources(institutionId: string, lessonId: string) {
     return this.prisma.lmsLessonResource.findMany({
       where: {
         lessonId,
@@ -340,10 +553,7 @@ export class LmsRepository {
     });
   }
 
-  findLessonResource(
-    institutionId: string,
-    resourceId: string,
-  ) {
+  findLessonResource(institutionId: string, resourceId: string) {
     return this.prisma.lmsLessonResource.findFirst({
       where: {
         id: resourceId,
@@ -377,14 +587,22 @@ export class LmsRepository {
     });
   }
 
-  softDeleteLessonResource(id: string, institutionId: string, at: Date): Promise<Prisma.BatchPayload> {
+  softDeleteLessonResource(
+    id: string,
+    institutionId: string,
+    at: Date,
+  ): Promise<Prisma.BatchPayload> {
     return this.prisma.lmsLessonResource.updateMany({
       where: { id, institutionId, deletedAt: null },
       data: { deletedAt: at },
     });
   }
 
-  async reorderModules(institutionId: string, courseInstanceId: string, orderedModuleIds: string[]) {
+  async reorderModules(
+    institutionId: string,
+    courseInstanceId: string,
+    orderedModuleIds: string[],
+  ) {
     const existing = await this.prisma.lmsModule.findMany({
       where: { courseInstanceId, institutionId, deletedAt: null },
       select: { id: true },

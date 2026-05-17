@@ -12,7 +12,7 @@
     "db:migrate": "prisma migrate dev --schema packages/database/prisma/schema.prisma",
     "db:migrate:deploy": "node --env-file=packages/.env node_modules/prisma/build/index.js migrate deploy --schema packages/database/prisma/schema.prisma",
     "db:validate": "prisma validate --schema packages/database/prisma/schema.prisma",
-    "db:seed": "pnpm --dir packages/database exec tsx prisma/seed.ts",
+    "db:seed": "prisma db seed --schema packages/database/prisma/schema.prisma",
     "prepare": "husky"
   },
   "devDependencies": {

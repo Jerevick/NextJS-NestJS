@@ -1,19 +1,32 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, WorkflowStatus } from '@prisma/client';
 import type { AuthUser } from '../auth/auth.types';
 import { AuditService } from '../audit/audit.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { WorkflowEngineService } from '../workflow-engine/workflow-engine.service';
 import type { CreateGradeOverrideDto } from './dto/create-grade-override.dto';
 import type { CreateGradingScaleDto } from './dto/create-grading-scale.dto';
 import type { ListGradeOverridesQueryDto } from './dto/list-grade-overrides-query.dto';
+import type { PatchGradeComponentWeightsDto } from './dto/patch-grade-component-weights.dto';
 import type { UpdateEnrollmentGradeDto } from './dto/update-enrollment-grade.dto';
 import type { UpdateGradingScaleDto } from './dto/update-grading-scale.dto';
 import { parseGradeGovernance, userHasAnyPermission } from './grade-governance';
+import {
+  assertGradeComponentBandsForPersist,
+  assertValidComponentScores,
+  parseGradeComponentWeights,
+  sanitizeFreeformComponents,
+  weightedScoreFromComponents,
+} from './grade-component-weights.util';
 import { GradesRepository } from './grades.repository';
+import { ResitGradeService } from '../progression/resit-grade.service';
 
 type ScaleBand = { min: number; max: number; letter: string; points: number };
 type Workflow = 'DRAFT' | 'SUBMITTED' | 'APPROVED';
@@ -63,7 +76,10 @@ function validateScaleBands(bands: ScaleBand[]) {
   }
 }
 
-function mapScoreToLetterPoints(score: number, bands: ScaleBand[]): { letter: string; points: number } | null {
+function mapScoreToLetterPoints(
+  score: number,
+  bands: ScaleBand[],
+): { letter: string; points: number } | null {
   for (const b of bands) {
     if (score >= b.min && score <= b.max) {
       return { letter: b.letter, points: b.points };
@@ -86,7 +102,40 @@ export class GradesService {
   constructor(
     private readonly repo: GradesRepository,
     private readonly audit: AuditService,
+    private readonly resitGrades: ResitGradeService,
+    private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => WorkflowEngineService))
+    private readonly workflows: WorkflowEngineService,
   ) {}
+
+  private async cancelOpenWorkflowInstances(
+    institutionId: string,
+    opts: {
+      definitionCode: string;
+      entityType: string;
+      entityIdRecord: string;
+      completedBy: string;
+    },
+  ): Promise<void> {
+    await this.prisma.workflowInstance.updateMany({
+      where: {
+        institutionId,
+        definitionCode: opts.definitionCode,
+        entityType: opts.entityType,
+        entityId_record: opts.entityIdRecord,
+        status: {
+          in: [WorkflowStatus.IN_PROGRESS, WorkflowStatus.ESCALATED, WorkflowStatus.PENDING],
+        },
+      },
+      data: {
+        status: WorkflowStatus.CANCELLED,
+        completedAt: new Date(),
+        completedBy: opts.completedBy,
+        currentAssigneeUserId: null,
+        assigneePositionCode: null,
+      },
+    });
+  }
 
   private hasFullWrite(user: AuthUser) {
     return user.permissions.includes('*') || user.permissions.includes('grades.write');
@@ -141,15 +190,21 @@ export class GradesService {
     throw new ForbiddenException('Not allowed to enter grades for this section');
   }
 
-  private assertCanApproveFinal(user: AuthUser, governance: ReturnType<typeof parseGradeGovernance>) {
+  private assertCanApproveFinal(
+    user: AuthUser,
+    governance: ReturnType<typeof parseGradeGovernance>,
+  ) {
     if (!userHasAnyPermission(user, governance.approvePermissionCodes)) {
       throw new ForbiddenException(
-        'Your account is not allowed to give final grade approval under this institution\'s policy.',
+        "Your account is not allowed to give final grade approval under this institution's policy.",
       );
     }
   }
 
-  private assertCanReviewGradeOverrideQueue(user: AuthUser, governance: ReturnType<typeof parseGradeGovernance>) {
+  private assertCanReviewGradeOverrideQueue(
+    user: AuthUser,
+    governance: ReturnType<typeof parseGradeGovernance>,
+  ) {
     if (this.hasFullWrite(user)) {
       return;
     }
@@ -160,7 +215,9 @@ export class GradesService {
     if (userHasAnyPermission(user, [...new Set(codes)])) {
       return;
     }
-    throw new ForbiddenException('Not allowed to review grade change requests for this institution');
+    throw new ForbiddenException(
+      'Not allowed to review grade change requests for this institution',
+    );
   }
 
   private assertCanRequestGradeOverride(
@@ -190,7 +247,11 @@ export class GradesService {
     return rows.map((r) => this.serializeEnrollmentRow(r));
   }
 
-  async updateEnrollmentGrade(actor: AuthUser, enrollmentId: string, dto: UpdateEnrollmentGradeDto) {
+  async updateEnrollmentGrade(
+    actor: AuthUser,
+    enrollmentId: string,
+    dto: UpdateEnrollmentGradeDto,
+  ) {
     const row = await this.repo.findEnrollmentWithSection(actor.institutionId, enrollmentId);
     if (!row) {
       throw new NotFoundException('Enrollment not found');
@@ -212,16 +273,58 @@ export class GradesService {
       prevWorkflow === 'APPROVED' &&
       !userHasAnyPermission(actor, governance.postApprovalEditPermissionCodes)
     ) {
-      throw new BadRequestException('Cannot move an approved grade back to submitted without authorization');
+      throw new BadRequestException(
+        'Cannot move an approved grade back to submitted without authorization',
+      );
     }
 
-    const next: Record<string, unknown> = { ...prev, lastUpdatedBy: actor.userId, updatedAt: new Date().toISOString() };
+    const componentBands = parseGradeComponentWeights(inst?.settings);
+
+    const next: Record<string, unknown> = {
+      ...prev,
+      lastUpdatedBy: actor.userId,
+      updatedAt: new Date().toISOString(),
+    };
+
+    let numericScoreForMapping: number | undefined;
 
     if (dto.components !== undefined) {
-      next.components = dto.components;
+      if (
+        typeof dto.components !== 'object' ||
+        dto.components === null ||
+        Array.isArray(dto.components)
+      ) {
+        throw new BadRequestException('components must be a plain object of numeric scores');
+      }
+      const compObj = dto.components as Record<string, unknown>;
+      if (componentBands.length > 0) {
+        const scores = assertValidComponentScores(componentBands, compObj);
+        next.components = scores;
+        const w = weightedScoreFromComponents(componentBands, scores);
+        const clamped = await this.resitGrades.clampNumericScoreForEnrollment(
+          actor.institutionId,
+          row.id,
+          w,
+        );
+        next.score = clamped.score;
+        numericScoreForMapping = clamped.score;
+      } else {
+        next.components = sanitizeFreeformComponents(compObj);
+      }
     }
-    if (dto.score !== undefined) {
-      next.score = dto.score;
+
+    if (dto.score !== undefined && numericScoreForMapping === undefined) {
+      let s = dto.score;
+      if (typeof s === 'number') {
+        const clamped = await this.resitGrades.clampNumericScoreForEnrollment(
+          actor.institutionId,
+          row.id,
+          s,
+        );
+        s = clamped.score;
+      }
+      next.score = s;
+      numericScoreForMapping = typeof s === 'number' && Number.isFinite(s) ? s : undefined;
     }
     if (dto.letterGrade !== undefined) {
       next.letterGrade = dto.letterGrade;
@@ -234,9 +337,14 @@ export class GradesService {
     }
 
     const scale = await this.resolveDefaultScale(actor.institutionId);
-    const bands = parseScaleBands(scale?.scale);
-    if (dto.score !== undefined && dto.letterGrade === undefined && dto.gradePoints === undefined && bands.length) {
-      const mapped = mapScoreToLetterPoints(dto.score, bands);
+    const scaleBands = parseScaleBands(scale?.scale);
+    if (
+      numericScoreForMapping !== undefined &&
+      dto.letterGrade === undefined &&
+      dto.gradePoints === undefined &&
+      scaleBands.length
+    ) {
+      const mapped = mapScoreToLetterPoints(numericScoreForMapping, scaleBands);
       if (mapped) {
         next.letterGrade = mapped.letter;
         next.gradePoints = mapped.points;
@@ -244,6 +352,44 @@ export class GradesService {
     }
 
     const updated = await this.repo.updateEnrollmentGrade(row.id, next as Prisma.InputJsonValue);
+
+    const nextWorkflow = (next.workflowStatus as Workflow | undefined) ?? prevWorkflow;
+    if (dto.workflowStatus === 'APPROVED') {
+      await this.cancelOpenWorkflowInstances(actor.institutionId, {
+        definitionCode: 'GRADE_RELEASE',
+        entityType: 'StudentEnrollment',
+        entityIdRecord: row.id,
+        completedBy: actor.userId,
+      });
+    }
+    if (
+      governance.gradeReleaseWorkflowOnSubmit &&
+      dto.workflowStatus === 'SUBMITTED' &&
+      prevWorkflow === 'DRAFT' &&
+      nextWorkflow === 'SUBMITTED'
+    ) {
+      try {
+        await this.workflows.initiateWorkflow({
+          institutionId: actor.institutionId,
+          entityId: row.section.entityId,
+          definitionCode: 'GRADE_RELEASE',
+          entityType: 'StudentEnrollment',
+          entityId_record: row.id,
+          initiatedBy: actor.userId,
+          metadata: { sectionId: row.section.id },
+        });
+      } catch (e: unknown) {
+        this.audit.append({
+          institutionId: actor.institutionId,
+          actorId: actor.userId,
+          action: 'grade.release_workflow.init_failed',
+          entity: 'StudentEnrollment',
+          entityId: row.id,
+          newValues: { message: e instanceof Error ? e.message : String(e) },
+        });
+      }
+    }
+
     this.audit.append({
       institutionId: actor.institutionId,
       actorId: actor.userId,
@@ -265,10 +411,44 @@ export class GradesService {
 
   async getEffectiveGradeGovernance(actor: AuthUser) {
     const inst = await this.repo.getInstitutionSettings(actor.institutionId);
-    return parseGradeGovernance(inst?.settings);
+    return {
+      ...parseGradeGovernance(inst?.settings),
+      componentWeights: parseGradeComponentWeights(inst?.settings),
+    };
   }
 
-  async createGradeOverrideRequest(actor: AuthUser, enrollmentId: string, dto: CreateGradeOverrideDto) {
+  async patchGradeComponentWeights(actor: AuthUser, dto: PatchGradeComponentWeightsDto) {
+    if (!this.hasFullWrite(actor)) {
+      throw new ForbiddenException('Requires grades.write to update grading component weights.');
+    }
+    const bands = assertGradeComponentBandsForPersist(dto.componentWeights as unknown);
+    const updated = await this.repo.mergeInstitutionGradesSetting(actor.institutionId, {
+      componentWeights: bands.map((b) => ({ key: b.key, label: b.label, weight: b.weight })),
+    });
+    if (!updated) {
+      throw new NotFoundException('Institution not found');
+    }
+
+    this.audit.append({
+      institutionId: actor.institutionId,
+      actorId: actor.userId,
+      action: 'grades.component_weights.patch',
+      entity: 'Institution',
+      entityId: actor.institutionId,
+      newValues: {
+        count: bands.length,
+        keys: bands.map((b) => b.key),
+      } as Prisma.InputJsonValue,
+    });
+
+    return { ok: true as const, componentWeights: bands };
+  }
+
+  async createGradeOverrideRequest(
+    actor: AuthUser,
+    enrollmentId: string,
+    dto: CreateGradeOverrideDto,
+  ) {
     const row = await this.repo.findEnrollmentWithSection(actor.institutionId, enrollmentId);
     if (!row) {
       throw new NotFoundException('Enrollment not found');
@@ -292,7 +472,9 @@ export class GradesService {
     }
 
     const oldGradeSnapshot =
-      row.grade === null || row.grade === undefined ? Prisma.JsonNull : (row.grade as Prisma.InputJsonValue);
+      row.grade === null || row.grade === undefined
+        ? Prisma.JsonNull
+        : (row.grade as Prisma.InputJsonValue);
 
     const created = await this.repo.createGradeOverride({
       institutionId: actor.institutionId,
@@ -310,6 +492,26 @@ export class GradesService {
       entityId: created.id,
       newValues: { enrollmentId: row.id, reason: dto.reason.trim() },
     });
+    try {
+      await this.workflows.initiateWorkflow({
+        institutionId: actor.institutionId,
+        entityId: row.section.entityId,
+        definitionCode: 'GRADE_OVERRIDE',
+        entityType: 'GradeOverride',
+        entityId_record: created.id,
+        initiatedBy: actor.userId,
+        metadata: { enrollmentId: row.id },
+      });
+    } catch (e: unknown) {
+      this.audit.append({
+        institutionId: actor.institutionId,
+        actorId: actor.userId,
+        action: 'grade_override.workflow_init_failed',
+        entity: 'GradeOverride',
+        entityId: created.id,
+        newValues: { message: e instanceof Error ? e.message : String(e) },
+      });
+    }
     return this.serializeGradeOverride(created);
   }
 
@@ -343,6 +545,13 @@ export class GradesService {
       throw new NotFoundException('Pending grade change request not found');
     }
 
+    await this.cancelOpenWorkflowInstances(actor.institutionId, {
+      definitionCode: 'GRADE_OVERRIDE',
+      entityType: 'GradeOverride',
+      entityIdRecord: o.id,
+      completedBy: actor.userId,
+    });
+
     const proposed = asGradeObject(o.newGrade);
     const applied: Record<string, unknown> = {
       ...proposed,
@@ -350,6 +559,15 @@ export class GradesService {
       lastUpdatedBy: actor.userId,
       updatedAt: new Date().toISOString(),
     };
+
+    if (typeof applied.score === 'number') {
+      const clamped = await this.resitGrades.clampNumericScoreForEnrollment(
+        actor.institutionId,
+        o.enrollmentId,
+        applied.score,
+      );
+      applied.score = clamped.score;
+    }
 
     const refreshed = await this.repo.approveGradeOverrideAndApplyEnrollment({
       overrideId: o.id,
@@ -378,6 +596,13 @@ export class GradesService {
       throw new NotFoundException('Pending grade change request not found');
     }
 
+    await this.cancelOpenWorkflowInstances(actor.institutionId, {
+      definitionCode: 'GRADE_OVERRIDE',
+      entityType: 'GradeOverride',
+      entityIdRecord: o.id,
+      completedBy: actor.userId,
+    });
+
     const n = await this.repo.softDeleteGradeOverride(actor.institutionId, overrideId, new Date());
     if (n.count === 0) {
       throw new NotFoundException('Pending grade change request not found');
@@ -400,7 +625,12 @@ export class GradesService {
   }
 
   async createGradingScale(actor: AuthUser, dto: CreateGradingScaleDto) {
-    const bands = dto.scale.map((b) => ({ min: b.min, max: b.max, letter: b.letter, points: b.points }));
+    const bands = dto.scale.map((b) => ({
+      min: b.min,
+      max: b.max,
+      letter: b.letter,
+      points: b.points,
+    }));
     validateScaleBands(bands);
     const isDefault = dto.isDefault === true;
     const created = await this.repo.createGradingScale({
@@ -435,7 +665,12 @@ export class GradesService {
       data.name = dto.name;
     }
     if (dto.scale !== undefined) {
-      const bands = dto.scale.map((b) => ({ min: b.min, max: b.max, letter: b.letter, points: b.points }));
+      const bands = dto.scale.map((b) => ({
+        min: b.min,
+        max: b.max,
+        letter: b.letter,
+        points: b.points,
+      }));
       validateScaleBands(bands);
       data.scale = bands as unknown as Prisma.InputJsonValue;
     }

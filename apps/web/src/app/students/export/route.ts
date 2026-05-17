@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 
-const apiBase = process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiBase =
+  process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 const ENROLLMENT_STATUSES = new Set([
   'ACTIVE',
@@ -27,6 +28,11 @@ type StudentRow = {
   currentLevel: number;
   program: { id: string; name: string; code: string };
   profile?: unknown;
+  academicMetrics?: {
+    cumulativeGpa: number | null;
+    creditHoursCompleted?: number;
+    academicStanding: string;
+  } | null;
 };
 
 type ListResponse = {
@@ -92,7 +98,20 @@ export async function GET(req: Request) {
     cursor = payload.nextCursor;
   }
 
-  const header = ['studentNumber', 'email', 'firstName', 'lastName', 'programCode', 'programName', 'level', 'status', 'id'];
+  const header = [
+    'studentNumber',
+    'email',
+    'firstName',
+    'lastName',
+    'programCode',
+    'programName',
+    'level',
+    'status',
+    'cumulativeGpa',
+    'creditHoursCompleted',
+    'academicStanding',
+    'id',
+  ];
   const lines = [
     header.join(','),
     ...rows.map((r) => {
@@ -106,6 +125,20 @@ export async function GET(req: Request) {
         csvCell(r.program?.name ?? ''),
         csvCell(String(r.currentLevel ?? '')),
         csvCell(r.enrollmentStatus ?? ''),
+        csvCell(
+          r.academicMetrics?.cumulativeGpa !== null &&
+            r.academicMetrics?.cumulativeGpa !== undefined &&
+            Number.isFinite(r.academicMetrics.cumulativeGpa)
+            ? String(r.academicMetrics.cumulativeGpa)
+            : '',
+        ),
+        csvCell(
+          r.academicMetrics?.creditHoursCompleted !== undefined &&
+            Number.isFinite(r.academicMetrics.creditHoursCompleted)
+            ? String(Math.round(r.academicMetrics.creditHoursCompleted))
+            : '',
+        ),
+        csvCell(r.academicMetrics?.academicStanding ?? ''),
         csvCell(r.id),
       ].join(',');
     }),

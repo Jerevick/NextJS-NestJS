@@ -1,6 +1,10 @@
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import {
+  InstitutionEntitiesDataGrid,
+  type EntityGridRow,
+} from '@/components/data-grids/institutions-data-grid';
+import {
   getMonitoringInstitutionAudit,
   getMonitoringInstitutionUsage,
   getSuperAdminInstitution,
@@ -122,26 +126,17 @@ export default async function InstitutionDetailPage({
           {entities.length === 0 ? (
             <p style={{ color: '#64748b' }}>No entities.</p>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', borderBottom: '1px solid #1e293b', color: '#94a3b8' }}>
-                  <th style={{ padding: '0.5rem 0' }}>Code</th>
-                  <th style={{ padding: '0.5rem 0' }}>Name</th>
-                  <th style={{ padding: '0.5rem 0' }}>Type</th>
-                  <th style={{ padding: '0.5rem 0' }}>Active students</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entities.map((e) => (
-                  <tr key={e.id} style={{ borderBottom: '1px solid #0f172a' }}>
-                    <td style={{ padding: '0.45rem 0' }}>{e.code}</td>
-                    <td style={{ padding: '0.45rem 0' }}>{e.name}</td>
-                    <td style={{ padding: '0.45rem 0' }}>{e.type}</td>
-                    <td style={{ padding: '0.45rem 0' }}>{e.activeStudentCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <InstitutionEntitiesDataGrid
+              rows={entities.map(
+                (e): EntityGridRow => ({
+                  id: e.id,
+                  code: e.code,
+                  name: e.name,
+                  type: e.type,
+                  activeStudentCount: e.activeStudentCount,
+                }),
+              )}
+            />
           )}
         </section>
       ) : null}
@@ -174,22 +169,22 @@ export default async function InstitutionDetailPage({
           <h2 style={{ fontSize: '1rem', color: '#94a3b8' }}>Audit log (latest)</h2>
           {audit.mode === 'live' && Array.isArray(audit.data) ? (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {(audit.data as { id: string; action: string; entity: string; createdAt: string }[]).map(
-                (e) => (
-                  <li
-                    key={e.id}
-                    style={{
-                      borderBottom: '1px solid #0f172a',
-                      padding: '0.5rem 0',
-                      fontSize: '0.85rem',
-                      fontFamily: 'ui-monospace, monospace',
-                    }}
-                  >
-                    <span style={{ color: '#64748b' }}>{String(e.createdAt)}</span> · {e.action} ·{' '}
-                    {e.entity}
-                  </li>
-                ),
-              )}
+              {(
+                audit.data as { id: string; action: string; entity: string; createdAt: string }[]
+              ).map((e) => (
+                <li
+                  key={e.id}
+                  style={{
+                    borderBottom: '1px solid #0f172a',
+                    padding: '0.5rem 0',
+                    fontSize: '0.85rem',
+                    fontFamily: 'ui-monospace, monospace',
+                  }}
+                >
+                  <span style={{ color: '#64748b' }}>{String(e.createdAt)}</span> · {e.action} ·{' '}
+                  {e.entity}
+                </li>
+              ))}
             </ul>
           ) : (
             <p style={{ color: '#94a3b8' }}>

@@ -3,10 +3,12 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   Patch,
   Post,
   Query,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import type { AuthUser } from '../auth/auth.types';
@@ -48,6 +50,29 @@ export class AdmissionsController {
   @RequireAnyPermissions('admissions.read', 'admissions.write')
   getApplication(@CurrentUser() user: AuthUser, @Param('applicationId') applicationId: string) {
     return this.admissions.getApplication(user, applicationId);
+  }
+
+  @Get('applications/:applicationId/offer-letter/pdf')
+  @UseGuards(AnyPermissionsGuard)
+  @RequireAnyPermissions('admissions.read', 'admissions.write')
+  @Header('Content-Type', 'application/pdf')
+  async offerLetterPdf(
+    @CurrentUser() user: AuthUser,
+    @Param('applicationId') applicationId: string,
+  ) {
+    const bytes = await this.admissions.offerLetterPdf(user, applicationId);
+    return new StreamableFile(Buffer.from(bytes), {
+      type: 'application/pdf',
+      disposition: `attachment; filename="offer-letter-${applicationId}.pdf"`,
+    });
+  }
+
+  @Get('applications/:applicationId/offer-letter')
+  @UseGuards(AnyPermissionsGuard)
+  @RequireAnyPermissions('admissions.read', 'admissions.write')
+  @Header('Content-Type', 'text/html; charset=utf-8')
+  offerLetterHtml(@CurrentUser() user: AuthUser, @Param('applicationId') applicationId: string) {
+    return this.admissions.offerLetterHtml(user, applicationId);
   }
 
   @Patch('applications/:applicationId')
@@ -142,7 +167,11 @@ export class AdmissionsController {
   @Patch('forms/:formId')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('admissions.write')
-  updateForm(@CurrentUser() user: AuthUser, @Param('formId') formId: string, @Body() dto: UpdateApplicationFormDto) {
+  updateForm(
+    @CurrentUser() user: AuthUser,
+    @Param('formId') formId: string,
+    @Body() dto: UpdateApplicationFormDto,
+  ) {
     return this.admissions.updateForm(user, formId, dto);
   }
 

@@ -20,7 +20,11 @@ type ApplicationDetail = {
   createdAt: string;
   cycle: { id: string; name: string };
   program: { id: string; code: string; name: string };
-  applicant: { id: string; email: string; profile?: { firstName?: string; lastName?: string } | null };
+  applicant: {
+    id: string;
+    email: string;
+    profile?: { firstName?: string; lastName?: string } | null;
+  };
   reviewer?: { email: string } | null;
   student?: { id: string; studentNumber: string } | null;
 };
@@ -41,10 +45,13 @@ export default async function ApplicationDetailPage({
     );
   }
 
-  const res = await fetch(`${apiBase}/admissions/applications/${encodeURIComponent(applicationId)}`, {
-    headers: buildApiHeaders(session),
-    cache: 'no-store',
-  });
+  const res = await fetch(
+    `${apiBase}/admissions/applications/${encodeURIComponent(applicationId)}`,
+    {
+      headers: buildApiHeaders(session),
+      cache: 'no-store',
+    },
+  );
 
   if (res.status === 404) {
     notFound();
@@ -66,11 +73,20 @@ export default async function ApplicationDetailPage({
       : app.applicant.email;
 
   return (
-    <main style={{ padding: '2rem 1.5rem', maxWidth: 720, margin: '0 auto', fontFamily: '"IBM Plex Sans", system-ui' }}>
+    <main
+      style={{
+        padding: '2rem 1.5rem',
+        maxWidth: 720,
+        margin: '0 auto',
+        fontFamily: '"IBM Plex Sans", system-ui',
+      }}
+    >
       <Link href="/admissions" style={{ color: primary }}>
         ← Admissions
       </Link>
-      <h1 style={{ fontFamily: '"Crimson Pro", Georgia, serif', color: primary, marginTop: '1rem' }}>
+      <h1
+        style={{ fontFamily: '"Crimson Pro", Georgia, serif', color: primary, marginTop: '1rem' }}
+      >
         {name}
       </h1>
       <p style={{ color: muted, fontSize: '0.9rem' }}>
@@ -79,13 +95,45 @@ export default async function ApplicationDetailPage({
 
       <section style={{ marginTop: '1.5rem' }}>
         <h2 style={{ fontSize: '1rem', color: primary }}>Decision</h2>
-        <ApplicationStatusForm applicationId={app.id} currentStatus={app.status} canWrite={canWrite} />
+        <ApplicationStatusForm
+          applicationId={app.id}
+          currentStatus={app.status}
+          canWrite={canWrite}
+        />
         <EnrollStudentButton
           applicationId={app.id}
           canWrite={canWrite}
           hasStudent={Boolean(app.student)}
           acceptedStatus={app.status === 'ACCEPTED'}
         />
+        {app.status === 'ACCEPTED' ? (
+          <p
+            style={{
+              marginTop: '0.75rem',
+              fontSize: '0.9rem',
+              display: 'flex',
+              gap: '0.85rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            <a
+              href={`/admissions/${app.id}/offer-letter`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: primary, fontWeight: 600 }}
+            >
+              Offer letter (HTML)
+            </a>
+            <a
+              href={`/admissions/${app.id}/offer-letter/pdf`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: primary, fontWeight: 600 }}
+            >
+              Download PDF
+            </a>
+          </p>
+        ) : null}
         {app.student ? (
           <p style={{ marginTop: '0.75rem', fontSize: '0.9rem' }}>
             Linked student:{' '}
@@ -127,7 +175,9 @@ export default async function ApplicationDetailPage({
       {app.reviewNotes && Object.keys(app.reviewNotes as object).length > 0 ? (
         <section style={{ marginTop: '1.5rem' }}>
           <h2 style={{ fontSize: '1rem', color: primary }}>Review notes</h2>
-          <pre style={{ background: '#f8fafc', padding: '1rem', borderRadius: 8, fontSize: '0.8rem' }}>
+          <pre
+            style={{ background: '#f8fafc', padding: '1rem', borderRadius: 8, fontSize: '0.8rem' }}
+          >
             {JSON.stringify(app.reviewNotes, null, 2)}
           </pre>
         </section>

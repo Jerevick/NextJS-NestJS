@@ -125,6 +125,11 @@ model Institution {
   rooms              Room[]
   students           Student[]
   enrollments        StudentEnrollment[]
+  enrollmentHolds    EnrollmentHold[]
+  sectionWaitlistEntries SectionWaitlistEntry[]
+  bulkEnrollmentJobs BulkEnrollmentJob[]
+  studentCsvImportJobs StudentCsvImportJob[]
+  graduationClearanceRequests GraduationClearanceRequest[]
   transcripts        Transcript[]
   admissionCycles    AdmissionCycle[]
   applications       Application[]
@@ -142,6 +147,8 @@ model Institution {
   lmsLessonResources LmsLessonResource[]
   lmsAssessments     LmsAssessment[]
   lmsQuestions       LmsQuestion[]
+  lmsQuestionBanks   LmsQuestionBank[]
+  lmsQuestionBankItems LmsQuestionBankItem[]
   lmsSubmissions     LmsSubmission[]
   lmsAnnouncements   LmsAnnouncement[]
   lmsDiscussions     LmsDiscussion[]
@@ -167,6 +174,24 @@ model Institution {
   workflowDefinitions  WorkflowDefinition[]
   workflowInstances    WorkflowInstance[]
   studentTransferRecords StudentTransferRecord[]
+  progressionRules               ProgressionRule[]
+  progressionDecisions           ProgressionDecision[]
+  studentProgressionHolds        StudentProgressionHold[]
+  carryoverEnrollments           CarryoverEnrollment[]
+  resitRecords                   ResitRecord[]
+  studentAcademicSessionRecords  StudentAcademicSessionRecord[]
+  feeStructures                  FeeStructure[]
+  studentAccounts                StudentAccount[]
+  financeTransactions            FinanceTransaction[]
+  financeGlAccounts              FinanceGlAccount[]
+  financeGlJournalLines          FinanceGlJournalLine[]
+  financePaymentPlans            FinancePaymentPlan[]
+  financeScholarships            FinanceScholarship[]
+  financeScholarshipAwards       FinanceScholarshipAward[]
+  financeScholarshipApplications FinanceScholarshipApplication[]
+  financeBankIntegrations        FinanceBankIntegration[]
+  financeBulkChargeJobs          FinanceBulkChargeJob[]
+  userNotifications              UserNotification[]
 }
 
 model InstitutionEntity {
@@ -194,11 +219,25 @@ model InstitutionEntity {
   affiliatePartners        AffiliatePartner[]
   monthlyBillableSummaries MonthlyBillableSummary[]
   reactivationRequests     ReactivationRequest[]
+  graduationClearanceRequests GraduationClearanceRequest[]
   orgUnits                 OrgUnit[]
   positions                Position[]
   positionHolders          PositionHolder[]
   workflowDefinitions      WorkflowDefinition[]
   workflowInstances        WorkflowInstance[]
+  enrollmentHolds        EnrollmentHold[]
+  progressionDecisions   ProgressionDecision[]
+  studentProgressionHolds StudentProgressionHold[]
+  studentAcademicSessionRecords StudentAcademicSessionRecord[]
+  feeStructures                 FeeStructure[]
+  studentAccounts               StudentAccount[]
+  financeTransactions         FinanceTransaction[]
+  financePaymentPlans         FinancePaymentPlan[]
+  financeScholarships           FinanceScholarship[]
+  financeScholarshipAwards      FinanceScholarshipAward[]
+  financeScholarshipApplications FinanceScholarshipApplication[]
+  financeBankIntegrations       FinanceBankIntegration[]
+  financeBulkChargeJobs         FinanceBulkChargeJob[]
 
   @@unique([institutionId, code])
   @@index([institutionId])
@@ -667,9 +706,18 @@ model User {
   billingDisputesCreated BillingDispute[] @relation("BillingDisputeCreatedBy")
   reactivationRequestsSubmitted ReactivationRequest[] @relation("ReactivationRequestedBy")
   reactivationRequestsReviewed  ReactivationRequest[] @relation("ReactivationReviewedBy")
+  bulkEnrollmentJobsInitiated   BulkEnrollmentJob[]   @relation("BulkEnrollmentInitiator")
+  financeBulkChargeJobsInitiated FinanceBulkChargeJob[] @relation("FinanceBulkChargeInitiator")
+  studentCsvImportJobsInitiated StudentCsvImportJob[] @relation("StudentCsvImportInitiator")
+  graduationClearanceRequested  GraduationClearanceRequest[] @relation("GraduationClearanceRequester")
   positionHolders             PositionHolder[]      @relation("PositionHolderUser")
   positionsAppointed          PositionHolder[]      @relation("PositionAppointedBy")
+  enrollmentHoldsPlaced       EnrollmentHold[]      @relation("EnrollmentHoldPlacedBy")
+  enrollmentHoldsLifted       EnrollmentHold[]      @relation("EnrollmentHoldLiftedBy")
   workflowsInitiated          WorkflowInstance[]    @relation("WorkflowInitiator")
+  progressionDecisionsCreated ProgressionDecision[] @relation("ProgressionDecisionCreator")
+  studentProgressionHoldsPlaced StudentProgressionHold[] @relation("ProgressionHoldPlacedBy")
+  notifications                 UserNotification[]
 
   @@unique([institutionId, email])
   @@index([institutionId])
@@ -742,6 +790,10 @@ model AcademicYear {
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   semesters   Semester[]
   admissionCycles AdmissionCycle[]
+  progressionDecisions ProgressionDecision[]
+  studentAcademicSessionRecords StudentAcademicSessionRecord[]
+  feeStructures            FeeStructure[]
+  financeScholarshipAwards FinanceScholarshipAward[]
 
   @@index([institutionId])
 }
@@ -768,8 +820,12 @@ model Semester {
   academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
   institution  Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   sections     Section[]
-  enrollments  StudentEnrollment[]
+  enrollments  StudentEnrollment[] @relation("EnrollmentTerm")
+  enrollmentOriginalTerms StudentEnrollment[] @relation("EnrollmentOriginalSemester")
+  waitlistEntries SectionWaitlistEntry[]
   timetables   Timetable[]
+  progressionDecisions ProgressionDecision[]
+  studentProgressionHolds StudentProgressionHold[]
 
   @@index([institutionId])
   @@index([academicYearId])
@@ -842,6 +898,10 @@ model Program {
   entity       InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
   students     Student[]
   applications Application[]
+  progressionRules ProgressionRule[]
+  progressionDecisions ProgressionDecision[]
+  academicSessionRecords StudentAcademicSessionRecord[]
+  financeBulkChargeJobs FinanceBulkChargeJob[]
 
   @@unique([institutionId, code])
   @@index([institutionId])
@@ -902,12 +962,165 @@ model Section {
   entity       InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
   instructor   User?      @relation("SectionInstructor", fields: [instructorId], references: [id])
   enrollments  StudentEnrollment[]
+  waitlistEntries SectionWaitlistEntry[]
   attendance   Attendance[]
   lmsCourseInstance LmsCourseInstance?
 
   @@index([institutionId])
   @@index([institutionId, entityId])
   @@index([courseId, semesterId])
+}
+
+// --- Enrollment holds & waitlist (Phase 7.1) ---
+
+enum EnrollmentHoldType {
+  FINANCIAL
+  ACADEMIC
+  ADMINISTRATIVE
+  LIBRARY
+  DISCIPLINARY
+}
+
+model EnrollmentHold {
+  id            String             @id @default(cuid())
+  studentId     String
+  institutionId String
+  entityId      String
+  type          EnrollmentHoldType
+  reason        String
+  placedById    String
+  placedAt      DateTime           @default(now())
+  liftedAt      DateTime?
+  liftedById    String?
+  liftNotes     String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  deletedAt     DateTime?
+
+  student     Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  placedBy    User              @relation("EnrollmentHoldPlacedBy", fields: [placedById], references: [id], onDelete: Restrict)
+  liftedBy    User?             @relation("EnrollmentHoldLiftedBy", fields: [liftedById], references: [id], onDelete: SetNull)
+
+  @@index([institutionId, studentId, liftedAt])
+  @@index([institutionId, entityId])
+}
+
+enum WaitlistStatus {
+  WAITING
+  PROMOTED
+  REMOVED
+}
+
+model SectionWaitlistEntry {
+  id            String         @id @default(cuid())
+  studentId     String
+  sectionId     String
+  semesterId    String
+  institutionId String
+  position      Int
+  status        WaitlistStatus @default(WAITING)
+  joinedAt      DateTime       @default(now())
+  promotedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  section     Section     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  semester    Semester    @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, sectionId])
+  @@index([sectionId, status, position])
+  @@index([institutionId])
+}
+
+enum BulkEnrollmentJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model BulkEnrollmentJob {
+  id              String                  @id @default(cuid())
+  institutionId   String
+  entityId        String?
+  sectionId       String
+  initiatedById   String
+  waitlistIfFull  Boolean                 @default(false)
+  status          BulkEnrollmentJobStatus @default(QUEUED)
+  studentIds      Json
+  results         Json                    @default("[]")
+  successCount    Int                     @default(0)
+  failCount       Int                     @default(0)
+  errorMessage    String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  completedAt     DateTime?
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  initiator   User        @relation("BulkEnrollmentInitiator", fields: [initiatedById], references: [id], onDelete: Restrict)
+
+  @@index([institutionId, status])
+  @@index([initiatedById])
+}
+
+model StudentCsvImportJob {
+  id              String                  @id @default(cuid())
+  institutionId   String
+  entityId        String?
+  initiatedById   String
+  status          BulkEnrollmentJobStatus @default(QUEUED)
+  csvText         String                  @db.Text
+  results         Json                    @default("[]")
+  successCount    Int                     @default(0)
+  failCount       Int                     @default(0)
+  errorMessage    String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  completedAt     DateTime?
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  initiator   User        @relation("StudentCsvImportInitiator", fields: [initiatedById], references: [id], onDelete: Restrict)
+
+  @@index([institutionId, status])
+  @@index([initiatedById])
+}
+
+enum GraduationClearanceStatus {
+  PENDING
+  IN_PROGRESS
+  CLEARED
+  REJECTED
+}
+
+model GraduationClearanceRequest {
+  id                 String                    @id @default(cuid())
+  institutionId      String
+  entityId           String
+  studentId          String
+  requestedBy        String
+  justification      String?
+  status             GraduationClearanceStatus @default(PENDING)
+  workflowInstanceId String?
+  departmentChecks   Json                      @default("[]")
+  reviewNotes        String?
+  reviewedBy         String?
+  reviewedAt         DateTime?
+  clearedAt          DateTime?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  student     Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  requester   User              @relation("GraduationClearanceRequester", fields: [requestedBy], references: [id], onDelete: Restrict)
+
+  @@index([institutionId, status])
+  @@index([institutionId, studentId])
 }
 
 // --- LMS (Learning Management) — Phase 4.1 ---
@@ -1083,12 +1296,52 @@ model LmsQuestion {
   @@index([assessmentId, sortOrder])
 }
 
+model LmsQuestionBank {
+  id             String    @id @default(cuid())
+  institutionId  String
+  name           String
+  description    String?
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  institution Institution             @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  items       LmsQuestionBankItem[]
+
+  @@index([institutionId])
+  @@index([institutionId, deletedAt])
+}
+
+model LmsQuestionBankItem {
+  id            String          @id @default(cuid())
+  bankId        String
+  institutionId String
+  type          LmsQuestionType @default(MCQ)
+  content       Json            @default("{}")
+  points        Int             @default(1)
+  explanation   String?
+  tags          String[]        @default([])
+  difficulty    Int?
+  sortOrder     Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  bank        LmsQuestionBank @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@index([bankId, sortOrder])
+}
+
 model LmsSubmission {
   id                  String              @id @default(cuid())
   assessmentId        String
   studentId           String
   institutionId       String
   status              LmsSubmissionStatus @default(DRAFT)
+  attemptNumber       Int                 @default(1)
+  startedAt           DateTime?
+  expiresAt           DateTime?
   submittedAt         DateTime?
   answers             Json                @default("{}")
   fileKeys            String[]            @default([])
@@ -1108,6 +1361,7 @@ model LmsSubmission {
 
   @@index([institutionId])
   @@index([assessmentId, studentId])
+  @@index([assessmentId, studentId, attemptNumber])
   @@index([studentId, status])
 }
 
@@ -1403,6 +1657,8 @@ model Student {
   entity       InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
   program      Program      @relation(fields: [programId], references: [id], onDelete: Restrict)
   enrollments  StudentEnrollment[]
+  enrollmentHolds EnrollmentHold[]
+  waitlistEntries SectionWaitlistEntry[]
   transcripts  Transcript[]
   applications Application[] @relation("AcceptedStudent")
   attendance   Attendance[]
@@ -1414,6 +1670,13 @@ model Student {
   backfillWindows      BackfillWindow[]
   statusChangeLogs     StatusChangeLog[]
   reactivationRequests ReactivationRequest[]
+  graduationClearanceRequests GraduationClearanceRequest[]
+  progressionDecisions ProgressionDecision[]
+  studentProgressionHolds StudentProgressionHold[]
+  academicSessionRecords StudentAcademicSessionRecord[]
+  financeAccount         StudentAccount?
+  financeScholarshipAwards       FinanceScholarshipAward[]
+  financeScholarshipApplications FinanceScholarshipApplication[]
 
   @@unique([institutionId, studentNumber])
   @@index([institutionId])
@@ -1435,6 +1698,10 @@ model StudentEnrollment {
   sectionId     String
   semesterId    String
   institutionId String
+  /** Semester context for the first attempt when this row is a repeat/resit (Phase 19). */
+  originalSemesterId String?
+  /** Attempt index for this enrollment row (1 = first). */
+  enrollmentAttemptNumber Int           @default(1)
   status        EnrollmentRowStatus  @default(ENROLLED)
   grade         Json?
   enrolledAt    DateTime             @default(now())
@@ -1444,9 +1711,13 @@ model StudentEnrollment {
 
   student     Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
   section     Section    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  semester    Semester   @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  semester    Semester   @relation("EnrollmentTerm", fields: [semesterId], references: [id], onDelete: Cascade)
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  originalSemester   Semester? @relation("EnrollmentOriginalSemester", fields: [originalSemesterId], references: [id], onDelete: SetNull)
   overrides   GradeOverride[]
+  carryoverAsOriginal CarryoverEnrollment? @relation("CarryoverOriginalEnrollment")
+  carryoverAsRepeat   CarryoverEnrollment? @relation("CarryoverRepeatEnrollment")
+  resitRecord ResitRecord?
 
   @@unique([studentId, sectionId])
   @@index([institutionId])
@@ -1713,4 +1984,518 @@ model DocumentTemplate {
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
   @@unique([institutionId, type])
+}
+
+// --- Phase 19 — Academic progression (promotion & repeat) — see UNICORE_MASTER_PROMPT.md Prompt 19.1
+
+enum GpaRepeatPolicy {
+  BEST_OF_ATTEMPTS
+  LAST_ATTEMPT
+  ALL_ATTEMPTS_AVERAGE
+  FIRST_ATTEMPT_ONLY
+}
+
+enum ProgressionRuleScope {
+  INSTITUTION
+  PROGRAM
+}
+
+enum ProgressionDecisionKind {
+  PROMOTION
+  REPEAT_OUTCOME
+  DEFERRED_PROMOTION
+  MANUAL_PROMOTION
+}
+
+enum ProgressionPromotionSubtype {
+  AUTOMATIC
+  CONDITIONAL
+  DEFERRED
+  MANUAL
+}
+
+enum ProgressionRepeatSubtype {
+  FULL_REPEAT
+  SUPPLEMENTARY_CARRYOVER
+  RESIT
+  DEFERRED_EXAMINATION
+  AEGROTAT
+}
+
+enum StudentSessionRepeatReason {
+  NONE
+  FULL_REPEAT
+  CARRYOVER
+  RESIT_CONTEXT
+  RUSTICATION_RETURN
+  OTHER
+}
+
+enum StudentProgressionHoldType {
+  FINANCIAL
+  ACADEMIC
+  ADMINISTRATIVE
+  LIBRARY
+  DISCIPLINARY
+  OTHER
+}
+
+model ProgressionRule {
+  id       String @id @default(cuid())
+  institutionId String
+  ruleScope ProgressionRuleScope
+  programId String?
+  minGpaPromotion          Decimal?  @db.Decimal(4, 2)
+  conditionalPromotionMinGpa Decimal? @db.Decimal(4, 2)
+  maxCarryoverCourses           Int @default(2)
+  maxRepeatAttemptsPerLevel     Int @default(2)
+  maxProgrammeDurationYears    Int?
+  maxResitAttempts               Int @default(1)
+  resitGradeCapPercent         Decimal @default(40) @db.Decimal(5, 2)
+  gpaRepeatPolicy GpaRepeatPolicy @default(BEST_OF_ATTEMPTS)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  program     Program?    @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@index([institutionId, programId])
+}
+
+/// Immutable decision row (no updates/deletes in services — LAW P1).
+model ProgressionDecision {
+  id             String @id @default(cuid())
+  institutionId  String
+  entityId       String
+  studentId      String
+  programId      String
+  kind           ProgressionDecisionKind
+  promotionSubtype ProgressionPromotionSubtype?
+  repeatSubtype    ProgressionRepeatSubtype?
+  semesterId       String?
+  academicYearId   String?
+  priorDecisionId  String?
+  payload        Json @default("{}")
+  createdByUserId String
+  createdAt      DateTime @default(now())
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  student     Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  program     Program @relation(fields: [programId], references: [id], onDelete: Restrict)
+  semester    Semester? @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  academicYear AcademicYear? @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
+  priorDecision ProgressionDecision? @relation("ProgressionDecisionChain", fields: [priorDecisionId], references: [id], onDelete: SetNull)
+  nextDecisions ProgressionDecision[] @relation("ProgressionDecisionChain")
+  createdBy   User @relation("ProgressionDecisionCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([institutionId, studentId, createdAt])
+  @@index([studentId])
+}
+
+model StudentProgressionHold {
+  id             String @id @default(cuid())
+  institutionId  String
+  entityId       String
+  studentId      String
+  type           StudentProgressionHoldType
+  reason         String?
+  semesterId     String?
+  clearedAt      DateTime?
+  placedByUserId String
+  createdAt      DateTime @default(now())
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  student     Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  semester    Semester? @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  placedBy    User @relation("ProgressionHoldPlacedBy", fields: [placedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([institutionId, studentId])
+  @@index([studentId, clearedAt])
+}
+
+model CarryoverEnrollment {
+  id                    String @id @default(cuid())
+  institutionId         String
+  originalEnrollmentId  String @unique
+  repeatEnrollmentId    String @unique
+
+  institution          Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  originalEnrollment   StudentEnrollment @relation("CarryoverOriginalEnrollment", fields: [originalEnrollmentId], references: [id], onDelete: Cascade)
+  repeatEnrollment     StudentEnrollment @relation("CarryoverRepeatEnrollment", fields: [repeatEnrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+}
+
+model ResitRecord {
+  id             String @id @default(cuid())
+  institutionId  String
+  enrollmentId   String @unique
+  gradeCapPercent Decimal @db.Decimal(5, 2)
+  capApplied     Boolean @default(false)
+  createdAt      DateTime @default(now())
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  enrollment  StudentEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+}
+
+model StudentAcademicSessionRecord {
+  id             String @id @default(cuid())
+  institutionId  String
+  entityId       String
+  studentId      String
+  programId      String
+  academicYearId String
+  studyLevel     Int
+  attemptNumber  Int @default(1)
+  repeatReason   StudentSessionRepeatReason @default(NONE)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  student     Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  program     Program @relation(fields: [programId], references: [id], onDelete: Restrict)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, programId, academicYearId, studyLevel, attemptNumber])
+  @@index([institutionId])
+}
+
+// --- Finance (Phase 9) — dual-scoped student ledger ---
+
+enum FinanceGlAccountType {
+  ASSET
+  LIABILITY
+  REVENUE
+  EXPENSE
+}
+
+enum FinanceGlNormalBalance {
+  DEBIT
+  CREDIT
+}
+
+enum FinanceTransactionType {
+  CHARGE
+  PAYMENT
+  SCHOLARSHIP_CREDIT
+  REFUND
+  ADJUSTMENT
+  WAIVER
+}
+
+enum FinanceTransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+  CANCELLED
+}
+
+enum FinancePaymentPlanStatus {
+  ACTIVE
+  COMPLETED
+  DEFAULTED
+  CANCELLED
+}
+
+enum FinanceScholarshipType {
+  MERIT
+  NEED_BASED
+  ATHLETIC
+  SPONSORED
+  OTHER
+}
+
+enum FinanceAwardStatus {
+  PENDING
+  APPROVED
+  DISBURSED
+  REVOKED
+}
+
+enum FinanceScholarshipApplicationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model FeeStructure {
+  id             String    @id @default(cuid())
+  institutionId  String
+  entityId       String
+  name           String
+  academicYearId String
+  programmeIds   String[]  @default([])
+  isDefault      Boolean   @default(false)
+  items          Json      @default("[]")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  institution  Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity       InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  academicYear AcademicYear      @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+
+  @@index([institutionId, entityId])
+  @@index([institutionId, academicYearId])
+}
+
+model StudentAccount {
+  id                String    @id @default(cuid())
+  institutionId     String
+  entityId          String
+  studentId         String    @unique
+  balance           Decimal   @default(0) @db.Decimal(14, 2)
+  currency          String    @default("USD")
+  lastTransactionAt DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  institution  Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity       InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  student      Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  transactions FinanceTransaction[]
+  paymentPlans FinancePaymentPlan[]
+
+  @@index([institutionId, entityId])
+}
+
+model FinanceTransaction {
+  id                    String                   @id @default(cuid())
+  institutionId         String
+  entityId              String
+  studentAccountId      String
+  type                  FinanceTransactionType
+  amount                Decimal                  @db.Decimal(14, 2)
+  currency              String
+  description           String
+  reference             String                   @unique
+  paymentMethod         String?
+  gatewayRef            String?
+  gatewayResponse       Json?
+  status                FinanceTransactionStatus
+  processedAt           DateTime?
+  processedBy           String?
+  approvedBy            String?
+  approvalWorkflowId    String?
+  /** Double-entry ledger pairs + extensibility (Phase 9). */
+  metadata              Json                     @default("{}")
+  isReversed            Boolean                  @default(false)
+  reversedTransactionId String?
+  createdAt             DateTime                 @default(now())
+
+  institution    Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity         InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  studentAccount StudentAccount    @relation(fields: [studentAccountId], references: [id], onDelete: Cascade)
+  glJournalLines FinanceGlJournalLine[]
+
+  @@index([institutionId, studentAccountId, createdAt])
+  @@index([institutionId, entityId])
+}
+
+/** Institution chart of accounts (student finance GL). */
+model FinanceGlAccount {
+  id            String               @id @default(cuid())
+  institutionId String
+  code          String
+  name          String
+  type          FinanceGlAccountType
+  normalBalance FinanceGlNormalBalance
+  isSystem      Boolean              @default(false)
+  isActive      Boolean              @default(true)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, code])
+  @@index([institutionId, isActive])
+}
+
+/** Immutable GL lines posted from completed finance transactions. */
+model FinanceGlJournalLine {
+  id                     String   @id @default(cuid())
+  institutionId          String
+  entityId               String
+  financeTransactionId   String
+  accountCode            String
+  debit                  Decimal  @db.Decimal(14, 2)
+  credit                 Decimal  @db.Decimal(14, 2)
+  postedAt               DateTime @default(now())
+
+  institution        Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  financeTransaction FinanceTransaction @relation(fields: [financeTransactionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, financeTransactionId])
+  @@index([institutionId, accountCode, postedAt])
+}
+
+model FinancePaymentPlan {
+  id               String                   @id @default(cuid())
+  institutionId    String
+  entityId         String
+  studentAccountId String
+  totalAmount      Decimal                  @db.Decimal(14, 2)
+  currency         String
+  installments     Json                     @default("[]")
+  status           FinancePaymentPlanStatus @default(ACTIVE)
+  createdBy        String
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  institution    Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity         InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  studentAccount StudentAccount    @relation(fields: [studentAccountId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, studentAccountId])
+}
+
+model FinanceScholarship {
+  id                  String                 @id @default(cuid())
+  institutionId       String
+  entityId            String
+  name                String
+  type                FinanceScholarshipType
+  fundingSource       String
+  totalFund           Decimal                @db.Decimal(14, 2)
+  disbursedAmount     Decimal                @default(0) @db.Decimal(14, 2)
+  conditions          Json                   @default("{}")
+  applicationSchemaId String?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  deletedAt           DateTime?
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  awards       FinanceScholarshipAward[]
+  applications FinanceScholarshipApplication[]
+
+  @@index([institutionId, entityId])
+}
+
+model FinanceScholarshipApplication {
+  id            String                            @id @default(cuid())
+  institutionId String
+  entityId      String
+  scholarshipId String
+  studentId     String
+  responses     Json                              @default("{}")
+  status        FinanceScholarshipApplicationStatus @default(SUBMITTED)
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  reviewNotes          String?
+  workflowInstanceId   String?
+  createdAt            DateTime                          @default(now())
+  updatedAt            DateTime                          @updatedAt
+
+  institution Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity  @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  scholarship FinanceScholarship @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
+  student     Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([scholarshipId, studentId])
+  @@index([institutionId, status])
+  @@index([workflowInstanceId])
+}
+
+model FinanceScholarshipAward {
+  id                 String             @id @default(cuid())
+  institutionId      String
+  entityId           String
+  scholarshipId      String
+  studentId          String
+  amount             Decimal            @db.Decimal(14, 2)
+  academicYearId     String
+  status             FinanceAwardStatus @default(PENDING)
+  workflowInstanceId String?
+  awardedBy          String?
+  disbursedAt        DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  institution  Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity       InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  scholarship  FinanceScholarship @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
+  student      Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+
+  @@index([institutionId, studentId])
+  @@index([scholarshipId])
+}
+
+model FinanceBankIntegration {
+  id            String   @id @default(cuid())
+  institutionId String
+  entityId      String
+  provider      String
+  config        Json     @default("{}")
+  isActive      Boolean  @default(true)
+  webhookSecret String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+
+  @@index([institutionId, entityId, provider])
+}
+
+enum FinanceBulkChargeJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model FinanceBulkChargeJob {
+  id            String                     @id @default(cuid())
+  institutionId String
+  entityId      String
+  programId     String
+  initiatedById String
+  amount        Decimal                    @db.Decimal(14, 2)
+  description   String
+  status        FinanceBulkChargeJobStatus @default(QUEUED)
+  results       Json                       @default("[]")
+  successCount  Int                        @default(0)
+  failCount     Int                        @default(0)
+  errorMessage  String?
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+  completedAt   DateTime?
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  program     Program @relation(fields: [programId], references: [id], onDelete: Restrict)
+  initiator   User @relation("FinanceBulkChargeInitiator", fields: [initiatedById], references: [id], onDelete: Restrict)
+
+  @@index([institutionId, status])
+  @@index([initiatedById])
+}
+
+model UserNotification {
+  id            String    @id @default(cuid())
+  institutionId String
+  userId        String
+  category      String
+  title         String
+  body          String
+  actionUrl     String?
+  readAt        DateTime?
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([institutionId, userId, createdAt])
 }

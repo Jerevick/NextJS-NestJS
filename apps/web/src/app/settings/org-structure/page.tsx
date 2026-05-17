@@ -23,7 +23,9 @@ function renderTree(nodes: TreeNode[], depth = 0): ReactNode {
       {nodes.map((n) => (
         <li key={n.id} style={{ fontSize: '0.9rem', marginBottom: 4 }}>
           <span style={{ fontWeight: 600 }}>{n.name}</span>{' '}
-          <span style={{ color: '#64748b', fontFamily: 'ui-monospace, monospace' }}>({n.code})</span>{' '}
+          <span style={{ color: '#64748b', fontFamily: 'ui-monospace, monospace' }}>
+            ({n.code})
+          </span>{' '}
           <span
             style={{
               fontSize: '0.72rem',
@@ -78,10 +80,13 @@ export default async function OrgStructurePage({
   };
   appendOptionalEntityHeader(headers, session.user);
 
-  const entitiesRes = await fetch(`${apiBase}/institutions/${session.user.institutionId}/entities`, {
-    headers,
-    cache: 'no-store',
-  });
+  const entitiesRes = await fetch(
+    `${apiBase}/institutions/${session.user.institutionId}/entities`,
+    {
+      headers,
+      cache: 'no-store',
+    },
+  );
   const entitiesJson = entitiesRes.ok
     ? ((await entitiesRes.json()) as { data?: { id: string; name: string; code: string }[] })
     : { data: [] };
@@ -92,10 +97,16 @@ export default async function OrgStructurePage({
     (session.user.entityScope === 'ENTITY' ? session.user.entityId : entities[0]?.id);
 
   let treePayload: { tree?: TreeNode[] } | null = null;
-  let institutionTrees: Array<{ entity: { id: string; name: string; code: string }; tree: TreeNode[] }> = [];
+  let institutionTrees: Array<{
+    entity: { id: string; name: string; code: string };
+    tree: TreeNode[];
+  }> = [];
 
   if (session.user.entityScope === 'ALL' && !entityIdParam) {
-    const instTreeRes = await fetch(`${apiBase}/org-units/institution-tree`, { headers, cache: 'no-store' });
+    const instTreeRes = await fetch(`${apiBase}/org-units/institution-tree`, {
+      headers,
+      cache: 'no-store',
+    });
     if (instTreeRes.ok) {
       const body = (await instTreeRes.json()) as { data: typeof institutionTrees };
       institutionTrees = body.data ?? [];
@@ -117,10 +128,17 @@ export default async function OrgStructurePage({
           ← Dashboard
         </Link>
       </p>
+      {session.user && hasPermission(session.user.permissions, 'grades.write') ? (
+        <p style={{ margin: '0', fontSize: '0.9rem' }}>
+          <Link href="/settings/grading-weights" style={{ color: '#2563eb', fontWeight: 600 }}>
+            Grading weights →
+          </Link>
+        </p>
+      ) : null}
       <h1 style={{ marginTop: 0 }}>Org structure</h1>
       <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
-        Academic and administrative units within each campus (Phase 3). ReactFlow chart UI can replace this tree list
-        later.
+        Academic and administrative units within each campus (Phase 3). ReactFlow chart UI can
+        replace this tree list later.
       </p>
 
       {session.user.entityScope === 'ALL' ? (
@@ -157,24 +175,28 @@ export default async function OrgStructurePage({
         </nav>
       ) : null}
 
-      {institutionTrees.length > 0 ? (
-        institutionTrees.map((block) => (
-          <section
-            key={block.entity.id}
-            style={{
-              marginBottom: '1.5rem',
-              padding: '1rem',
-              border: '1px solid #e2e8f0',
-              borderRadius: 12,
-            }}
-          >
-            <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>
-              {block.entity.name} <span style={{ color: '#94a3b8' }}>({block.entity.code})</span>
-            </h2>
-            {block.tree.length > 0 ? renderTree(block.tree) : <p style={{ color: '#64748b' }}>No org units yet.</p>}
-          </section>
-        ))
-      ) : null}
+      {institutionTrees.length > 0
+        ? institutionTrees.map((block) => (
+            <section
+              key={block.entity.id}
+              style={{
+                marginBottom: '1.5rem',
+                padding: '1rem',
+                border: '1px solid #e2e8f0',
+                borderRadius: 12,
+              }}
+            >
+              <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>
+                {block.entity.name} <span style={{ color: '#94a3b8' }}>({block.entity.code})</span>
+              </h2>
+              {block.tree.length > 0 ? (
+                renderTree(block.tree)
+              ) : (
+                <p style={{ color: '#64748b' }}>No org units yet.</p>
+              )}
+            </section>
+          ))
+        : null}
 
       {treePayload ? (
         <section style={{ padding: '1rem', border: '1px solid #e2e8f0', borderRadius: 12 }}>

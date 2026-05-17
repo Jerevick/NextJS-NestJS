@@ -1,4 +1,8 @@
 import Link from 'next/link';
+import {
+  InstitutionsDataGrid,
+  type InstitutionGridRow,
+} from '@/components/data-grids/institutions-data-grid';
 import { getMonitoringInstitutions } from '@/lib/platform-api';
 
 type Row = {
@@ -18,7 +22,15 @@ export default async function InstitutionsPage() {
   const rows: Row[] = Array.isArray(res.data) ? (res.data as Row[]) : [];
   return (
     <main style={{ padding: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}
+      >
         <h1 style={{ fontSize: '1.25rem', marginTop: 0 }}>Institutions</h1>
         <Link
           href="/institutions/new"
@@ -39,36 +51,19 @@ export default async function InstitutionsPage() {
         Source: <strong>{res.mode}</strong>
         {res.mode === 'error' && 'status' in res ? ` · HTTP ${String(res.status)}` : null}
       </p>
-      <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid #1e293b', color: '#94a3b8' }}>
-              <th style={{ padding: '0.5rem 0' }}>Name</th>
-              <th style={{ padding: '0.5rem 0' }}>Slug</th>
-              <th style={{ padding: '0.5rem 0' }}>Plan</th>
-              <th style={{ padding: '0.5rem 0' }}>Status</th>
-              <th style={{ padding: '0.5rem 0' }}>Health</th>
-              <th style={{ padding: '0.5rem 0' }}>Students</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} style={{ borderBottom: '1px solid #0f172a' }}>
-                <td style={{ padding: '0.45rem 0' }}>
-                  <Link href={`/institutions/${r.id}`} style={{ color: '#60a5fa' }}>
-                    {r.name}
-                  </Link>
-                </td>
-                <td style={{ padding: '0.45rem 0' }}>{r.slug}</td>
-                <td style={{ padding: '0.45rem 0' }}>{r.plan ?? '—'}</td>
-                <td style={{ padding: '0.45rem 0' }}>{r.status ?? '—'}</td>
-                <td style={{ padding: '0.45rem 0' }}>{r.healthScore ?? '—'}</td>
-                <td style={{ padding: '0.45rem 0' }}>{r.currentStudentCount ?? r.studentRecords ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <InstitutionsDataGrid
+        rows={rows.map(
+          (r): InstitutionGridRow => ({
+            id: r.id,
+            name: r.name,
+            slug: r.slug,
+            plan: r.plan ?? '—',
+            status: r.status ?? '—',
+            healthScore: String(r.healthScore ?? '—'),
+            students: String(r.currentStudentCount ?? r.studentRecords ?? '—'),
+          }),
+        )}
+      />
     </main>
   );
 }

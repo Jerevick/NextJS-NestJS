@@ -46,7 +46,8 @@ export default async function DashboardPage() {
         >
           <h2 style={{ margin: 0, fontSize: '1.05rem' }}>Institution-wide headcount</h2>
           <p style={{ margin: '0.35rem 0 0', color: '#64748b', fontSize: '0.88rem' }}>
-            Across {consolidated.entities.length} campus{consolidated.entities.length === 1 ? '' : 'es'}
+            Across {consolidated.entities.length} campus
+            {consolidated.entities.length === 1 ? '' : 'es'}
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginTop: '1rem' }}>
             <div>
@@ -94,15 +95,23 @@ export default async function DashboardPage() {
             Grade entry
           </Link>
         ) : null}
+        {session?.user && hasPermission(session.user.permissions, 'grades.write') ? (
+          <Link href="/settings/grading-weights" style={{ color: '#2563eb' }}>
+            Grading weights
+          </Link>
+        ) : null}
+        <Link href="/notifications" style={{ color: '#2563eb' }}>
+          Notifications
+        </Link>
         <Link href="/courses" style={{ color: '#2563eb' }}>
           Courses (LMS)
         </Link>
         <Link href="/entities" style={{ color: '#2563eb' }}>
           Campuses
         </Link>
-        {(session?.user?.permissions?.includes('*') ||
-          session?.user?.permissions?.includes('org.read') ||
-          session?.user?.permissions?.includes('institutions.write')) ? (
+        {session?.user?.permissions?.includes('*') ||
+        session?.user?.permissions?.includes('org.read') ||
+        session?.user?.permissions?.includes('institutions.write') ? (
           <Link href="/settings/org-structure" style={{ color: '#2563eb' }}>
             Org structure
           </Link>
@@ -110,6 +119,14 @@ export default async function DashboardPage() {
         {session?.user && canAccessBillingNav(session.user.permissions) ? (
           <Link href="/billing" style={{ color: '#2563eb' }}>
             Billing
+          </Link>
+        ) : null}
+        {session?.user &&
+        (canAccessBillingNav(session.user.permissions) ||
+          hasPermission(session.user.permissions, 'finance.read') ||
+          hasPermission(session.user.permissions, 'finance.write')) ? (
+          <Link href="/finance" style={{ color: '#2563eb' }}>
+            Finance
           </Link>
         ) : null}
         {session?.user && canAccessBillingNav(session.user.permissions) ? (
@@ -120,6 +137,13 @@ export default async function DashboardPage() {
         {session?.user && hasPermission(session.user.permissions, 'students.read') ? (
           <Link href="/students/reactivation" style={{ color: '#2563eb' }}>
             Reactivation requests
+          </Link>
+        ) : null}
+        {session?.user &&
+        (hasPermission(session.user.permissions, 'progression.write') ||
+          hasPermission(session.user.permissions, 'students.write')) ? (
+          <Link href="/registrar/progression" style={{ color: '#2563eb' }}>
+            Progression batch
           </Link>
         ) : null}
         <Link href="/workflow/inbox" style={{ color: '#2563eb' }}>

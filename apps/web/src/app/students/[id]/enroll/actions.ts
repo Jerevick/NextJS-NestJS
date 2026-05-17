@@ -5,10 +5,12 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { hasPermission } from '@/lib/permissions';
 
-const apiBase = process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiBase =
+  process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 export type EnrollSectionState = {
   error?: string;
+  success?: string;
 };
 
 export async function enrollInSection(
@@ -26,6 +28,14 @@ export async function enrollInSection(
 
   const studentId = String(formData.get('studentId') ?? '').trim();
   const sectionId = String(formData.get('sectionId') ?? '').trim();
+  const waitlistIfFull = formData.get('waitlistIfFull') === 'on';
+  const enrollmentAttemptRaw = String(formData.get('enrollmentAttemptNumber') ?? '1').trim();
+  let enrollmentAttemptNumber: number | undefined;
+  const parsedAttempt = Number.parseInt(enrollmentAttemptRaw, 10);
+  if (Number.isFinite(parsedAttempt) && parsedAttempt >= 1) {
+    enrollmentAttemptNumber = parsedAttempt;
+  }
+  const originalSemesterId = String(formData.get('originalSemesterId') ?? '').trim() || undefined;
   if (!studentId || !sectionId) {
     return { error: 'Choose a section to enroll.' };
   }
@@ -36,7 +46,16 @@ export async function enrollInSection(
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ studentId, sectionId }),
+    body: JSON.stringify({
+      studentId,
+      sectionId,
+      waitlistIfFull,
+      allowInterEntity: formData.get('allowInterEntity') === 'on',
+      ...(enrollmentAttemptNumber !== undefined && enrollmentAttemptNumber !== 1
+        ? { enrollmentAttemptNumber }
+        : {}),
+      ...(originalSemesterId ? { originalSemesterId } : {}),
+    }),
   });
 
   const raw = await res.text();
@@ -57,7 +76,21 @@ export async function enrollInSection(
     return { error: message };
   }
 
+  let payload: { status?: string; position?: number } = {};
+  try {
+    payload = JSON.parse(raw) as { status?: string; position?: number };
+  } catch {
+    payload = {};
+  }
+
   revalidatePath('/students');
   revalidatePath(`/students/${studentId}`);
+
+  if (payload.status === 'WAITING' && typeof payload.position === 'number') {
+    return {
+      success: `Section is full. Student added to waitlist (position ${payload.position}).`,
+    };
+  }
+
   redirect(`/students/${studentId}`);
 }

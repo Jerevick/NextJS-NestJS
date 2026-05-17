@@ -4,13 +4,18 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { WorkflowStatus } from '@prisma/client';
+import { Prisma, WorkflowStatus } from '@prisma/client';
 import type { AuthUser } from '../auth/auth.types';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkflowAssigneeResolver } from './workflow-assignee.resolver';
 import { WorkflowCompletionHandler } from './workflow-completion.handler';
-import type { InitiateWorkflowDto, ProcessWorkflowStepDto, WorkflowHistoryEntry } from './workflow.types';
+import type {
+  InitiateWorkflowDto,
+  PreparedWorkflowInitiation,
+  ProcessWorkflowStepDto,
+  WorkflowHistoryEntry,
+} from './workflow.types';
 import { parseWorkflowHistory, parseWorkflowSteps } from './workflow.types';
 
 @Injectable()
@@ -34,8 +39,12 @@ export class WorkflowEngineService {
     });
   }
 
-  async initiateWorkflow(dto: InitiateWorkflowDto) {
-    const definition = await this.findDefinition(dto.institutionId, dto.entityId, dto.definitionCode);
+  async prepareInitiation(dto: InitiateWorkflowDto): Promise<PreparedWorkflowInitiation> {
+    const definition = await this.findDefinition(
+      dto.institutionId,
+      dto.entityId,
+      dto.definitionCode,
+    );
     if (!definition) {
       throw new NotFoundException(`Workflow definition not found: ${dto.definitionCode}`);
     }
@@ -59,22 +68,39 @@ export class WorkflowEngineService {
 
     const dueAt = new Date(Date.now() + firstStep.slaHours * 60 * 60 * 1000);
 
+    return {
+      definitionId: definition.id,
+      definitionCode: definition.code,
+      institutionId: dto.institutionId,
+      entityId: dto.entityId,
+      entityType: dto.entityType,
+      initiatedBy: dto.initiatedBy,
+      metadata: (dto.metadata ?? {}) as Record<string, unknown>,
+      currentAssigneeUserId: assignee.userId,
+      currentStepName: firstStep.name,
+      assigneePositionCode: assignee.positionCode,
+      dueAt,
+    };
+  }
+
+  async initiateWorkflow(dto: InitiateWorkflowDto) {
+    const prepared = await this.prepareInitiation(dto);
     const instance = await this.prisma.workflowInstance.create({
       data: {
-        institutionId: dto.institutionId,
-        entityId: dto.entityId,
-        definitionId: definition.id,
-        definitionCode: definition.code,
-        entityType: dto.entityType,
+        institutionId: prepared.institutionId,
+        entityId: prepared.entityId,
+        definitionId: prepared.definitionId,
+        definitionCode: prepared.definitionCode,
+        entityType: prepared.entityType,
         entityId_record: dto.entityId_record,
         currentStep: 1,
         status: WorkflowStatus.IN_PROGRESS,
-        initiatedBy: dto.initiatedBy,
-        dueAt,
-        metadata: (dto.metadata ?? {}) as object,
-        currentAssigneeUserId: assignee.userId,
-        currentStepName: firstStep.name,
-        assigneePositionCode: assignee.positionCode,
+        initiatedBy: prepared.initiatedBy,
+        dueAt: prepared.dueAt,
+        metadata: prepared.metadata as Prisma.InputJsonValue,
+        currentAssigneeUserId: prepared.currentAssigneeUserId,
+        currentStepName: prepared.currentStepName,
+        assigneePositionCode: prepared.assigneePositionCode,
         history: [],
       },
       include: {
@@ -90,7 +116,7 @@ export class WorkflowEngineService {
       entity: 'WorkflowInstance',
       entityId: instance.id,
       newValues: {
-        definitionCode: definition.code,
+        definitionCode: prepared.definitionCode,
         entityType: dto.entityType,
         entityId_record: dto.entityId_record,
       },

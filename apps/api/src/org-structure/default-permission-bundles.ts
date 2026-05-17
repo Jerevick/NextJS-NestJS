@@ -75,13 +75,13 @@ export const DEFAULT_PERMISSION_BUNDLES: Array<{
     code: 'FINANCE_FULL',
     name: 'Finance — full',
     description: 'Full finance module access',
-    permissions: ['billing.read', 'billing.write'],
+    permissions: ['billing.read', 'billing.write', 'finance.read', 'finance.write'],
   },
   {
     code: 'FINANCE_VIEW',
     name: 'Finance — view',
     description: 'Read finance and billing',
-    permissions: ['billing.read'],
+    permissions: ['billing.read', 'finance.read'],
   },
   {
     code: 'BILLING_VIEW',

@@ -4,6 +4,7 @@ import type { AuthUser } from '../auth/auth.types';
 import { AuditService } from '../audit/audit.service';
 import { LmsRepository } from './lms.repository';
 import { LmsService } from './lms.service';
+import { LmsStudentEligibilityService } from './lms-student-eligibility.service';
 
 describe('LmsService', () => {
   let lms: LmsService;
@@ -31,6 +32,13 @@ describe('LmsService', () => {
         LmsService,
         { provide: LmsRepository, useValue: repo },
         { provide: AuditService, useValue: { append: jest.fn() } },
+        {
+          provide: LmsStudentEligibilityService,
+          useValue: {
+            assertStudentEnrolledForCourseSection: jest.fn(),
+            assertMayUseStudentLms: jest.fn(),
+          },
+        },
       ],
     }).compile();
     lms = moduleRef.get(LmsService);
@@ -40,9 +48,9 @@ describe('LmsService', () => {
     it('throws when target section is missing', async () => {
       repo.findCourseInstanceById!.mockResolvedValueOnce({ id: 'src1' } as never);
       repo.findSectionInInstitution!.mockResolvedValue(null);
-      await expect(lms.cloneCourseInstance(actor, 'src1', { targetSectionId: 'missing' })).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        lms.cloneCourseInstance(actor, 'src1', { targetSectionId: 'missing' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
       expect(repo.cloneCourseInstance).not.toHaveBeenCalled();
     });
 
@@ -50,9 +58,9 @@ describe('LmsService', () => {
       repo.findCourseInstanceById!.mockResolvedValueOnce({ id: 'src1' } as never);
       repo.findSectionInInstitution!.mockResolvedValue({ id: 'sec2' });
       repo.cloneCourseInstance!.mockResolvedValue({ ok: false, code: 'target_has_instance' });
-      await expect(lms.cloneCourseInstance(actor, 'src1', { targetSectionId: 'sec2' })).rejects.toBeInstanceOf(
-        ConflictException,
-      );
+      await expect(
+        lms.cloneCourseInstance(actor, 'src1', { targetSectionId: 'sec2' }),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
 
     it('returns full course when clone succeeds', async () => {
@@ -70,8 +78,8 @@ describe('LmsService', () => {
         },
         modules: [],
       };
-      repo.findCourseInstanceById!
-        .mockResolvedValueOnce({ id: 'src1' } as never)
+      repo
+        .findCourseInstanceById!.mockResolvedValueOnce({ id: 'src1' } as never)
         .mockResolvedValueOnce(detail as never);
       repo.findSectionInInstitution!.mockResolvedValue({ id: 'sec2' });
       repo.cloneCourseInstance!.mockResolvedValue({ ok: true, courseInstanceId: 'new1' });
@@ -85,7 +93,9 @@ describe('LmsService', () => {
     it('throws BadRequest when ids do not match all modules', async () => {
       repo.findCourseInstanceById!.mockResolvedValue({ id: 'ci1' } as never);
       repo.reorderModules!.mockResolvedValue({ ok: false, reason: 'count_mismatch' });
-      await expect(lms.reorderModules(actor, 'ci1', { moduleIds: ['a'] })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(lms.reorderModules(actor, 'ci1', { moduleIds: ['a'] })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 });

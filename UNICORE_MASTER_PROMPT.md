@@ -1,5 +1,7 @@
 # 🎓 UniCore SaaS — Master Implementation Prompt
+
 ## The Single Source of Truth for Building UniCore
+
 ### Version 5.0 — Definitive & Comprehensive
 
 ---
@@ -56,15 +58,16 @@
 
 ## 🤖 AGENT QUICK REFERENCE
 
-| Agent | Model | Speciality |
-|---|---|---|
-| **[AGENT A]** | Claude Opus 4 | Architecture, schema design, security, billing logic, complex algorithms |
-| **[AGENT B]** | Claude Sonnet 4 | NestJS modules, services, BullMQ, integrations, React+business logic |
-| **[AGENT C]** | GPT-4o | Next.js pages, shadcn/ui, dashboards, form wizards, animations |
-| **[AGENT D]** | Gemini 1.5 Pro | Code review, consistency audits, refactoring, documentation |
-| **[AGENT E]** | Cursor Tab | DTO completion, test fill-in, OpenAPI decorators, boilerplate |
+| Agent         | Model           | Speciality                                                               |
+| ------------- | --------------- | ------------------------------------------------------------------------ |
+| **[AGENT A]** | Claude Opus 4   | Architecture, schema design, security, billing logic, complex algorithms |
+| **[AGENT B]** | Claude Sonnet 4 | NestJS modules, services, BullMQ, integrations, React+business logic     |
+| **[AGENT C]** | GPT-4o          | Next.js pages, shadcn/ui, dashboards, form wizards, animations           |
+| **[AGENT D]** | Gemini 1.5 Pro  | Code review, consistency audits, refactoring, documentation              |
+| **[AGENT E]** | Cursor Tab      | DTO completion, test fill-in, OpenAPI decorators, boilerplate            |
 
 **Agent prefix** — paste at the top of every Cursor chat:
+
 ```
 You are a senior full-stack engineer building UniCore, an enterprise
 university SIS+LMS SaaS. Read .cursorrules at the monorepo root for all
@@ -77,6 +80,7 @@ Write production-grade code only. No placeholders. No TODOs.
 ## 📦 COMPLETE TOOLS & LIBRARIES REFERENCE
 
 ### Backend (apps/api)
+
 ```
 NestJS Core:   @nestjs/core @nestjs/common @nestjs/platform-express @nestjs/config
                @nestjs/swagger @nestjs/event-emitter @nestjs/schedule
@@ -107,6 +111,7 @@ Utilities:     date-fns nanoid winston uuid zod dayjs class-validator
 ```
 
 ### Frontend (apps/web + apps/admin)
+
 ```
 Core:          next@15 react@19 react-dom@19 typescript tailwindcss
 
@@ -167,16 +172,23 @@ INTELLIGENCE & PLATFORM (Weeks 15–18)
   Phase 16: Security Audit + Performance Optimisation
   Phase 17: DevOps + Deployment + Monitoring
   Phase 18: Integrations + Marketplace + Public API
+
+SIS EXTENSION (after Phase 7 + 4 mature; may ship in parallel with later phases)
+  Phase 19: Academic Progression — Promotion, Repeat, Resit/Carryover (.cursorrules §15)
 ```
 
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 0 — MONOREPO SCAFFOLDING & DATABASE SCHEMA
+
 # Week 1 | [AGENT A]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 0.1 — Monorepo Initialization
+
 ```
 [AGENT A — Claude Opus 4]
 
@@ -248,6 +260,7 @@ Confirm every file is syntactically valid before completing.
 ```
 
 ## Prompt 0.2 — Complete Database Schema
+
 ```
 [AGENT A — Claude Opus 4]
 
@@ -1282,11 +1295,15 @@ After writing the schema:
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 1 — AUTHENTICATION, GUARDS & ENTITY SWITCHER
+
 # Week 2 | [AGENT A] + [AGENT B]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 1.1 — NestJS Auth System
+
 ```
 [AGENT A — Claude Opus 4]
 
@@ -1374,6 +1391,7 @@ Rate limiting: 5 attempts per 15 minutes on all /auth/* endpoints.
 ```
 
 ## Prompt 1.2 — StudentRecordPostingGuard
+
 ```
 [AGENT A — Claude Opus 4]
 
@@ -1477,6 +1495,7 @@ Build comprehensive test suite:
 ```
 
 ## Prompt 1.3 — Next.js Auth + Entity Switcher
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -1533,11 +1552,15 @@ Build authentication and entity context for apps/web.
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 2 — INSTITUTION ENTITY MODULE
+
 # Week 2–3 | [AGENT B] + [AGENT C]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 2.1 — InstitutionEntity Backend
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -1630,6 +1653,7 @@ Generate service, controller, BullMQ processor, DTOs, tests.
 ```
 
 ## Prompt 2.2 — Entity Management + Switcher UI
+
 ```
 [AGENT C — GPT-4o]
 
@@ -1705,11 +1729,15 @@ Design language:
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 3 — ORG STRUCTURE & POSITIONS
+
 # Week 3 | [AGENT B] + [AGENT C]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 3.1 — Org Structure Backend
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -1763,6 +1791,7 @@ OrgTemplatesModule:
 ```
 
 ## Prompt 3.2 — Org Chart UI
+
 ```
 [AGENT C — GPT-4o]
 
@@ -1791,11 +1820,15 @@ Build org structure UI in apps/web.
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 4 — WORKFLOW ENGINE
+
 # Week 3–4 | [AGENT A] + [AGENT B] + [AGENT C]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 4.1 — Workflow Engine Backend
+
 ```
 [AGENT A — Claude Opus 4]
 
@@ -1899,6 +1932,7 @@ SLA MONITOR: BullMQ cron hourly → checkSlaBreaches()
 ```
 
 ## Prompt 4.2 — Workflow Inbox UI
+
 ```
 [AGENT C — GPT-4o]
 
@@ -1950,11 +1984,15 @@ Entity badge on every workflow card showing which entity it belongs to.
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 5 — BILLING ENGINE
+
 # Week 3–4 | [AGENT A] + [AGENT B] + [AGENT C]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 5.1 — Billing Snapshot & Invoice Services
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -2070,6 +2108,7 @@ SUPER ADMIN ONLY:
 ```
 
 ## Prompt 5.2 — Status Change & Backfill Services
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -2159,6 +2198,7 @@ execute(workflowInstanceId): [called by workflow.completed event]
 ```
 
 ## Prompt 5.3 — Billing Dashboard UI
+
 ```
 [AGENT C — GPT-4o]
 
@@ -2251,11 +2291,15 @@ SUPER ADMIN BILLING pages (apps/admin):
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 6 — SUPER ADMIN PLATFORM MANAGEMENT
+
 # Week 4–5 | [AGENT B] + [AGENT C]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 6.1 — Super Admin Backend
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -2306,6 +2350,7 @@ BillingAdminModule:
 ```
 
 ## Prompt 6.2 — Super Admin Frontend
+
 ```
 [AGENT C — GPT-4o]
 
@@ -2365,12 +2410,15 @@ Font: JetBrains Mono for data, Geist Sans for UI.
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 7 — STUDENT INFORMATION SYSTEM (SIS)
+
 # Week 5–7 | [AGENT B] + [AGENT C]
+
 # ════════════════════════════════════════════════════
 
-
 ## Prompt 7.1 — SIS Backend
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -2452,6 +2500,7 @@ KEY RULE FOR ALL STUDENT WRITE ENDPOINTS:
 ```
 
 ## Prompt 7.2 — SIS Frontend
+
 ```
 [AGENT C — GPT-4o]
 
@@ -2518,11 +2567,15 @@ amber accent (#f59e0b). Crimson Pro headings, IBM Plex Sans UI text.
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 8 — LEARNING MANAGEMENT SYSTEM (LMS)
+
 # Week 7–9 | [AGENT B] + [AGENT C]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 8.1 — LMS Backend
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -2566,6 +2619,7 @@ AIModule (in apps/api/src/modules/ai/ — see Phase 13):
 ```
 
 ## Prompt 8.2 — LMS Frontend
+
 ```
 [AGENT C — GPT-4o]
 
@@ -2608,11 +2662,15 @@ Font: Plus Jakarta Sans.
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 9 — FINANCE MODULE
+
 # Week 9–10 | [AGENT A] + [AGENT B] + [AGENT C]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 9.1 — Finance Backend
+
 ```
 [AGENT A — Claude Opus 4] for financial logic + [AGENT B] for implementation
 
@@ -2675,11 +2733,15 @@ CRITICAL RULES:
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 10 — HR & STAFF MODULE
+
 # Week 10–11 | [AGENT B] + [AGENT C]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 10.1 — HR Backend & Frontend
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -2720,11 +2782,15 @@ Frontend (/staff/page.tsx):
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 11 — ELECTIONS & MEETINGS
+
 # Week 11–12 | [AGENT A] + [AGENT B] + [AGENT C]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 11.1 — Elections Backend
+
 ```
 [AGENT A — Claude Opus 4]
 
@@ -2748,6 +2814,7 @@ Features:
 ```
 
 ## Prompt 11.2 — Meetings + AI Minutes
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -2786,11 +2853,15 @@ Committee management: standing + ad-hoc committees with terms
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 12 — ALUMNI & SPORTS
+
 # Week 12–13 | [AGENT B] + [AGENT C]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 12.1 — Alumni Module
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -2823,6 +2894,7 @@ Annual alumni survey with analytics
 ```
 
 ## Prompt 12.2 — Sports Module
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -2847,11 +2919,15 @@ Features:
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 13 — AI INTELLIGENCE LAYER
+
 # Week 14 | [AGENT A] + [AGENT B]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 13.1 — AI Infrastructure + Features
+
 ```
 [AGENT A — Claude Opus 4] for design + [AGENT B] for implementation
 
@@ -2933,11 +3009,15 @@ PII PROTECTION:
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 14 — NOTIFICATIONS & CUSTOMIZATION
+
 # Week 14–15 | [AGENT B] + [AGENT C]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 14.1 — Notification Engine
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -2993,6 +3073,7 @@ KEY EVENTS that trigger notifications:
 ```
 
 ## Prompt 14.2 — Institution & Entity Customization Engine
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -3044,11 +3125,15 @@ FRONTEND — /settings pages:
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 15 — STUDENT & GUARDIAN PORTALS
+
 # Week 15 | [AGENT C]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 15.1 — Student Portal
+
 ```
 [AGENT C — GPT-4o]
 
@@ -3096,6 +3181,7 @@ Key pages:
 ```
 
 ## Prompt 15.2 — Guardian Portal
+
 ```
 [AGENT C — GPT-4o]
 
@@ -3118,11 +3204,15 @@ High-contrast, clear CTAs, minimal navigation.
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 16 — SECURITY AUDIT & PERFORMANCE
+
 # Week 16 | [AGENT A] + [AGENT D]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 16.1 — Security Audit
+
 ```
 [AGENT A — Claude Opus 4] + [AGENT D — Gemini 1.5 Pro]
 
@@ -3169,6 +3259,7 @@ Generate: fixes for any CRITICAL or HIGH findings.
 ```
 
 ## Prompt 16.2 — Performance Optimisation
+
 ```
 [AGENT D — Gemini 1.5 Pro]
 
@@ -3220,11 +3311,15 @@ TARGET BENCHMARKS:
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 17 — DEVOPS, DEPLOYMENT & MONITORING
+
 # Week 17 | [AGENT B]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 17.1 — Production Infrastructure
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -3324,11 +3419,15 @@ BILLING JOB RELIABILITY:
 ---
 
 # ════════════════════════════════════════════════════
+
 # PHASE 18 — INTEGRATIONS, MARKETPLACE & PUBLIC API
+
 # Week 18 | [AGENT B]
+
 # ════════════════════════════════════════════════════
 
 ## Prompt 18.1 — Integration Framework + Public API
+
 ```
 [AGENT B — Claude Sonnet 4]
 
@@ -3405,8 +3504,136 @@ MOBILE APP API READINESS:
 ---
 
 # ════════════════════════════════════════════════════
+
+# PHASE 19 — ACADEMIC PROGRESSION (PROMOTION & REPEAT)
+
+# Week 10+ | [AGENT B] + [AGENT C] — requires Phase 7 (SIS), Phase 4 (Workflow)
+
+# ════════════════════════════════════════════════════
+
+## Prompt 19.1 — Academic Progression (Promotion & Repeat)
+
+```
+[AGENT B — Claude Sonnet 4] + [AGENT C — GPT-4o for registrar UI]
+
+Normative rules: `.cursorrules` SECTION 15 — Academic Progression: Promotion & Repeat.
+Academic progression is SEPARATE from billing: promoted and repeating students stay ACTIVE
+and billable unless another status path applies (e.g. rustication = INACTIVE, not a repeat).
+
+────────────────────────────────────────────────────────────────
+A. DOMAIN MODEL (Prisma, dual-scoped where applicable)
+────────────────────────────────────────────────────────────────
+ProgressionRule (institutionId, programmeId optional row-level rules):
+  minGpaPromotion, conditionalPromotionMinGpa, maxCarryoverCourses,
+  maxRepeatAttemptsPerLevel, maxProgrammeDurationYears, maxResitAttempts,
+  resitGradeCapPercent, gpaRepeatPolicy enum:
+    BEST_OF_ATTEMPTS | LAST_ATTEMPT | ALL_ATTEMPTS_AVERAGE | FIRST_ATTEMPT_ONLY
+  Defaults per .cursorrules 15.6 (document in seed comments).
+
+StudentAcademicSession (per student × programme × level/year × academic period):
+  attemptNumber Int @default(1)
+  repeatReason enum nullable:
+    FULL_REPEAT | CARRYOVER | RESIT_CONTEXT | RUSTICATION_RETURN | ...
+  Links to semester/year identifiers already in schema
+
+ProgressionDecision — IMMUTABLE (LAW P1):
+  id, studentId, institutionId, entityId, programmeId,
+  decisionType: PROMOTION | REPEAT | DEFERRED | MANUAL_PROMOTION | ...
+  promotionSubtype: AUTOMATIC | CONDITIONAL | DEFERRED | MANUAL | null
+  repeatSubtype: FULL_REPEAT | SUPPLEMENTARY_CARRYOVER | RESIT |
+                 DEFERRED_EXAMINATION | AEGROTAT | null
+  academicPeriodRef (semester/year id), priorDecisionId nullable (chain),
+  supersededByDecisionId nullable (appeals — NEW row supersedes, never UPDATE),
+  payload Json (thresholds snapshot, GPA snapshot, justification refs),
+  createdAt, createdByUserId
+  NO UPDATE / DELETE — repository rejects mutating queries
+
+ProgressionHold (when DEFERRED promotion):
+  type FINANCIAL | ACADEMIC | ADMINISTRATIVE | LIBRARY | ...,
+  clearedAt nullable, ties to student + period
+
+CarryoverEnrollment (LAW P4):
+  originalEnrollmentId (failed attempt), repeatEnrollmentId (new attempt),
+  label for transcript: "Carryover from <period>"
+
+ResitRecord (LAW P3):
+  enrollmentId or assessment component ref, attemptNumber,
+  gradeCapApplied boolean, cappedAtPercent, faculty cannot bypass cap at write time
+
+Rustication vs repeat (.cursorrules 15.2):
+  Rustication handled ONLY via StatusChangeService → INACTIVE; transcript gap, no grades
+  Repeat = ACTIVE pathway; StudentRecordPostingGuard allows posts
+
+────────────────────────────────────────────────────────────────
+B. SERVICES & ENFORCEMENT
+────────────────────────────────────────────────────────────────
+ProgressionEvaluationService:
+  Trigger: after grade publication event (or batch job per semester close)
+  Load ProgressionRule for student’s programme
+  Compute eligibility: AUTOMATIC / CONDITIONAL paths per .cursorrules 15.3
+  DEFERRED: emit ProgressionHold + ProgressionDecision DEFERRED
+  MANUAL / AEGROTAT: create pending workflow only — no auto decision row until approved
+
+RepeatEnrollmentGuard (used by EnrollmentModule):
+  Block new StudentEnrollment if attemptNumber > maxRepeatAttemptsPerLevel
+  Block if totalYearsEnrolled > maxProgrammeDurationYears → force academic review workflow
+  Attach originalSemesterId + attemptNumber on every repeat enrollment (LAW P2)
+
+GpaComputationService extension (.cursorrules 15.5):
+  Apply institution gpaRepeatPolicy; resit grades capped BEFORE contribution (LAW P3)
+  Transcript shows all attempts; footer note for policy
+
+ResitGradeService:
+  Single path for entering resit outcomes; clamps to cap; audit if cap path taken
+
+────────────────────────────────────────────────────────────────
+C. WORKFLOWS (.cursorrules 15.8)
+────────────────────────────────────────────────────────────────
+Wire WorkflowEngine definitions:
+  CONDITIONAL_PROMOTION, FULL_REPEAT_APPROVAL, MANUAL_PROMOTION, AEGROTAT,
+  MAX_DURATION_REVIEW
+Steps: HoD → Dean → Board/Senate → Registrar confirm
+Registrar confirmation materialises an append-only ProgressionDecision
+
+────────────────────────────────────────────────────────────────
+D. API (NestJS)
+────────────────────────────────────────────────────────────────
+GET  /sis/progression/rules — list/configure (permission: REGISTRAR or ACADEMIC_ADMIN)
+POST /sis/progression/evaluate-batch — semesterId, dryRun flag
+GET  /students/:id/progression-decisions — history newest-first
+POST /students/:id/progression-holds — place hold (DEFERRED path)
+PATCH /students/:id/progression-holds/:holdId/clear
+POST /enrollments (repeat context) — validate LAW P2 fields
+
+OpenAPI + AuditLog on every mutation; entity isolation.
+
+────────────────────────────────────────────────────────────────
+E. FRONTEND (apps/web)
+────────────────────────────────────────────────────────────────
+/students/[id] — new "Progression" sub-panel or Academic tab section:
+  Latest decision banner, holds list, repeat attempt counters, plain-language next steps
+/registrar/progression (or under /workflow) — batch evaluation UI, dry-run diff,
+  drill-down into students flagged for FULL_REPEAT or duration exceed
+
+────────────────────────────────────────────────────────────────
+F. TESTS (block release)
+────────────────────────────────────────────────────────────────
+  [ ] Repeating student remains ACTIVE; POST /grades succeeds (same as normal ACTIVE)
+  [ ] Rusticant INACTIVE: no grade post; repeat after return creates ACTIVE repeat path
+  [ ] ProgressionDecision: no UPDATE/DELETE in codebase (grep + integration)
+  [ ] Resit grade above cap rejected or clamped deterministically
+  [ ] Carryover enrollment requires both FKs; transcript label data present
+  [ ] maxRepeatAttemptsPerLevel blocks enrollment with clear error + audit
+```
+
+---
+
+# ════════════════════════════════════════════════════
+
 # CROSS-CUTTING REQUIREMENTS
+
 # Apply to EVERY prompt in every phase
+
 # ════════════════════════════════════════════════════
 
 ```
@@ -3518,6 +3745,6 @@ OPERATIONS (best in class):
 
 ---
 
-*UniCore — Built for how universities actually work, not how software vendors
+_UniCore — Built for how universities actually work, not how software vendors
 wish they worked. Every architectural decision traces back to a real university
-problem, a real billing risk, or a real governance requirement.*
+problem, a real billing risk, or a real governance requirement._

@@ -2,11 +2,15 @@ import type { AuthUser } from '../auth/auth.types';
 
 type InstitutionSettingsGrades = {
   grades?: {
+    /** Optional weighted components summing to ~1 — see `parseGradeComponentWeights`. */
+    componentWeights?: unknown;
     governance?: {
       /** Any of these permissions may set workflowStatus to APPROVED. */
       approvePermissionCodes?: string[];
       /** Any of these permissions may edit a grade that is already APPROVED. */
       postApprovalEditPermissionCodes?: string[];
+      /** When true, DRAFT → SUBMITTED on a section enrollment starts workflow `GRADE_RELEASE`. */
+      gradeReleaseWorkflowOnSubmit?: boolean;
     };
   };
 };
@@ -24,6 +28,7 @@ const DEFAULT_POST_APPROVAL_CODES = ['grades.write', 'grades.amend_approved'];
 export function parseGradeGovernance(settings: unknown): {
   approvePermissionCodes: string[];
   postApprovalEditPermissionCodes: string[];
+  gradeReleaseWorkflowOnSubmit: boolean;
 } {
   const root = (settings ?? {}) as InstitutionSettingsGrades;
   const gov = root.grades?.governance;
@@ -43,6 +48,7 @@ export function parseGradeGovernance(settings: unknown): {
       gov?.postApprovalEditPermissionCodes,
       DEFAULT_POST_APPROVAL_CODES,
     ),
+    gradeReleaseWorkflowOnSubmit: gov?.gradeReleaseWorkflowOnSubmit === true,
   };
 }
 

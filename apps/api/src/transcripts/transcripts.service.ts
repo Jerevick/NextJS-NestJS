@@ -6,6 +6,7 @@ import type { AuthUser } from '../auth/auth.types';
 import { AuditService } from '../audit/audit.service';
 import type { GenerateTranscriptDto } from './dto/generate-transcript.dto';
 import type { ListTranscriptsQueryDto } from './dto/list-transcripts-query.dto';
+import { transcriptContentToPdfBuffer, type TranscriptPdfContent } from './transcript-pdf.util';
 import { TranscriptsRepository } from './transcripts.repository';
 
 function readProfileName(profile: unknown): { firstName?: string; lastName?: string } {
@@ -53,7 +54,10 @@ export class TranscriptsService {
       throw new NotFoundException('Student not found');
     }
 
-    const enrollments = await this.repo.findEnrollmentsForTranscript(actor.institutionId, dto.studentId);
+    const enrollments = await this.repo.findEnrollmentsForTranscript(
+      actor.institutionId,
+      dto.studentId,
+    );
     const lines = enrollments.map((e) => {
       const g = readGradeJson(e.grade);
       return {
@@ -114,7 +118,8 @@ export class TranscriptsService {
       },
       lines,
       summary: {
-        cumulativeGpa: gpaCredits > 0 ? Math.round((qualityPoints / gpaCredits) * 1000) / 1000 : null,
+        cumulativeGpa:
+          gpaCredits > 0 ? Math.round((qualityPoints / gpaCredits) * 1000) / 1000 : null,
         gpaCreditHours: gpaCredits,
         lineCount: lines.length,
       },
@@ -156,7 +161,12 @@ export class TranscriptsService {
     }
 
     const limit = query.limit ?? 20;
-    const rows = await this.repo.listForStudent(actor.institutionId, query.studentId, limit, query.cursor);
+    const rows = await this.repo.listForStudent(
+      actor.institutionId,
+      query.studentId,
+      limit,
+      query.cursor,
+    );
     let nextCursor: string | undefined;
     if (rows.length > limit) {
       const last = rows.pop();
@@ -172,6 +182,37 @@ export class TranscriptsService {
       throw new NotFoundException('Transcript not found');
     }
     return this.serializeDetail(row);
+  }
+
+  async downloadPdf(actor: AuthUser, id: string): Promise<Uint8Array> {
+    const row = await this.repo.findById(actor.institutionId, id);
+    if (!row) {
+      throw new NotFoundException('Transcript not found');
+    }
+    const base = row.content as unknown as TranscriptPdfContent;
+    let merged: TranscriptPdfContent = base;
+    if (!merged.student?.studentNumber && !merged.student?.email) {
+      const student = row.student;
+      const p = student?.user?.profile;
+      let firstName: string | undefined;
+      let lastName: string | undefined;
+      if (p && typeof p === 'object' && !Array.isArray(p)) {
+        const pr = p as Record<string, unknown>;
+        firstName = typeof pr.firstName === 'string' ? pr.firstName : undefined;
+        lastName = typeof pr.lastName === 'string' ? pr.lastName : undefined;
+      }
+      merged = {
+        ...base,
+        student: {
+          ...base.student,
+          studentNumber: student?.studentNumber,
+          email: student?.user?.email,
+          program: student?.program,
+          name: { firstName, lastName },
+        },
+      };
+    }
+    return transcriptContentToPdfBuffer(merged);
   }
 
   async verifyByHash(verificationHash: string) {

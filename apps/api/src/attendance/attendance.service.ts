@@ -4,27 +4,20 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { AttendanceStatus } from '@prisma/client';
 import type { AuthUser } from '../auth/auth.types';
 import { AuditService } from '../audit/audit.service';
 import type { BulkMarkAttendanceDto } from './dto/bulk-mark-attendance.dto';
+import type { IssueSessionQrDto } from './dto/issue-session-qr.dto';
 import type { ListAttendanceQueryDto } from './dto/list-attendance-query.dto';
 import type { MarkAttendanceDto } from './dto/mark-attendance.dto';
+import type { SelfCheckInAttendanceDto } from './dto/self-check-in-attendance.dto';
 import type { UpdateAttendanceDto } from './dto/update-attendance.dto';
+import { verifyAttendanceSessionToken, signAttendanceSessionToken } from './attendance-qr.util';
+import { sessionDateUtcStart } from './attendance-session-date.util';
 import { AttendanceRepository, type AttendanceListRow } from './attendance.repository';
-
-function sessionDateUtcStart(iso: string): Date {
-  const trimmed = iso.trim();
-  const m = /^(\d{4}-\d{2}-\d{2})/.exec(trimmed);
-  if (m) {
-    return new Date(`${m[1]}T00:00:00.000Z`);
-  }
-  const d = new Date(trimmed);
-  if (Number.isNaN(d.getTime())) {
-    throw new BadRequestException('Invalid sessionDate');
-  }
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-}
+import QRCode from 'qrcode';
 
 function addUtcDays(d: Date, days: number): Date {
   const x = new Date(d);
@@ -37,6 +30,7 @@ export class AttendanceService {
   constructor(
     private readonly repo: AttendanceRepository,
     private readonly audit: AuditService,
+    private readonly config: ConfigService,
   ) {}
 
   private hasFullWrite(user: AuthUser) {
@@ -108,7 +102,11 @@ export class AttendanceService {
     await this.assertEnrolled(actor.institutionId, dto.studentId, dto.sectionId);
 
     const sessionDate = sessionDateUtcStart(dto.sessionDate);
-    const existing = await this.repo.findByStudentSectionSession(dto.studentId, dto.sectionId, sessionDate);
+    const existing = await this.repo.findByStudentSectionSession(
+      dto.studentId,
+      dto.sectionId,
+      sessionDate,
+    );
     if (existing) {
       if (existing.institutionId !== actor.institutionId) {
         throw new NotFoundException('Attendance record not found');
@@ -125,8 +123,18 @@ export class AttendanceService {
         action: 'attendance.update',
         entity: 'Attendance',
         entityId: existing.id,
-        oldValues: { status: existing.status, notes: existing.notes, sectionId: dto.sectionId, studentId: dto.studentId },
-        newValues: { status: updated.status, notes: updated.notes, sectionId: dto.sectionId, studentId: dto.studentId },
+        oldValues: {
+          status: existing.status,
+          notes: existing.notes,
+          sectionId: dto.sectionId,
+          studentId: dto.studentId,
+        },
+        newValues: {
+          status: updated.status,
+          notes: updated.notes,
+          sectionId: dto.sectionId,
+          studentId: dto.studentId,
+        },
       });
       return this.serializeRow(updated);
     }
@@ -165,7 +173,11 @@ export class AttendanceService {
     const results = [];
     for (const e of dto.entries) {
       await this.assertEnrolled(actor.institutionId, e.studentId, dto.sectionId);
-      const existing = await this.repo.findByStudentSectionSession(e.studentId, dto.sectionId, sessionDate);
+      const existing = await this.repo.findByStudentSectionSession(
+        e.studentId,
+        dto.sectionId,
+        sessionDate,
+      );
       if (existing) {
         if (existing.institutionId !== actor.institutionId) {
           throw new BadRequestException('Invalid attendance row for institution');
@@ -209,6 +221,139 @@ export class AttendanceService {
       },
     });
     return { count: results.length, data: results };
+  }
+
+  private jwtSecret(): string {
+    const s = this.config.get<string>('JWT_SECRET');
+    if (!s?.trim()) {
+      throw new BadRequestException('Server misconfiguration: JWT_SECRET');
+    }
+    return s.trim();
+  }
+
+  async issueSessionQr(actor: AuthUser, sectionId: string, dto: IssueSessionQrDto) {
+    const section = await this.repo.findSection(actor.institutionId, sectionId);
+    if (!section) {
+      throw new NotFoundException('Section not found');
+    }
+    this.assertCanMark(actor, section);
+    const sessionDate = sessionDateUtcStart(dto.sessionDate);
+    const sessionDateKey = sessionDate.toISOString().slice(0, 10);
+
+    const token = signAttendanceSessionToken(this.jwtSecret(), {
+      institutionId: actor.institutionId,
+      sectionId,
+      sessionDate: sessionDateKey,
+    });
+
+    let dataUrl: string | undefined;
+    try {
+      dataUrl = await QRCode.toDataURL(token, { margin: 1, width: 280 });
+    } catch {
+      dataUrl = undefined;
+    }
+
+    return {
+      token,
+      sectionId,
+      sessionDate: sessionDateKey,
+      expiresInHours: 8,
+      qrDataUrl: dataUrl,
+    };
+  }
+
+  /**
+   * Student self-service: scan/instantiate QR token and mark PRESENT for the anchored session date.
+   * Role STUDENT enforced at controller layer; JWT must match enrollment + institution.
+   */
+  async selfCheckIn(actor: AuthUser, dto: SelfCheckInAttendanceDto) {
+    if (actor.role !== 'STUDENT') {
+      throw new ForbiddenException('Only student accounts may use attendance self check-in');
+    }
+    const studentId = actor.studentId;
+    if (!studentId) {
+      throw new ForbiddenException('Student account is not linked to a student record');
+    }
+
+    let claims;
+    try {
+      claims = verifyAttendanceSessionToken(this.jwtSecret(), dto.token);
+    } catch {
+      throw new BadRequestException('Invalid or expired attendance session token');
+    }
+    if (claims.institutionId !== actor.institutionId) {
+      throw new ForbiddenException('Attendance token institution mismatch');
+    }
+
+    const section = await this.repo.findSection(actor.institutionId, claims.sectionId);
+    if (!section) {
+      throw new NotFoundException('Section not found');
+    }
+
+    await this.assertEnrolled(actor.institutionId, studentId, claims.sectionId);
+    const sessionDate = sessionDateUtcStart(claims.sessionDate);
+
+    const existing = await this.repo.findByStudentSectionSession(
+      studentId,
+      claims.sectionId,
+      sessionDate,
+    );
+    if (existing) {
+      if (existing.institutionId !== actor.institutionId) {
+        throw new NotFoundException('Attendance record not found');
+      }
+      const updated = await this.repo.updateAttendance(existing.id, {
+        status: 'PRESENT',
+        notes: 'Self check-in (QR)',
+        markedById: actor.userId,
+        deletedAt: null,
+      });
+      this.audit.append({
+        institutionId: actor.institutionId,
+        actorId: actor.userId,
+        action: 'attendance.update',
+        entity: 'Attendance',
+        entityId: existing.id,
+        oldValues: {
+          status: existing.status,
+          notes: existing.notes,
+          sectionId: claims.sectionId,
+          studentId,
+        },
+        newValues: {
+          status: updated.status,
+          notes: updated.notes,
+          sectionId: claims.sectionId,
+          studentId,
+        },
+      });
+      return this.serializeRow(updated);
+    }
+
+    const created = await this.repo.createAttendance({
+      institutionId: actor.institutionId,
+      studentId,
+      sectionId: claims.sectionId,
+      sessionDate,
+      status: 'PRESENT',
+      markedById: actor.userId,
+      notes: 'Self check-in (QR)',
+    });
+    this.audit.append({
+      institutionId: actor.institutionId,
+      actorId: actor.userId,
+      action: 'attendance.create',
+      entity: 'Attendance',
+      entityId: created.id,
+      newValues: {
+        sectionId: claims.sectionId,
+        studentId,
+        sessionDate: created.sessionDate,
+        status: created.status,
+        source: 'qr_self_check_in',
+      },
+    });
+    return this.serializeRow(created);
   }
 
   async listForSection(actor: AuthUser, sectionId: string, query: ListAttendanceQueryDto) {
@@ -276,8 +421,18 @@ export class AttendanceService {
       action: 'attendance.update',
       entity: 'Attendance',
       entityId: row.id,
-      oldValues: { status: row.status, notes: row.notes, sectionId: row.sectionId, studentId: row.studentId },
-      newValues: { status: updated.status, notes: updated.notes, sectionId: row.sectionId, studentId: row.studentId },
+      oldValues: {
+        status: row.status,
+        notes: row.notes,
+        sectionId: row.sectionId,
+        studentId: row.studentId,
+      },
+      newValues: {
+        status: updated.status,
+        notes: updated.notes,
+        sectionId: row.sectionId,
+        studentId: row.studentId,
+      },
     });
     return this.serializeRow(updated);
   }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { BrandMark } from '@unicore/ui';
+import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
   title: 'UniCore — Super Admin',
@@ -47,7 +48,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </Link>
           </nav>
         </header>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

@@ -3,7 +3,8 @@ import { auth } from '@/auth';
 import { hasPermission } from '@/lib/permissions';
 import { EnrollSectionForm, type SectionOption } from './enroll-section-form';
 
-const apiBase = process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiBase =
+  process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 type SemesterOption = {
   id: string;
@@ -48,7 +49,9 @@ export default async function StudentEnrollPage({
           <Link href={`/students/${studentId}`}>← Student</Link>
         </nav>
         <h1>Enroll</h1>
-        <p style={{ color: '#64748b' }}>Your account does not have permission to create enrollments.</p>
+        <p style={{ color: '#64748b' }}>
+          Your account does not have permission to create enrollments.
+        </p>
       </main>
     );
   }
@@ -82,12 +85,18 @@ export default async function StudentEnrollPage({
         </nav>
         <h1 style={{ color: '#1e3a5f' }}>Enroll in a section</h1>
         <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
-          Choose a semester, then pick a course section. The API enforces add/drop windows, capacity, and prerequisites.
+          Choose a semester, then pick a course section. The API enforces add/drop windows,
+          capacity, and prerequisites.
         </p>
         {semesters.length === 0 ? (
-          <p style={{ marginTop: '1rem' }}>No semesters found. Create academic years and semesters first.</p>
+          <p style={{ marginTop: '1rem' }}>
+            No semesters found. Create academic years and semesters first.
+          </p>
         ) : (
-          <form method="get" style={{ marginTop: '1.5rem', display: 'grid', gap: '1rem', maxWidth: 400 }}>
+          <form
+            method="get"
+            style={{ marginTop: '1.5rem', display: 'grid', gap: '1rem', maxWidth: 400 }}
+          >
             <label style={{ display: 'grid', gap: 6 }}>
               <span>Semester</span>
               <select name="semesterId" required defaultValue="" style={{ padding: '0.5rem' }}>
@@ -110,10 +119,13 @@ export default async function StudentEnrollPage({
     );
   }
 
-  const secRes = await fetch(`${apiBase}/academic/semesters/${encodeURIComponent(semesterId.trim())}/sections`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store',
-  });
+  const secRes = await fetch(
+    `${apiBase}/academic/semesters/${encodeURIComponent(semesterId.trim())}/sections`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    },
+  );
 
   if (!secRes.ok) {
     const detail = await secRes.text();
@@ -142,7 +154,12 @@ export default async function StudentEnrollPage({
       <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
         {sem ? formatSemesterLabel(sem) : `Semester ${semesterId}`}
       </p>
-      <EnrollSectionForm studentId={studentId} sections={sections} />
+      <EnrollSectionForm
+        studentId={studentId}
+        sections={sections}
+        accessToken={token}
+        apiBase={apiBase}
+      />
     </main>
   );
 }

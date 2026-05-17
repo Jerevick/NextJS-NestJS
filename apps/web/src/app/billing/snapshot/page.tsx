@@ -1,6 +1,10 @@
 import Link from 'next/link';
 import { auth } from '@/auth';
 import { appendOptionalEntityHeader } from '@/lib/api-headers';
+import {
+  SnapshotHistoryDataGrid,
+  type SnapshotHistoryGridRow,
+} from '@/components/data-grids/misc-data-grids';
 import { canAccessBillingNav } from '@/lib/permissions';
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -103,18 +107,35 @@ export default async function BillingSnapshotPage({
         Daily snapshot history
       </h1>
       <p style={{ color: muted, fontSize: '0.9rem', maxWidth: 560 }}>
-        This is your institution&apos;s daily active student count as computed by UniCore. These numbers form the
-        basis of your invoice.
+        This is your institution&apos;s daily active student count as computed by UniCore. These
+        numbers form the basis of your invoice.
       </p>
 
-      <form method="get" style={{ display: 'flex', gap: '0.75rem', margin: '1.25rem 0', alignItems: 'end' }}>
+      <form
+        method="get"
+        style={{ display: 'flex', gap: '0.75rem', margin: '1.25rem 0', alignItems: 'end' }}
+      >
         <label style={{ display: 'grid', gap: 4, fontSize: '0.85rem' }}>
           Year
-          <input name="year" type="number" defaultValue={year} min={2020} max={2100} style={{ padding: '0.4rem' }} />
+          <input
+            name="year"
+            type="number"
+            defaultValue={year}
+            min={2020}
+            max={2100}
+            style={{ padding: '0.4rem' }}
+          />
         </label>
         <label style={{ display: 'grid', gap: 4, fontSize: '0.85rem' }}>
           Month
-          <input name="month" type="number" defaultValue={month} min={1} max={12} style={{ padding: '0.4rem' }} />
+          <input
+            name="month"
+            type="number"
+            defaultValue={month}
+            min={1}
+            max={12}
+            style={{ padding: '0.4rem' }}
+          />
         </label>
         <button type="submit" style={{ padding: '0.45rem 0.85rem', fontWeight: 600 }}>
           Apply
@@ -126,41 +147,26 @@ export default async function BillingSnapshotPage({
       ) : dates.length === 0 ? (
         <p style={{ color: muted }}>No snapshots for this period.</p>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', color: muted }}>
-              <th style={{ padding: '0.5rem 0' }}>Date</th>
-              <th style={{ padding: '0.5rem 0' }}>Entity</th>
-              <th style={{ padding: '0.5rem 0' }}>Billable count</th>
-              <th style={{ padding: '0.5rem 0' }}>Locked</th>
-            </tr>
-          </thead>
-          <tbody>
-            {dates.flatMap((date) => {
+        <>
+          <SnapshotHistoryDataGrid
+            rows={dates.flatMap((date) => {
               const group = byDate.get(date)!;
-              return group.rows.map((r) => (
-                <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '0.45rem 0', fontFamily: 'ui-monospace, monospace' }}>{date}</td>
-                  <td style={{ padding: '0.45rem 0' }}>{r.entity?.name ?? r.entity?.code ?? '—'}</td>
-                  <td style={{ padding: '0.45rem 0', fontFamily: 'ui-monospace, monospace', fontWeight: 600 }}>
-                    {r.billableCount}
-                  </td>
-                  <td style={{ padding: '0.45rem 0' }}>{r.isLockedForBilling ? 'Yes' : '—'}</td>
-                </tr>
-              ));
+              return group.rows.map(
+                (r): SnapshotHistoryGridRow => ({
+                  id: r.id,
+                  date,
+                  entityName: r.entity?.name ?? r.entity?.code ?? '—',
+                  billableCount: r.billableCount,
+                  isLockedForBilling: r.isLockedForBilling,
+                }),
+              );
             })}
-          </tbody>
-          <tfoot>
-            <tr style={{ borderTop: '2px solid #e2e8f0', fontWeight: 600 }}>
-              <td colSpan={2} style={{ padding: '0.5rem 0' }}>
-                Days with data: {dates.length}
-              </td>
-              <td colSpan={2} style={{ padding: '0.5rem 0', fontFamily: 'ui-monospace, monospace' }}>
-                Peak day total: {Math.max(...dates.map((d) => byDate.get(d)!.total), 0)}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+          />
+          <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: muted, fontWeight: 600 }}>
+            Days with data: {dates.length} · Peak day total:{' '}
+            {Math.max(...dates.map((d) => byDate.get(d)!.total), 0)}
+          </p>
+        </>
       )}
     </main>
   );

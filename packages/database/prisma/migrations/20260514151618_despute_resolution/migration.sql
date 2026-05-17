@@ -1,14 +1,4 @@
--- AlterTable
-ALTER TABLE "AffiliatePartner" ALTER COLUMN "updatedAt" DROP DEFAULT;
-
--- AlterTable
-ALTER TABLE "BillingDispute" ALTER COLUMN "updatedAt" DROP DEFAULT;
-
--- AlterTable
-ALTER TABLE "MonthlyBillableSummary" ALTER COLUMN "updatedAt" DROP DEFAULT;
-
--- AlterTable
-ALTER TABLE "ReactivationRequest" ALTER COLUMN "updatedAt" DROP DEFAULT;
-
--- RenameIndex
-ALTER INDEX "BackfillWindow_institutionId_entityId_studentId_fromDate_toDate" RENAME TO "BackfillWindow_institutionId_entityId_studentId_fromDate_to_idx";
+-- No-op (reordered): original statements altered tables/indexes created in later migrations
+-- (AffiliatePartner, BillingDispute, MonthlyBillableSummary, ReactivationRequest, BackfillWindow).
+-- Those objects are created in 20260515120000+ migrations with correct Prisma @updatedAt shape.
+SELECT 1;

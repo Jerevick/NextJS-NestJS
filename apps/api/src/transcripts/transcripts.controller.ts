@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  Param,
+  Post,
+  Query,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { StudentRecordWrite } from '../common/decorators/student-record-write.decorator';
@@ -26,6 +36,17 @@ export class TranscriptsController {
     return this.transcripts.list(user, query);
   }
 
+  @Get(':id/pdf')
+  @RequirePermissions('students.read')
+  @Header('Content-Type', 'application/pdf')
+  async downloadPdf(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const bytes = await this.transcripts.downloadPdf(user, id);
+    return new StreamableFile(Buffer.from(bytes), {
+      type: 'application/pdf',
+      disposition: `attachment; filename="transcript-${id}.pdf"`,
+    });
+  }
+
   @Get(':id')
   @RequirePermissions('students.read')
   getById(@CurrentUser() user: AuthUser, @Param('id') id: string) {
@@ -34,7 +55,11 @@ export class TranscriptsController {
 
   @Post()
   @RequirePermissions('students.write')
-  @StudentRecordWrite({ mode: 'bodyStudentId', studentIdField: 'studentId', recordDate: { kind: 'now' } })
+  @StudentRecordWrite({
+    mode: 'bodyStudentId',
+    studentIdField: 'studentId',
+    recordDate: { kind: 'now' },
+  })
   generate(@CurrentUser() user: AuthUser, @Body() dto: GenerateTranscriptDto) {
     return this.transcripts.generate(user, dto);
   }

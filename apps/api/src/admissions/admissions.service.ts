@@ -17,6 +17,7 @@ import type { UpdateAdmissionCycleDto } from './dto/update-admission-cycle.dto';
 import type { UpdateApplicationDto } from './dto/update-application.dto';
 import type { UpdateApplicationFormDto } from './dto/update-application-form.dto';
 import { StudentsService } from '../students/students.service';
+import { htmlOfferLetterToPdfBuffer } from './offer-letter-pdf.util';
 import { AdmissionsRepository } from './admissions.repository';
 
 @Injectable()
@@ -50,7 +51,9 @@ export class AdmissionsService {
     }
     const now = new Date();
     if (now < cycle.applicationOpenDate || now > cycle.applicationCloseDate) {
-      throw new BadRequestException('Applications are outside the open/close window for this cycle');
+      throw new BadRequestException(
+        'Applications are outside the open/close window for this cycle',
+      );
     }
   }
 
@@ -274,7 +277,9 @@ export class AdmissionsService {
       dto.programId,
     );
     if (dup) {
-      throw new ConflictException('An application for this applicant, cycle, and program already exists');
+      throw new ConflictException(
+        'An application for this applicant, cycle, and program already exists',
+      );
     }
 
     const documents = (dto.documents ?? []) as Prisma.InputJsonValue;
@@ -335,6 +340,22 @@ export class AdmissionsService {
       throw new NotFoundException('Application not found');
     }
     return this.serializeApplication(row);
+  }
+
+  async offerLetterHtml(actor: AuthUser, applicationId: string) {
+    const row = await this.repo.findApplication(actor.institutionId, applicationId);
+    if (!row) {
+      throw new NotFoundException('Application not found');
+    }
+    if (row.status !== 'ACCEPTED') {
+      throw new BadRequestException('Offer letter is available only for ACCEPTED applications');
+    }
+    return this.renderOfferLetterHtml(row);
+  }
+
+  async offerLetterPdf(actor: AuthUser, applicationId: string): Promise<Uint8Array> {
+    const html = await this.offerLetterHtml(actor, applicationId);
+    return htmlOfferLetterToPdfBuffer(html);
   }
 
   async updateApplication(actor: AuthUser, id: string, dto: UpdateApplicationDto) {
@@ -439,7 +460,9 @@ export class AdmissionsService {
     };
   }
 
-  private serializeApplication(row: NonNullable<Awaited<ReturnType<AdmissionsRepository['findApplication']>>>) {
+  private serializeApplication(
+    row: NonNullable<Awaited<ReturnType<AdmissionsRepository['findApplication']>>>,
+  ) {
     return {
       id: row.id,
       cycleId: row.cycleId,
@@ -460,5 +483,51 @@ export class AdmissionsService {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
+  }
+
+  private escapeHtml(raw: string) {
+    return raw
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  private applicantDisplayName(applicant: { email: string; profile?: unknown }) {
+    const p = applicant.profile;
+    const rec =
+      p && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, unknown>) : null;
+    const first = typeof rec?.firstName === 'string' ? rec.firstName : '';
+    const last = typeof rec?.lastName === 'string' ? rec.lastName : '';
+    const name = `${first} ${last}`.trim();
+    return name.length > 0 ? name : applicant.email;
+  }
+
+  private renderOfferLetterHtml(
+    row: NonNullable<Awaited<ReturnType<AdmissionsRepository['findApplication']>>>,
+  ) {
+    const name = this.escapeHtml(this.applicantDisplayName(row.applicant));
+    const prog = `${this.escapeHtml(row.program.code)} — ${this.escapeHtml(row.program.name)}`;
+    const cycle = this.escapeHtml(row.cycle.name);
+    const institutionId = this.escapeHtml(row.institutionId.slice(0, 8)).trim();
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Offer of Admission</title>
+<style>
+body{font-family:system-ui,Segoe UI,Roboto,sans-serif;line-height:1.5;color:#0f172a;padding:2rem;}
+h1{color:#1e3a5f;font-size:1.75rem;margin-bottom:1rem;}
+.b{font-weight:600;color:#334155;}
+</style>
+</head>
+<body>
+<h1>Offer of admission</h1>
+<p>Dear ${name},</p>
+<p>Congratulations. We are pleased to offer you admission to <span class="b">${prog}</span> through the admission cycle “${cycle}”.</p>
+<p>This letter confirms your admission decision in UniCore (<span class="b">tenant ${institutionId}…</span>). Please coordinate with admissions staff for enrollment and orientation details.</p>
+<p>Sincerely,<br/><span class="b">Office of Admissions</span></p>
+</body>
+</html>`;
   }
 }

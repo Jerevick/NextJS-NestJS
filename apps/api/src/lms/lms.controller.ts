@@ -8,6 +8,7 @@ import {
   Post,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { AuthUser } from '../auth/auth.types';
@@ -26,11 +27,13 @@ import { UpdateLmsContentModuleDto } from './dto/update-lms-content-module.dto';
 import { UpdateLmsCourseInstanceDto } from './dto/update-lms-course-instance.dto';
 import { UpdateLmsLessonDto } from './dto/update-lms-lesson.dto';
 import { UpdateLmsLessonResourceDto } from './dto/update-lms-lesson-resource.dto';
+import { LmsStudentAccessInterceptor } from './lms-student-access.interceptor';
 import { LmsService } from './lms.service';
 
 @Throttle({ default: { limit: 120, ttl: 60_000 } })
 @Controller('lms')
 @UseGuards(PermissionsGuard)
+@UseInterceptors(LmsStudentAccessInterceptor)
 export class LmsController {
   constructor(private readonly lms: LmsService) {}
 
@@ -158,7 +161,10 @@ export class LmsController {
 
   @Get('course-instances')
   @RequirePermissions('lms.read')
-  listCourseInstances(@CurrentUser() user: AuthUser, @Query() query: ListLmsCourseInstancesQueryDto) {
+  listCourseInstances(
+    @CurrentUser() user: AuthUser,
+    @Query() query: ListLmsCourseInstancesQueryDto,
+  ) {
     return this.lms.listCourseInstances(user, query);
   }
 
@@ -172,6 +178,12 @@ export class LmsController {
   @RequirePermissions('lms.read')
   getCourseInstance(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.lms.getCourseInstance(user, id);
+  }
+
+  @Post('course-instances/:id/student/ping')
+  @RequirePermissions('lms.read')
+  pingStudentCourse(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.lms.pingStudentCourseAccess(user, id);
   }
 
   @Post('course-instances/:id/clone')

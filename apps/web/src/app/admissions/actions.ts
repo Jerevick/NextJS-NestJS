@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { buildApiHeaders, apiBase } from '@/lib/server-api';
 
-const APPLICATION_STATUSES = [
+export const APPLICATION_STATUSES = [
   'PENDING',
   'UNDER_REVIEW',
   'ACCEPTED',
@@ -12,6 +12,47 @@ const APPLICATION_STATUSES = [
   'WAITLISTED',
   'WITHDRAWN',
 ] as const;
+
+async function patchApplicationStatusCore(
+  applicationId: string,
+  status: (typeof APPLICATION_STATUSES)[number],
+): Promise<{ error?: string } | null> {
+  const session = await auth();
+  if (!session?.accessToken) {
+    return { error: 'Not signed in.' };
+  }
+
+  const res = await fetch(
+    `${apiBase}/admissions/applications/${encodeURIComponent(applicationId)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        ...buildApiHeaders(session),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+      cache: 'no-store',
+    },
+  );
+
+  if (!res.ok) {
+    return { error: `Update failed (${res.status}): ${await res.text()}` };
+  }
+
+  revalidatePath('/admissions');
+  revalidatePath(`/admissions/${applicationId}`);
+  return null;
+}
+
+export async function patchApplicationKanbanStatus(
+  applicationId: string,
+  status: string,
+): Promise<{ error?: string } | null> {
+  if (!APPLICATION_STATUSES.includes(status as (typeof APPLICATION_STATUSES)[number])) {
+    return { error: 'Invalid status.' };
+  }
+  return patchApplicationStatusCore(applicationId, status as (typeof APPLICATION_STATUSES)[number]);
+}
 
 export async function updateApplicationStatusAction(
   applicationId: string,
@@ -23,28 +64,7 @@ export async function updateApplicationStatusAction(
     return { error: 'Invalid status.' };
   }
 
-  const session = await auth();
-  if (!session?.accessToken) {
-    return { error: 'Not signed in.' };
-  }
-
-  const res = await fetch(`${apiBase}/admissions/applications/${encodeURIComponent(applicationId)}`, {
-    method: 'PATCH',
-    headers: {
-      ...buildApiHeaders(session),
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ status }),
-    cache: 'no-store',
-  });
-
-  if (!res.ok) {
-    return { error: `Update failed (${res.status}): ${await res.text()}` };
-  }
-
-  revalidatePath('/admissions');
-  revalidatePath(`/admissions/${applicationId}`);
-  return null;
+  return patchApplicationStatusCore(applicationId, status as (typeof APPLICATION_STATUSES)[number]);
 }
 
 export type EnrollStudentState = { error?: string; ok?: string; studentId?: string };

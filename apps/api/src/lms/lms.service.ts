@@ -20,12 +20,14 @@ import type { UpdateLmsCourseInstanceDto } from './dto/update-lms-course-instanc
 import type { UpdateLmsLessonDto } from './dto/update-lms-lesson.dto';
 import type { UpdateLmsLessonResourceDto } from './dto/update-lms-lesson-resource.dto';
 import { LmsRepository } from './lms.repository';
+import { LmsStudentEligibilityService } from './lms-student-eligibility.service';
 
 @Injectable()
 export class LmsService {
   constructor(
     private readonly repo: LmsRepository,
     private readonly audit: AuditService,
+    private readonly studentEligibility: LmsStudentEligibilityService,
   ) {}
 
   private scopeEntityId(actor: AuthUser): string | undefined {
@@ -34,11 +36,15 @@ export class LmsService {
 
   async listCourseInstances(actor: AuthUser, query: ListLmsCourseInstancesQueryDto) {
     const limit = query.limit ?? 20;
+    const enrolledStudentId =
+      actor.role === 'STUDENT' && actor.studentId ? actor.studentId : undefined;
+
     const rows = await this.repo.listCourseInstances(actor.institutionId, {
       sectionId: query.sectionId,
       take: limit,
       cursor: query.cursor,
       scopeEntityId: this.scopeEntityId(actor),
+      enrolledStudentId,
     });
     let nextCursor: string | undefined;
     if (rows.length > limit) {
@@ -49,19 +55,86 @@ export class LmsService {
       actor.institutionId,
       query.sectionId,
       this.scopeEntityId(actor),
+      enrolledStudentId,
     );
+
+    let data = rows.map((r) => this.serializeCourseInstanceList(r));
+
+    if (query.includeStudentSnapshot === true && actor.studentId && rows.length > 0) {
+      const ids = rows.map((r) => r.id);
+      const STUDENT_SNAPSHOT_DUE_HORIZON_DAYS = 7;
+      const [progRows, dueMap, syllabusOrder] = await Promise.all([
+        this.repo.listStudentProgressByCourses(actor.institutionId, actor.studentId, ids),
+        this.repo.countDueSoonOpenAssessmentsByCourse(
+          actor.institutionId,
+          actor.studentId,
+          ids,
+          STUDENT_SNAPSHOT_DUE_HORIZON_DAYS,
+        ),
+        this.repo.listPublishedLessonIdsInSyllabusOrder(actor.institutionId, ids),
+      ]);
+      const progByCourse = new Map(progRows.map((p) => [p.courseInstanceId, p]));
+      data = data.map((item) => {
+        const prog = progByCourse.get(item.id);
+        const dueSoonCount = dueMap.get(item.id) ?? 0;
+        const syllabus = syllabusOrder.get(item.id) ?? [];
+        const completed = new Set(prog?.completedLessons ?? []);
+        let continueLessonId: string | null = null;
+        for (const lid of syllabus) {
+          if (!completed.has(lid)) {
+            continueLessonId = lid;
+            break;
+          }
+        }
+        const firstLessonId = syllabus[0] ?? null;
+        return {
+          ...item,
+          studentSnapshot: {
+            progressPercent: prog ? Number(prog.progressPercent) : 0,
+            lastAccessedAt: prog?.lastAccessedAt?.toISOString() ?? null,
+            dueSoonCount,
+            dueSoonHorizonDays: STUDENT_SNAPSHOT_DUE_HORIZON_DAYS,
+            continueLessonId,
+            firstLessonId,
+          },
+        };
+      });
+    }
+
     return {
-      data: rows.map((r) => this.serializeCourseInstanceList(r)),
+      data,
       nextCursor,
       total,
     };
   }
 
+  async pingStudentCourseAccess(actor: AuthUser, courseInstanceId: string) {
+    if (!actor.studentId) {
+      return { ok: true as const, touched: false as const };
+    }
+    await this.studentEligibility.assertStudentEnrolledForCourseInstance(
+      actor,
+      courseInstanceId,
+      this.scopeEntityId(actor),
+    );
+    await this.repo.touchStudentProgressLastAccessed(
+      actor.institutionId,
+      actor.studentId,
+      courseInstanceId,
+    );
+    return { ok: true as const, touched: true as const };
+  }
+
   async getCourseInstance(actor: AuthUser, id: string) {
-    const row = await this.repo.findCourseInstanceById(actor.institutionId, id, this.scopeEntityId(actor));
+    const row = await this.repo.findCourseInstanceById(
+      actor.institutionId,
+      id,
+      this.scopeEntityId(actor),
+    );
     if (!row) {
       throw new NotFoundException('Course instance not found');
     }
+    await this.studentEligibility.assertStudentEnrolledForCourseSection(actor, row.sectionId);
     return this.serializeCourseInstanceDetail(row);
   }
 
@@ -105,7 +178,11 @@ export class LmsService {
   }
 
   async updateCourseInstance(actor: AuthUser, id: string, dto: UpdateLmsCourseInstanceDto) {
-    const prior = await this.repo.findCourseInstanceById(actor.institutionId, id, this.scopeEntityId(actor));
+    const prior = await this.repo.findCourseInstanceById(
+      actor.institutionId,
+      id,
+      this.scopeEntityId(actor),
+    );
     if (!prior) {
       throw new NotFoundException('Course instance not found');
     }
@@ -140,7 +217,11 @@ export class LmsService {
       } as Prisma.InputJsonValue,
       newValues: data as unknown as Prisma.InputJsonValue,
     });
-    const next = await this.repo.findCourseInstanceById(actor.institutionId, id, this.scopeEntityId(actor));
+    const next = await this.repo.findCourseInstanceById(
+      actor.institutionId,
+      id,
+      this.scopeEntityId(actor),
+    );
     return this.serializeCourseInstanceDetail(next!);
   }
 
@@ -153,6 +234,7 @@ export class LmsService {
     if (!sourceRow) {
       throw new NotFoundException('Course instance not found');
     }
+    await this.studentEligibility.assertStudentEnrolledForCourseSection(actor, sourceRow.sectionId);
     const section = await this.repo.findSectionInInstitution(
       actor.institutionId,
       dto.targetSectionId,
@@ -161,7 +243,11 @@ export class LmsService {
     if (!section) {
       throw new NotFoundException('Target section not found');
     }
-    const result = await this.repo.cloneCourseInstance(actor.institutionId, id, dto.targetSectionId.trim());
+    const result = await this.repo.cloneCourseInstance(
+      actor.institutionId,
+      id,
+      dto.targetSectionId.trim(),
+    );
     if (!result.ok) {
       if (result.code === 'source_not_found') {
         throw new NotFoundException('Course instance not found');
@@ -186,10 +272,15 @@ export class LmsService {
   }
 
   async removeCourseInstance(actor: AuthUser, id: string) {
-    const prior = await this.repo.findCourseInstanceById(actor.institutionId, id, this.scopeEntityId(actor));
+    const prior = await this.repo.findCourseInstanceById(
+      actor.institutionId,
+      id,
+      this.scopeEntityId(actor),
+    );
     if (!prior) {
       throw new NotFoundException('Course instance not found');
     }
+    await this.studentEligibility.assertStudentEnrolledForCourseSection(actor, prior.sectionId);
     const result = await this.repo.softDeleteCourseInstance(id, actor.institutionId, new Date());
     if (result.count === 0) {
       throw new NotFoundException('Course instance not found');
@@ -208,7 +299,11 @@ export class LmsService {
 
   async reorderModules(actor: AuthUser, courseInstanceId: string, dto: ReorderLmsModulesDto) {
     await this.assertCourseInstance(actor, courseInstanceId);
-    const out = await this.repo.reorderModules(actor.institutionId, courseInstanceId, dto.moduleIds);
+    const out = await this.repo.reorderModules(
+      actor.institutionId,
+      courseInstanceId,
+      dto.moduleIds,
+    );
     if (!out.ok) {
       throw new BadRequestException(
         out.reason === 'duplicate_ids'
@@ -250,7 +345,10 @@ export class LmsService {
 
   async listModules(actor: AuthUser, courseInstanceId: string) {
     await this.assertCourseInstance(actor, courseInstanceId);
-    const rows = await this.repo.listModulesForCourseInstance(actor.institutionId, courseInstanceId);
+    const rows = await this.repo.listModulesForCourseInstance(
+      actor.institutionId,
+      courseInstanceId,
+    );
     return { data: rows.map((m) => this.serializeModule(m)) };
   }
 
@@ -306,14 +404,21 @@ export class LmsService {
     if (result.count === 0) {
       throw new NotFoundException('Module not found');
     }
-    const rows = await this.repo.listModulesForCourseInstance(actor.institutionId, mod.courseInstance.id);
+    const rows = await this.repo.listModulesForCourseInstance(
+      actor.institutionId,
+      mod.courseInstance.id,
+    );
     const row = rows.find((r) => r.id === moduleId);
     return this.serializeModule(row!);
   }
 
   async removeModule(actor: AuthUser, moduleId: string) {
     const mod = await this.assertModule(actor, moduleId);
-    const result = await this.repo.softDeleteContentModule(moduleId, actor.institutionId, new Date());
+    const result = await this.repo.softDeleteContentModule(
+      moduleId,
+      actor.institutionId,
+      new Date(),
+    );
     if (result.count === 0) {
       throw new NotFoundException('Module not found');
     }
@@ -477,7 +582,11 @@ export class LmsService {
       throw new NotFoundException('Resource not found');
     }
     await this.assertLesson(actor, prior.lessonId);
-    const result = await this.repo.softDeleteLessonResource(resourceId, actor.institutionId, new Date());
+    const result = await this.repo.softDeleteLessonResource(
+      resourceId,
+      actor.institutionId,
+      new Date(),
+    );
     if (result.count === 0) {
       throw new NotFoundException('Resource not found');
     }
@@ -518,6 +627,7 @@ export class LmsService {
     if (!row) {
       throw new NotFoundException('Course instance not found');
     }
+    await this.studentEligibility.assertStudentEnrolledForCourseSection(actor, row.sectionId);
     return row;
   }
 
@@ -561,6 +671,25 @@ export class LmsService {
     };
   }
 
+  private formatSectionInstructor(
+    instructor: { email: string; profile: Prisma.JsonValue } | null | undefined,
+  ): string | null {
+    if (!instructor) {
+      return null;
+    }
+    const raw = instructor.profile;
+    const p =
+      raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+    const displayName = typeof p.displayName === 'string' ? p.displayName.trim() : '';
+    if (displayName.length > 0) {
+      return displayName;
+    }
+    const first = typeof p.firstName === 'string' ? p.firstName.trim() : '';
+    const last = typeof p.lastName === 'string' ? p.lastName.trim() : '';
+    const combined = `${first} ${last}`.trim();
+    return combined.length > 0 ? combined : instructor.email;
+  }
+
   private serializeCourseInstanceList(row: {
     id: string;
     sectionId: string;
@@ -572,6 +701,7 @@ export class LmsService {
     section: {
       course: { id: string; code: string; title: string };
       semester: { id: string; name: string };
+      instructor: { id: string; email: string; profile: Prisma.JsonValue } | null;
     };
   }) {
     return {
@@ -583,6 +713,7 @@ export class LmsService {
       settings: row.settings,
       course: row.section.course,
       semester: row.section.semester,
+      instructorDisplay: this.formatSectionInstructor(row.section.instructor),
     };
   }
 

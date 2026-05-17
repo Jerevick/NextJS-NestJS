@@ -36,6 +36,8 @@ export type StudentRecordWriteDescriptor =
       studentIdField: string;
       sessionDateField: string;
     }
+  /** Body carries signed session JWT (`token`). Student resolved from JWT user.studentId. */
+  | { mode: 'attendanceSelfScanToken'; tokenField: string }
   | {
       mode: 'lmsSubmissionIdParam';
       param: string;

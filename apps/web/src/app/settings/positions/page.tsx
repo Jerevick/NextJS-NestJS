@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { auth } from '@/auth';
 import { appendOptionalEntityHeader } from '@/lib/api-headers';
+import { PositionsDataGrid, type PositionGridRow } from '@/components/data-grids/misc-data-grids';
 import { hasPermission } from '@/lib/permissions';
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -51,26 +52,30 @@ export default async function PositionsPage({
   };
   appendOptionalEntityHeader(headers, session.user);
 
-  const entitiesRes = await fetch(`${apiBase}/institutions/${session.user.institutionId}/entities`, {
-    headers,
-    cache: 'no-store',
-  });
-  const entities =
-    entitiesRes.ok
-      ? (((await entitiesRes.json()) as { data?: { id: string; code: string; name: string }[] }).data ?? [])
-      : [];
+  const entitiesRes = await fetch(
+    `${apiBase}/institutions/${session.user.institutionId}/entities`,
+    {
+      headers,
+      cache: 'no-store',
+    },
+  );
+  const entities = entitiesRes.ok
+    ? (((await entitiesRes.json()) as { data?: { id: string; code: string; name: string }[] })
+        .data ?? [])
+    : [];
 
   const entityId =
-    entityIdParam ?? (session.user.entityScope === 'ENTITY' ? session.user.entityId : entities[0]?.id);
+    entityIdParam ??
+    (session.user.entityScope === 'ENTITY' ? session.user.entityId : entities[0]?.id);
 
   let rows: PositionRow[] = [];
   if (entityId) {
     const vacantOnly = vacant === '1' || vacant === 'true';
     const path = vacantOnly ? 'positions/vacant' : 'positions';
-    const res = await fetch(
-      `${apiBase}/${path}?entityId=${encodeURIComponent(entityId)}`,
-      { headers, cache: 'no-store' },
-    );
+    const res = await fetch(`${apiBase}/${path}?entityId=${encodeURIComponent(entityId)}`, {
+      headers,
+      cache: 'no-store',
+    });
     if (res.ok) {
       const body = (await res.json()) as { data?: PositionRow[] };
       rows = body.data ?? [];
@@ -120,46 +125,22 @@ export default async function PositionsPage({
         </nav>
       ) : null}
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-              <th style={{ padding: '0.5rem' }}>Title</th>
-              <th style={{ padding: '0.5rem' }}>Unit</th>
-              <th style={{ padding: '0.5rem' }}>Level</th>
-              <th style={{ padding: '0.5rem' }}>Holder</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <td style={{ padding: '0.5rem' }}>
-                  {r.title}{' '}
-                  <span style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>{r.code}</span>
-                </td>
-                <td style={{ padding: '0.5rem' }}>
-                  {r.orgUnit.name} ({r.orgUnit.code})
-                </td>
-                <td style={{ padding: '0.5rem' }}>L{r.level}</td>
-                <td style={{ padding: '0.5rem' }}>
-                  {r.isVacant ? (
-                    <span style={{ color: '#b45309', fontWeight: 600 }}>VACANT</span>
-                  ) : (
-                    <>
-                      {r.currentHolder?.name ?? r.currentHolder?.email}
-                      <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
-                        {' '}
-                        since {r.currentHolder?.startDate.slice(0, 10)}
-                      </span>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {rows.length === 0 ? <p style={{ color: '#64748b' }}>No positions found for this campus.</p> : null}
-      </div>
+      <PositionsDataGrid
+        rows={rows.map(
+          (r): PositionGridRow => ({
+            id: r.id,
+            titleLabel: `${r.title} (${r.code})`,
+            unitLabel: `${r.orgUnit.name} (${r.orgUnit.code})`,
+            level: r.level,
+            holderLabel: r.isVacant
+              ? 'VACANT'
+              : `${r.currentHolder?.name ?? r.currentHolder?.email ?? '—'} since ${r.currentHolder?.startDate.slice(0, 10) ?? ''}`,
+          }),
+        )}
+      />
+      {rows.length === 0 ? (
+        <p style={{ color: '#64748b' }}>No positions found for this campus.</p>
+      ) : null}
     </main>
   );
 }

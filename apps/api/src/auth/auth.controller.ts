@@ -49,7 +49,10 @@ export class AuthController {
 
   @Public()
   @Post('magic-link/consume')
-  async consumeMagicLink(@Body() dto: MagicLinkConsumeDto, @Res({ passthrough: true }) res: Response) {
+  async consumeMagicLink(
+    @Body() dto: MagicLinkConsumeDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const { accessToken, refreshToken, user } = await this.auth.consumeMagicLink(dto);
     res.cookie(this.auth.refreshCookieName(), refreshToken, {
       httpOnly: true,
@@ -109,8 +112,8 @@ export class AuthController {
     if (!user) {
       return { user: null };
     }
-    const { accessJti: _accessJti, ...rest } = user;
-    return { user: rest };
+    const { accessJti: _accessJti, studentId, ...rest } = user;
+    return { user: { ...rest, studentId } };
   }
 
   @Post('switch-entity')
@@ -121,7 +124,11 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const currentRefresh = req.cookies?.[this.auth.refreshCookieName()] as string | undefined;
-    const { accessToken, refreshToken, user } = await this.auth.switchEntity(actor, dto.entityId, currentRefresh);
+    const { accessToken, refreshToken, user } = await this.auth.switchEntity(
+      actor,
+      dto.entityId,
+      currentRefresh,
+    );
     res.cookie(this.auth.refreshCookieName(), refreshToken, {
       httpOnly: true,
       sameSite: 'lax',

@@ -17,7 +17,7 @@
     "react-dom": "^19.0.0"
   },
   "scripts": {
-    "build": "tsup src/index.tsx --format esm,cjs --dts --external react --external react-dom --clean",
+    "build": "tsup src/index.tsx --format esm,cjs --dts --external react --external react-dom --external @mui/material --external @mui/material-nextjs --external @mui/x-data-grid --external @mui/system --external @emotion/react --external @emotion/styled --external @emotion/cache --clean",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -31,5 +31,13 @@
     "react-dom": "^19.0.0",
     "tsup": "^8.3.5",
     "typescript": "catalog:"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^6.5.0",
+    "@mui/material-nextjs": "^6.5.0",
+    "@mui/system": "^6.4.11",
+    "@mui/x-data-grid": "^7.29.13"
   }
 }

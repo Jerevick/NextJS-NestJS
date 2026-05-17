@@ -1,7 +1,4 @@
-export function BrandMark(props: { title?: string }) {
-  return (
-    <div style={{ fontWeight: 700, letterSpacing: '-0.02em' }} title={props.title}>
-      UniCore
-    </div>
-  );
-}
+export { BrandMark } from './brand-mark.js';
+export { MuiAppProvider } from './mui-app-provider.js';
+export { UniCoreDataGrid, type UniCoreDataGridProps } from './unicore-data-grid.js';
+export { unicoreAdminTheme, unicoreLightTheme } from './theme.js';

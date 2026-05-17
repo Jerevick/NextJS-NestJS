@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { StudentRecordWrite } from '../common/decorators/student-record-write.decorator';
@@ -26,6 +17,16 @@ export class EnrollmentController {
   @RequirePermissions('enrollments.read')
   list(@CurrentUser() user: AuthUser, @Query() query: ListEnrollmentsQueryDto) {
     return this.enrollment.list(user, query);
+  }
+
+  @Get('conflicts/preview')
+  @RequirePermissions('enrollments.read')
+  previewConflicts(
+    @CurrentUser() user: AuthUser,
+    @Query('studentId') studentId: string,
+    @Query('sectionId') sectionId: string,
+  ) {
+    return this.enrollment.previewTimetableConflicts(user, studentId, sectionId);
   }
 
   @Get(':id')

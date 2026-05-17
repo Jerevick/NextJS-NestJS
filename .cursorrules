@@ -1357,6 +1357,179 @@ ENTITY ISOLATION:
   [ ] Institution VC (entityScope: ALL): GET /students → all entities returned
   [ ] Entity switcher: cannot switch to a different institution's entity
 
+ 
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 15 — ACADEMIC PROGRESSION: PROMOTION & REPEAT
+# ════════════════════════════════════════════════════════════════
+#
+# Build contract (tasks, APIs, schema outline): UNICORE_MASTER_PROMPT.md — Phase 19,
+# Prompt 19.1. This section is normative product law; the master prompt is the
+# implementation checklist for agents.
+
+## 15.1 Overview
+
+Academic progression is SEPARATE from billing.
+A repeating student is still ACTIVE and still billable.
+A promoted student is still ACTIVE and still billable.
+These are purely academic record and workflow decisions.
+
+The progression system answers two questions at semester/year end:
+  1. Has this student earned the right to move forward? → PROMOTION
+  2. Must this student redo work before moving forward? → REPEAT
+
+## 15.2 Rustication vs Repeat (Critical Distinction)
+
+  RUSTICATION = Administrative/disciplinary suspension
+    Status: INACTIVE
+    NOT billable during rustication
+    Platform access revoked
+    No records may be posted
+    Has a defined end date
+    Student returns and may need to REPEAT missed work
+
+  REPEAT = Academic outcome (failed or insufficient to progress)
+    Status: ACTIVE (student is still enrolled and studying)
+    BILLABLE — they are using the platform and consuming resources
+    Full platform access
+    New enrollment records created normally (no backfill needed)
+    StudentRecordPostingGuard allows all writes (student is ACTIVE)
+
+## 15.3 Promotion Types
+
+  AUTOMATIC
+    Student passes all required courses with GPA >= institution minimum
+    System detects after grade publication
+    Registrar confirms (or auto-confirms per institution policy)
+
+  CONDITIONAL (Probationary)
+    Failed some courses but GPA >= conditional promotion threshold
+    Promoted to next level but carries failed courses
+    Must pass carryover courses alongside next level
+    Institution configures: max carryover courses before full repeat
+
+  DEFERRED
+    Academically eligible but blocked by a hold (financial, admin, library)
+    ProgressionHold placed on student
+    Promoted automatically when all holds cleared
+    Registrar notified to clear hold
+
+  MANUAL (Special Cases)
+    Medical, compassionate, or board-approved circumstances
+    Requires academic board approval workflow
+    Fully documented with supporting evidence
+    Logged as MANUAL_PROMOTION with justification
+
+## 15.4 Repeat Types
+
+  FULL_REPEAT
+    Failed to meet minimum progression requirements
+    Must repeat the entire semester or academic year
+    Previous grades stand on transcript (first attempt recorded)
+    New StudentEnrollment records created for the same courses
+    StudentAcademicSession.attemptNumber incremented
+
+  SUPPLEMENTARY / CARRYOVER
+    Failed specific courses but promoted conditionally
+    Must retake only failed courses alongside next level
+    CarryoverEnrollment links original failure to new attempt
+    Very common in semester-based systems
+
+  RESIT
+    Failed final examination only; coursework was adequate
+    Allowed to resit exam without repeating full course
+    Grade CAPPED at institution-defined pass mark (e.g. 40%)
+    ResitRecord tracks cap enforcement at grade calculation level
+    Common in British university model
+
+  DEFERRED_EXAMINATION
+    Missed exam due to documented medical or emergency reason
+    Sits exam in next available sitting (supplementary sitting)
+    Full grade available — NOT capped
+    Requires evidence + Dean approval
+
+  AEGROTAT
+    Student too ill to complete any final assessments
+    Academic board awards pass based on continuous assessment
+    Rare — requires Senate-level decision
+    Degree/certificate awarded; marked as AEGROTAT on transcript
+
+## 15.5 GPA Calculation for Repeaters
+
+  Institution configures GPA policy for repeated courses:
+    BEST_OF_ATTEMPTS     Use the highest grade across all attempts
+    LAST_ATTEMPT         Use only the most recent attempt
+    ALL_ATTEMPTS_AVERAGE Average all attempts
+    FIRST_ATTEMPT_ONLY   Only count the first attempt (punitive)
+
+  Default recommended: BEST_OF_ATTEMPTS (most common in practice)
+  Resit grades: capped at pass mark before GPA calculation
+  Transcript: ALL attempts shown; GPA policy noted at bottom
+
+## 15.6 Maximum Repeat & Duration Limits
+
+  Institution configures per programme:
+    maxRepeatAttemptsPerLevel: Int   (default 2)
+    maxProgrammeDurationYears: Int   (default: nominalYears × 1.5)
+    maxCarryoverCourses: Int         (default 2 — before forced full repeat)
+    maxResitAttempts: Int            (default 1)
+
+  System enforces at enrollment:
+    If attemptNumber > maxRepeatAttemptsPerLevel:
+      Block enrollment → alert Registrar → student must withdraw or be expelled
+    If totalYearsEnrolled > maxProgrammeDurationYears:
+      Block all enrollments → mandatory academic review workflow
+
+## 15.7 Rustication Return as Repeater
+
+  Student rusticated → period ends → reactivated (ACTIVE again)
+  They return to repeat the semester/year they missed
+  This is a NORMAL repeat (student is ACTIVE, records post normally)
+  StudentAcademicSession.repeatReason = RUSTICATION_RETURN
+  The rusticated period shows on transcript as blank (no records, by design)
+  Transcript label: "Semester X 20XX/XX — No Records (Rustication Period)"
+
+## 15.8 Progression Decision Authority
+
+  AUTOMATIC decisions: system + Registrar confirmation
+  CONDITIONAL promotion: HoD recommends → Dean approves → Registrar confirms
+  FULL REPEAT decision: HoD recommends → Dean approves → Registrar records
+  MANUAL promotion: HoD → Dean → Academic Board → Registrar
+  AEGROTAT: Dean → Academic Board → Senate → Registrar
+  Maximum duration exceeded: HoD → Dean → Registrar → VC
+
+## 15.9 Laws for Academic Progression
+
+  LAW P1 — PROGRESSION DECISIONS ARE IMMUTABLE
+    ProgressionDecision records: no UPDATE, no DELETE
+    Every decision creates a new record
+    Appeals create a NEW superseding decision, not an amendment
+
+  LAW P2 — REPEAT ENROLLMENT REQUIRES ORIGINAL REFERENCE
+    Every repeat StudentEnrollment must reference:
+      originalSemesterId (which semester is being repeated)
+      attemptNumber (which attempt this is)
+    This enables correct transcript generation and GPA calculation
+
+  LAW P3 — RESIT GRADE CAP IS SYSTEM-ENFORCED
+    Resit grades: system applies cap BEFORE storing grade
+    Faculty cannot manually enter a grade above the cap for a resit
+    The cap is configuration, not convention
+
+  LAW P4 — CARRYOVER COURSES ARE TRACKED EXPLICITLY
+    CarryoverEnrollment links: original failed enrollment → new repeat enrollment
+    Transcript shows: "Carryover from Semester X" label on the course
+
+  LAW P5 — PROGRESSION RULES ARE DATA-DRIVEN
+    No progression logic is hardcoded
+    ProgressionRule records per institution/programme define all thresholds
+    Institution can configure different rules per programme
+
+  LAW P6 — RUSTICATION PERIOD IS ALWAYS BLANK ON TRANSCRIPT
+    No records exist for rustication periods (system blocks them)
+    Transcript shows the gap with a label
+    This is correct — it proves the system's integrity
+
 ## Standard Tests Per Module
   Unit tests:        every service method (mocked dependencies)
   Integration tests: every controller endpoint (Supertest + Testcontainers)

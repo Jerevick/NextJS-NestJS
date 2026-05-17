@@ -1,15 +1,41 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
 import { auth } from '@/auth';
 import { appendOptionalEntityHeader } from '@/lib/api-headers';
-import { hasPermission } from '@/lib/permissions';
+import { canAccessBillingNav, hasPermission } from '@/lib/permissions';
 import { InactiveStudentBanner } from '@/components/students/status/inactive-banner';
-import { StudentStatusTimeline, type StatusChangeRow } from '@/components/students/status/status-timeline';
+import {
+  StudentStatusTimeline,
+  type StatusChangeRow,
+} from '@/components/students/status/status-timeline';
 import { ConfirmGraduationForm } from '@/components/students/status/confirm-graduation-form';
-import { DropEnrollmentForm } from './drop-enrollment-form';
+import {
+  StudentAttendanceSectionsDataGrid,
+  StudentDocumentsDataGrid,
+  StudentEnrollmentsDataGrid,
+  type AttendanceSectionGridRow,
+  type DocumentGridRow,
+  type EnrollmentGridRow,
+} from '@/components/data-grids/student-profile-data-grids';
 import { RequestDocumentForm } from './request-document-form';
+import {
+  EnrollmentHoldsPanel,
+  type EnrollmentHoldRow,
+} from '@/components/students/enrollment-holds-panel';
+import {
+  GraduationClearancePanel,
+  type GraduationClearanceRow,
+} from '@/components/students/graduation-clearance-panel';
+import { StudentFinanceActions } from '@/components/finance/student-finance-actions';
+import { StudentFinancePanel } from '@/components/finance/student-finance-panel';
+import { StudentPayOnlineButton } from '@/components/finance/student-pay-online-button';
+import { StudentPaymentPlanForm } from '@/components/finance/student-payment-plan-form';
+import { StudentProgressionInsights } from '@/components/students/student-progression-insights';
+import { StudentAcademicInsightsPanel } from '@/components/students/student-academic-insights-panel';
 
-const apiBase = process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiBase =
+  process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 const primary = '#1e3a5f';
 const accent = '#f59e0b';
@@ -41,12 +67,15 @@ type StudentDetail = {
     semester: { id: string; name: string; startDate: string };
     course: { code: string; title: string; creditHours: number };
     sectionId: string;
+    originalSemesterId: string | null;
+    enrollmentAttemptNumber: number;
   }>;
   metrics: {
     gpa: number | null;
     creditHoursAttempted: number;
     creditHoursEarned: number;
     standing: string;
+    gpaRepeatPolicy?: string;
   };
 };
 
@@ -59,6 +88,42 @@ type DocumentRow = {
   issuedAt: string | null;
   expiresAt: string | null;
 };
+
+type GpaInsightContribution = { courseId: string; gradePoints: number; creditHours: number };
+
+function parseProgressionGpaPayload(raw: unknown): {
+  policy: string;
+  cumulativeGpa: number | null;
+  creditHoursGradedUsed: number;
+  contributions: GpaInsightContribution[];
+} | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+  const j = raw as Record<string, unknown>;
+  if (typeof j.policy !== 'string') {
+    return null;
+  }
+  const cg = j.cumulativeGpa;
+  const cumulativeGpa = typeof cg === 'number' ? cg : cg === null ? null : null;
+  const ch = j.creditHoursGradedUsed;
+  const creditHoursGradedUsed = typeof ch === 'number' ? ch : 0;
+  const contributions: GpaInsightContribution[] = [];
+  if (Array.isArray(j.contributions)) {
+    for (const item of j.contributions) {
+      if (
+        item &&
+        typeof item === 'object' &&
+        typeof (item as GpaInsightContribution).courseId === 'string' &&
+        typeof (item as GpaInsightContribution).gradePoints === 'number' &&
+        typeof (item as GpaInsightContribution).creditHours === 'number'
+      ) {
+        contributions.push(item as GpaInsightContribution);
+      }
+    }
+  }
+  return { policy: j.policy, cumulativeGpa, creditHoursGradedUsed, contributions };
+}
 
 function displayName(s: StudentDetail): string {
   const p = s.profile;
@@ -83,14 +148,20 @@ function formatDate(iso: string | null): string {
   }
 }
 
-type ProfileTab = 'summary' | 'academic' | 'documents' | 'attendance' | 'status';
+type ProfileTab = 'summary' | 'academic' | 'documents' | 'attendance' | 'status' | 'financial';
 
 function tabHref(id: string, tab: ProfileTab): string {
   return tab === 'summary' ? `/students/${id}` : `/students/${id}?tab=${tab}`;
 }
 
 function parseTab(raw: string | undefined): ProfileTab {
-  if (raw === 'academic' || raw === 'documents' || raw === 'attendance' || raw === 'status') {
+  if (
+    raw === 'academic' ||
+    raw === 'documents' ||
+    raw === 'attendance' ||
+    raw === 'status' ||
+    raw === 'financial'
+  ) {
     return raw;
   }
   return 'summary';
@@ -127,16 +198,24 @@ export default async function StudentProfilePage({
   const canDocsRead = hasPermission(session?.user?.permissions, 'documents.read');
   const canDocsWrite = hasPermission(session?.user?.permissions, 'documents.write');
   const canStudentsRead = hasPermission(session?.user?.permissions, 'students.read');
+  const canStudentsWrite = hasPermission(session?.user?.permissions, 'students.write');
   const canAttendanceRead =
     hasPermission(session?.user?.permissions, 'attendance.read') ||
     hasPermission(session?.user?.permissions, 'students.read');
+  const canFinanceTab =
+    hasPermission(session?.user?.permissions, 'finance.read') ||
+    hasPermission(session?.user?.permissions, 'finance.write') ||
+    canAccessBillingNav(session?.user?.permissions);
 
   if (!token) {
     return (
-      <main style={{ padding: '2rem', fontFamily: '"IBM Plex Sans", system-ui', maxWidth: 720 }}>
-        <h1 style={{ fontFamily: '"Crimson Pro", Georgia, serif', color: primary }}>Student profile</h1>
+      <main style={{ padding: '2rem', fontFamily: 'var(--font-sans), system-ui', maxWidth: 720 }}>
+        <h1 style={{ fontFamily: 'var(--font-serif), Georgia, serif', color: primary }}>
+          Student profile
+        </h1>
         <p style={{ color: muted }}>
-          Sign in with email and password (institution slug on localhost) so the app can call the SIS API.
+          Sign in with email and password (institution slug on localhost) so the app can call the
+          SIS API.
         </p>
         <Link href="/login" style={{ color: primary }}>
           Sign in
@@ -164,15 +243,19 @@ export default async function StudentProfilePage({
   if (!res.ok) {
     const body = await res.text();
     return (
-      <main style={{ padding: '2rem', fontFamily: '"IBM Plex Sans", system-ui', maxWidth: 720 }}>
+      <main style={{ padding: '2rem', fontFamily: 'var(--font-sans), system-ui', maxWidth: 720 }}>
         <nav style={{ marginBottom: '1rem' }}>
           <Link href="/students" style={{ color: primary }}>
             ← Students
           </Link>
         </nav>
-        <h1 style={{ fontFamily: '"Crimson Pro", Georgia, serif', color: primary }}>Could not load student</h1>
+        <h1 style={{ fontFamily: 'var(--font-serif), Georgia, serif', color: primary }}>
+          Could not load student
+        </h1>
         <p style={{ color: '#b91c1c' }}>HTTP {res.status}</p>
-        <pre style={{ fontSize: 12, overflow: 'auto', background: '#f8fafc', padding: '1rem' }}>{body}</pre>
+        <pre style={{ fontSize: 12, overflow: 'auto', background: '#f8fafc', padding: '1rem' }}>
+          {body}
+        </pre>
       </main>
     );
   }
@@ -181,6 +264,39 @@ export default async function StudentProfilePage({
   const name = displayName(student);
   const profilePath = `/students/${id}`;
   const profileReadOnly = student.enrollmentStatus !== 'ACTIVE';
+
+  let graduationClearanceRequests: GraduationClearanceRow[] = [];
+  if (canStudentsRead) {
+    const clearanceRes = await fetch(
+      `${apiBase}/graduation-clearance/students/${encodeURIComponent(id)}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      },
+    );
+    if (clearanceRes.ok) {
+      const payload = (await clearanceRes.json()) as { data: GraduationClearanceRow[] };
+      graduationClearanceRequests = payload.data;
+    }
+  }
+
+  let enrollmentHolds: EnrollmentHoldRow[] = [];
+  if (canEnroll) {
+    const holdsRes = await fetch(
+      `${apiBase}/students/${encodeURIComponent(id)}/enrollment-holds?activeOnly=false`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'X-Institution-ID': session.user.institutionId,
+        },
+        cache: 'no-store',
+      },
+    );
+    if (holdsRes.ok) {
+      const holdsPayload = (await holdsRes.json()) as { data: EnrollmentHoldRow[] };
+      enrollmentHolds = holdsPayload.data;
+    }
+  }
 
   let statusEntries: StatusChangeRow[] = [];
   if (canStudentsRead) {
@@ -245,11 +361,126 @@ export default async function StudentProfilePage({
     }
   }
 
+  type StudentFinancePayload = {
+    studentNumber: string;
+    enrollmentStatus: string;
+    account: { balance: number; currency: string; lastTransactionAt: string | null };
+    paymentPlans?: Array<{
+      id: string;
+      totalAmount: number;
+      status: string;
+      installments: Array<{ dueDate: string; amount: number; paidAmount: number; status: string }>;
+    }>;
+    transactions: Array<{
+      id: string;
+      type: string;
+      amount: number;
+      currency: string;
+      description: string;
+      reference: string;
+      status: string;
+      createdAt: string;
+    }>;
+  };
+  let financePayload: StudentFinancePayload | null = null;
+  let financeError: string | null = null;
+  if (
+    tab === 'financial' &&
+    canFinanceTab &&
+    hasPermission(session?.user?.permissions, 'finance.read')
+  ) {
+    const finRes = await fetch(`${apiBase}/finance/students/${encodeURIComponent(id)}/account`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    });
+    if (finRes.ok) {
+      financePayload = (await finRes.json()) as StudentFinancePayload;
+    } else {
+      financeError = `Could not load ledger (${finRes.status})`;
+    }
+  }
+
+  let progressionInsights: ReactNode = null;
+  if (tab === 'academic' && canStudentsRead && session.user.institutionId) {
+    const progressionHeaders = (): Record<string, string> => {
+      const h: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        'X-Institution-ID': session.user.institutionId,
+      };
+      appendOptionalEntityHeader(h, session.user);
+      return h;
+    };
+    const [gpaRes, decRes, progHoldRes, covRes] = await Promise.all([
+      fetch(`${apiBase}/sis/progression/students/${encodeURIComponent(id)}/gpa`, {
+        headers: progressionHeaders(),
+        cache: 'no-store',
+      }),
+      fetch(`${apiBase}/sis/progression/students/${encodeURIComponent(id)}/decisions`, {
+        headers: progressionHeaders(),
+        cache: 'no-store',
+      }),
+      fetch(`${apiBase}/sis/progression/students/${encodeURIComponent(id)}/holds`, {
+        headers: progressionHeaders(),
+        cache: 'no-store',
+      }),
+      fetch(`${apiBase}/sis/progression/students/${encodeURIComponent(id)}/carryovers`, {
+        headers: progressionHeaders(),
+        cache: 'no-store',
+      }),
+    ]);
+
+    const gpaParsed = gpaRes.ok ? parseProgressionGpaPayload(await gpaRes.json()) : null;
+
+    let decisionsData: { id: string; kind: string; createdAt: string }[] = [];
+    if (decRes.ok) {
+      const j = (await decRes.json()) as {
+        data?: { id: string; kind: string; createdAt: string }[];
+      };
+      decisionsData = j.data ?? [];
+    }
+
+    let progressionHoldsData: {
+      id: string;
+      type: string;
+      reason: string | null;
+      createdAt: string;
+    }[] = [];
+    if (progHoldRes.ok) {
+      const j = (await progHoldRes.json()) as {
+        data?: { id: string; type: string; reason: string | null; createdAt: string }[];
+      };
+      progressionHoldsData = j.data ?? [];
+    }
+
+    type CarryPayload = {
+      id: string;
+      original: { enrollmentId: string; courseCode: string; semesterName: string | null };
+      repeat: { enrollmentId: string; courseCode: string; semesterName: string | null };
+    };
+    let carryoversData: CarryPayload[] = [];
+    if (covRes.ok) {
+      const j = (await covRes.json()) as { data?: CarryPayload[] };
+      carryoversData = j.data ?? [];
+    }
+
+    progressionInsights = (
+      <StudentProgressionInsights
+        primary={primary}
+        muted={muted}
+        border={border}
+        gpa={gpaParsed}
+        decisions={decisionsData}
+        progressionHolds={progressionHoldsData}
+        carryovers={carryoversData}
+      />
+    );
+  }
+
   return (
     <main
       style={{
         padding: '2rem 1.5rem 3rem',
-        fontFamily: '"IBM Plex Sans", system-ui',
+        fontFamily: 'var(--font-sans), "IBM Plex Sans", system-ui',
         maxWidth: 960,
         margin: '0 auto',
         color: '#0f172a',
@@ -263,17 +494,26 @@ export default async function StudentProfilePage({
           Dashboard
         </Link>
         {canEnroll && !profileReadOnly ? (
-          <Link href={`/students/${id}/enroll`} style={{ color: primary, textDecoration: 'none', fontWeight: 600 }}>
+          <Link
+            href={`/students/${id}/enroll`}
+            style={{ color: primary, textDecoration: 'none', fontWeight: 600 }}
+          >
             Enroll in section
           </Link>
         ) : null}
         {canEnroll && !profileReadOnly ? (
-          <Link href="/students/bulk-enroll" style={{ color: muted, textDecoration: 'none', fontWeight: 600 }}>
+          <Link
+            href="/students/bulk-enroll"
+            style={{ color: muted, textDecoration: 'none', fontWeight: 600 }}
+          >
             Bulk enroll
           </Link>
         ) : null}
         {canWrite ? (
-          <Link href="/students/new" style={{ color: accent, textDecoration: 'none', fontWeight: 600 }}>
+          <Link
+            href="/students/new"
+            style={{ color: accent, textDecoration: 'none', fontWeight: 600 }}
+          >
             Add student
           </Link>
         ) : null}
@@ -286,13 +526,21 @@ export default async function StudentProfilePage({
           marginBottom: '1.5rem',
         }}
       >
-        <p style={{ margin: 0, fontSize: '0.8rem', letterSpacing: '0.06em', color: muted, textTransform: 'uppercase' }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: '0.8rem',
+            letterSpacing: '0.06em',
+            color: muted,
+            textTransform: 'uppercase',
+          }}
+        >
           Student record
         </p>
         <h1
           style={{
             margin: '0.35rem 0 0',
-            fontFamily: '"Crimson Pro", Georgia, serif',
+            fontFamily: 'var(--font-serif), Georgia, serif',
             fontSize: '2rem',
             fontWeight: 600,
             color: primary,
@@ -303,10 +551,20 @@ export default async function StudentProfilePage({
         <p style={{ margin: '0.5rem 0 0', color: muted, fontSize: '0.95rem' }}>
           {student.studentNumber} · {student.email}
           {!student.userActive ? (
-            <span style={{ marginLeft: '0.5rem', color: '#b91c1c', fontWeight: 600 }}>Account inactive</span>
+            <span style={{ marginLeft: '0.5rem', color: '#b91c1c', fontWeight: 600 }}>
+              Account inactive
+            </span>
           ) : null}
         </p>
-        <div style={{ marginTop: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+        <div
+          style={{
+            marginTop: '1rem',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+            alignItems: 'center',
+          }}
+        >
           <span
             style={{
               background: '#eff6ff',
@@ -383,6 +641,11 @@ export default async function StudentProfilePage({
             Status
           </Link>
         ) : null}
+        {canFinanceTab ? (
+          <Link href={tabHref(id, 'financial')} style={tabStyle(tab === 'financial')}>
+            Financial
+          </Link>
+        ) : null}
       </div>
 
       {tab === 'summary' ? (
@@ -395,17 +658,40 @@ export default async function StudentProfilePage({
               marginBottom: '2rem',
             }}
           >
-            <MetricCard label="GPA" value={student.metrics.gpa !== null ? String(student.metrics.gpa) : '—'} />
-            <MetricCard label="Credits attempted" value={String(student.metrics.creditHoursAttempted)} />
+            <MetricCard
+              label="GPA"
+              value={student.metrics.gpa !== null ? String(student.metrics.gpa) : '—'}
+              hint={
+                student.metrics.gpaRepeatPolicy
+                  ? `Repeat policy: ${student.metrics.gpaRepeatPolicy}`
+                  : undefined
+              }
+            />
+            <MetricCard
+              label="Credits attempted"
+              value={String(student.metrics.creditHoursAttempted)}
+            />
             <MetricCard label="Credits earned" value={String(student.metrics.creditHoursEarned)} />
             <MetricCard label="Admission" value={formatDate(student.admissionDate)} />
-            <MetricCard label="Expected graduation" value={formatDate(student.expectedGraduationDate)} />
+            <MetricCard
+              label="Expected graduation"
+              value={formatDate(student.expectedGraduationDate)}
+            />
           </section>
+
+          <StudentAcademicInsightsPanel
+            primary={primary}
+            accent={accent}
+            muted={muted}
+            gpa={student.metrics.gpa}
+            standing={student.metrics.standing}
+            creditsEarned={student.metrics.creditHoursEarned}
+          />
 
           <section style={{ marginBottom: '2rem' }}>
             <h2
               style={{
-                fontFamily: '"Crimson Pro", Georgia, serif',
+                fontFamily: 'var(--font-serif), Georgia, serif',
                 fontSize: '1.35rem',
                 color: primary,
                 marginBottom: '0.75rem',
@@ -414,7 +700,8 @@ export default async function StudentProfilePage({
               Overview
             </h2>
             <p style={{ color: muted, fontSize: '0.9rem', margin: '0 0 1rem' }}>
-              Guardian and emergency contact JSON is stored on the server; structured editing can be added later.
+              Guardian and emergency contact JSON is stored on the server; structured editing can be
+              added later.
             </p>
             <dl
               style={{
@@ -431,7 +718,6 @@ export default async function StudentProfilePage({
               <dd style={{ margin: 0 }}>{student.program.id}</dd>
             </dl>
           </section>
-
         </>
       ) : null}
 
@@ -439,7 +725,7 @@ export default async function StudentProfilePage({
         <section style={{ marginBottom: '2rem' }}>
           <h2
             style={{
-              fontFamily: '"Crimson Pro", Georgia, serif',
+              fontFamily: 'var(--font-serif), Georgia, serif',
               fontSize: '1.35rem',
               color: primary,
               marginBottom: '0.75rem',
@@ -452,6 +738,20 @@ export default async function StudentProfilePage({
           ) : (
             <p style={{ color: muted }}>No status changes recorded.</p>
           )}
+          {canStudentsWrite ? (
+            <GraduationClearancePanel
+              studentId={student.id}
+              requests={graduationClearanceRequests}
+              readOnly={profileReadOnly}
+            />
+          ) : null}
+          {student.enrollmentStatus === 'ACTIVE' && canStudentsWrite ? (
+            <ConfirmGraduationForm
+              studentId={student.id}
+              studentProfilePath={profilePath}
+              readOnly={profileReadOnly}
+            />
+          ) : null}
           <p style={{ marginTop: '1.5rem', fontSize: '0.9rem' }}>
             <Link href="/students/reactivation" style={{ color: primary, fontWeight: 600 }}>
               Reactivation requests →
@@ -464,7 +764,7 @@ export default async function StudentProfilePage({
         <section>
           <h2
             style={{
-              fontFamily: '"Crimson Pro", Georgia, serif',
+              fontFamily: 'var(--font-serif), Georgia, serif',
               fontSize: '1.35rem',
               color: primary,
               marginBottom: '0.75rem',
@@ -489,35 +789,77 @@ export default async function StudentProfilePage({
                 </ul>
               ) : null}
               {attendanceSummary.bySection.length > 0 ? (
-                <table style={{ width: '100%', marginTop: '1rem', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: `1px solid ${border}`, color: muted, textAlign: 'left' }}>
-                      <th style={{ padding: '0.4rem 0' }}>Section</th>
-                      <th style={{ padding: '0.4rem 0' }}>Sessions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {attendanceSummary.bySection.map((s) => (
-                      <tr key={s.sectionId} style={{ borderBottom: '1px solid #f8fafc' }}>
-                        <td style={{ padding: '0.4rem 0', fontFamily: 'ui-monospace, monospace', fontSize: '0.8rem' }}>
-                          {s.sectionId.slice(0, 12)}…
-                        </td>
-                        <td style={{ padding: '0.4rem 0' }}>{s.total}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <StudentAttendanceSectionsDataGrid
+                  rows={attendanceSummary.bySection.map(
+                    (s): AttendanceSectionGridRow => ({
+                      id: s.sectionId,
+                      sectionId: s.sectionId,
+                      total: s.total,
+                    }),
+                  )}
+                />
               ) : null}
             </>
           )}
         </section>
       ) : null}
 
-      {tab === 'academic' ? (
-        <section>
+      {tab === 'financial' && canFinanceTab ? (
+        <section style={{ marginBottom: '2rem' }}>
           <h2
             style={{
-              fontFamily: '"Crimson Pro", Georgia, serif',
+              fontFamily: 'var(--font-serif), Georgia, serif',
+              fontSize: '1.35rem',
+              color: primary,
+              marginBottom: '0.75rem',
+            }}
+          >
+            Financial account
+          </h2>
+          {hasPermission(session?.user?.permissions, 'finance.read') ? (
+            <>
+              <StudentFinancePanel
+                payload={financePayload}
+                error={financeError}
+                studentId={id}
+                showReceiptLinks
+              />
+              <StudentFinanceActions
+                studentId={id}
+                canWrite={hasPermission(session?.user?.permissions, 'finance.write')}
+                enrollmentStatus={student.enrollmentStatus}
+              />
+              {financePayload ? (
+                <StudentPayOnlineButton
+                  studentId={id}
+                  balance={financePayload.account.balance}
+                  currency={financePayload.account.currency}
+                />
+              ) : null}
+              <StudentPaymentPlanForm
+                studentId={id}
+                currency={financePayload?.account.currency ?? 'USD'}
+                canWrite={hasPermission(session?.user?.permissions, 'finance.write')}
+                existingPlans={financePayload?.paymentPlans ?? []}
+              />
+            </>
+          ) : (
+            <p style={{ color: muted }}>You need finance.read to view the student ledger.</p>
+          )}
+          <p style={{ marginTop: '1rem', fontSize: '0.85rem' }}>
+            <Link href="/finance" style={{ color: '#2563eb', fontWeight: 600 }}>
+              Institution finance hub →
+            </Link>
+          </p>
+        </section>
+      ) : null}
+
+      {tab === 'academic' ? (
+        <section>
+          {progressionInsights}
+          <h2
+            style={{
+              fontFamily: 'var(--font-serif), Georgia, serif',
               fontSize: '1.35rem',
               color: primary,
               marginBottom: '0.75rem',
@@ -526,51 +868,36 @@ export default async function StudentProfilePage({
             Enrollments
           </h2>
           <p style={{ color: muted, fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-            Drop uses the same add/drop window rules as the API. Only active ENROLLED rows show a drop control.
+            Drop uses the same add/drop window rules as the API. Only active ENROLLED rows show a
+            drop control.
           </p>
+          {canEnroll ? (
+            <EnrollmentHoldsPanel
+              studentId={id}
+              holds={enrollmentHolds}
+              readOnly={profileReadOnly}
+            />
+          ) : null}
           {student.enrollments.length === 0 ? (
             <p style={{ color: muted }}>No section enrollments yet.</p>
           ) : (
-            <div style={{ overflowX: 'auto', border: `1px solid ${border}`, borderRadius: 8 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', background: '#f8fafc' }}>
-                    <th style={{ padding: '0.6rem 0.75rem' }}>Course</th>
-                    <th style={{ padding: '0.6rem 0.75rem' }}>Semester</th>
-                    <th style={{ padding: '0.6rem 0.75rem' }}>Status</th>
-                    <th style={{ padding: '0.6rem 0.75rem' }}>Credits</th>
-                    <th style={{ padding: '0.6rem 0.75rem' }}>Enrolled</th>
-                    {canEnroll ? <th style={{ padding: '0.6rem 0.75rem' }}>Actions</th> : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {student.enrollments.map((e) => (
-                    <tr key={e.id} style={{ borderTop: `1px solid ${border}` }}>
-                      <td style={{ padding: '0.55rem 0.75rem' }}>
-                        <strong>{e.course.code}</strong> {e.course.title}
-                      </td>
-                      <td style={{ padding: '0.55rem 0.75rem' }}>{e.semester.name}</td>
-                      <td style={{ padding: '0.55rem 0.75rem' }}>{e.status}</td>
-                      <td style={{ padding: '0.55rem 0.75rem' }}>{e.course.creditHours}</td>
-                      <td style={{ padding: '0.55rem 0.75rem', color: muted }}>{formatDate(e.enrolledAt)}</td>
-                      {canEnroll ? (
-                        <td style={{ padding: '0.45rem 0.75rem', verticalAlign: 'top' }}>
-                          {e.status === 'ENROLLED' ? (
-                            <DropEnrollmentForm
-                              enrollmentId={e.id}
-                              studentProfilePath={profilePath}
-                              readOnly={profileReadOnly}
-                            />
-                          ) : (
-                            <span style={{ color: muted, fontSize: '0.75rem' }}>—</span>
-                          )}
-                        </td>
-                      ) : null}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <StudentEnrollmentsDataGrid
+              rows={student.enrollments.map(
+                (e): EnrollmentGridRow => ({
+                  id: e.id,
+                  courseLabel: `${e.course.code} ${e.course.title}`,
+                  semesterName: e.semester.name,
+                  status: e.status,
+                  creditHours: e.course.creditHours,
+                  enrollmentAttemptNumber: e.enrollmentAttemptNumber ?? 1,
+                  enrolledAt: formatDate(e.enrolledAt),
+                  showDrop: e.status === 'ENROLLED',
+                }),
+              )}
+              profilePath={profilePath}
+              profileReadOnly={profileReadOnly}
+              showActions={canEnroll}
+            />
           )}
         </section>
       ) : null}
@@ -579,7 +906,7 @@ export default async function StudentProfilePage({
         <section>
           <h2
             style={{
-              fontFamily: '"Crimson Pro", Georgia, serif',
+              fontFamily: 'var(--font-serif), Georgia, serif',
               fontSize: '1.35rem',
               color: primary,
               marginBottom: '0.75rem',
@@ -588,39 +915,37 @@ export default async function StudentProfilePage({
             Documents
           </h2>
           {canDocsWrite ? (
-            <RequestDocumentForm ownerId={student.userId} studentProfilePath={profilePath} readOnly={profileReadOnly} />
+            <RequestDocumentForm
+              ownerId={student.userId}
+              studentProfilePath={profilePath}
+              readOnly={profileReadOnly}
+            />
           ) : (
-            <p style={{ color: muted, fontSize: '0.85rem' }}>You can view documents but not create requests.</p>
+            <p style={{ color: muted, fontSize: '0.85rem' }}>
+              You can view documents but not create requests.
+            </p>
           )}
           {!documentsPayload ? (
-            <p style={{ color: '#b91c1c', marginTop: '1rem' }}>Could not load documents for this user.</p>
+            <p style={{ color: '#b91c1c', marginTop: '1rem' }}>
+              Could not load documents for this user.
+            </p>
           ) : documentsPayload.data.length === 0 ? (
             <p style={{ color: muted, marginTop: '1rem' }}>No document records yet.</p>
           ) : (
-            <div style={{ overflowX: 'auto', marginTop: '1rem', border: `1px solid ${border}`, borderRadius: 8 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', background: '#f8fafc' }}>
-                    <th style={{ padding: '0.6rem 0.75rem' }}>Type</th>
-                    <th style={{ padding: '0.6rem 0.75rem' }}>Title</th>
-                    <th style={{ padding: '0.6rem 0.75rem' }}>Status</th>
-                    <th style={{ padding: '0.6rem 0.75rem' }}>Requested</th>
-                    <th style={{ padding: '0.6rem 0.75rem' }}>Issued</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {documentsPayload.data.map((d) => (
-                    <tr key={d.id} style={{ borderTop: `1px solid ${border}` }}>
-                      <td style={{ padding: '0.55rem 0.75rem' }}>{d.type}</td>
-                      <td style={{ padding: '0.55rem 0.75rem' }}>{d.title}</td>
-                      <td style={{ padding: '0.55rem 0.75rem' }}>{d.status}</td>
-                      <td style={{ padding: '0.55rem 0.75rem', color: muted }}>{formatDate(d.requestedAt)}</td>
-                      <td style={{ padding: '0.55rem 0.75rem', color: muted }}>{formatDate(d.issuedAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p style={{ padding: '0.5rem 0.75rem', margin: 0, fontSize: '0.8rem', color: muted }}>
+            <div style={{ marginTop: '1rem' }}>
+              <StudentDocumentsDataGrid
+                rows={documentsPayload.data.map(
+                  (d): DocumentGridRow => ({
+                    id: d.id,
+                    type: d.type,
+                    title: d.title,
+                    status: d.status,
+                    requestedAt: formatDate(d.requestedAt),
+                    issuedAt: formatDate(d.issuedAt),
+                  }),
+                )}
+              />
+              <p style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: muted }}>
                 {documentsPayload.total} total (showing {documentsPayload.data.length})
               </p>
             </div>
@@ -635,7 +960,7 @@ export default async function StudentProfilePage({
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function MetricCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div
       style={{
@@ -645,8 +970,25 @@ function MetricCard({ label, value }: { label: string; value: string }) {
         background: '#fff',
       }}
     >
-      <p style={{ margin: 0, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: muted }}>{label}</p>
-      <p style={{ margin: '0.35rem 0 0', fontSize: '1.15rem', fontWeight: 600, color: primary }}>{value}</p>
+      <p
+        style={{
+          margin: 0,
+          fontSize: '0.72rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          color: muted,
+        }}
+      >
+        {label}
+      </p>
+      <p style={{ margin: '0.35rem 0 0', fontSize: '1.15rem', fontWeight: 600, color: primary }}>
+        {value}
+      </p>
+      {hint ? (
+        <p style={{ margin: '0.35rem 0 0', fontSize: '0.72rem', color: muted, fontWeight: 500 }}>
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }

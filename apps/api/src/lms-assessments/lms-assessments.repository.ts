@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import type { LmsAssessmentType, LmsSubmissionStatus, Prisma } from '@prisma/client';
+import type {
+  LmsAssessmentType,
+  LmsQuestionType,
+  LmsSubmissionStatus,
+  Prisma,
+} from '@prisma/client';
+import { EnrollmentRowStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const assessmentInclude = {
@@ -22,11 +28,9 @@ export class LmsAssessmentsRepository {
         id: courseInstanceId,
         institutionId,
         deletedAt: null,
-        ...(scopeEntityId
-          ? { section: { is: { entityId: scopeEntityId, deletedAt: null } } }
-          : {}),
+        ...(scopeEntityId ? { section: { is: { entityId: scopeEntityId, deletedAt: null } } } : {}),
       },
-      select: { id: true },
+      select: { id: true, sectionId: true },
     });
   }
 
@@ -111,13 +115,19 @@ export class LmsAssessmentsRepository {
       where: {
         id,
         institutionId,
-        ...(scopeEntityId
-          ? { student: { entityId: scopeEntityId, deletedAt: null } }
-          : {}),
+        ...(scopeEntityId ? { student: { entityId: scopeEntityId, deletedAt: null } } : {}),
       },
       include: {
         assessment: {
-          select: { id: true, title: true, totalPoints: true, courseInstanceId: true, dueDate: true },
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            totalPoints: true,
+            courseInstanceId: true,
+            dueDate: true,
+            settings: true,
+          },
         },
         student: { select: { id: true, studentNumber: true } },
       },
@@ -137,6 +147,32 @@ export class LmsAssessmentsRepository {
   findSubmissionForStudent(institutionId: string, assessmentId: string, studentId: string) {
     return this.prisma.lmsSubmission.findFirst({
       where: { institutionId, assessmentId, studentId },
+      orderBy: { attemptNumber: 'desc' },
+    });
+  }
+
+  countSubmissionsForStudent(institutionId: string, assessmentId: string, studentId: string) {
+    return this.prisma.lmsSubmission.count({
+      where: { institutionId, assessmentId, studentId },
+    });
+  }
+
+  findActiveDraftAttempt(institutionId: string, assessmentId: string, studentId: string) {
+    return this.prisma.lmsSubmission.findFirst({
+      where: {
+        institutionId,
+        assessmentId,
+        studentId,
+        status: 'DRAFT',
+      },
+      orderBy: { attemptNumber: 'desc' },
+      include: {
+        assessment: {
+          include: {
+            questions: { orderBy: { sortOrder: 'asc' } },
+          },
+        },
+      },
     });
   }
 
@@ -146,9 +182,21 @@ export class LmsAssessmentsRepository {
     institutionId: string;
     answers: Prisma.InputJsonValue;
     status: LmsSubmissionStatus;
+    attemptNumber: number;
+    startedAt?: Date;
+    expiresAt?: Date | null;
   }) {
     return this.prisma.lmsSubmission.create({
-      data,
+      data: {
+        assessmentId: data.assessmentId,
+        studentId: data.studentId,
+        institutionId: data.institutionId,
+        answers: data.answers,
+        status: data.status,
+        attemptNumber: data.attemptNumber,
+        startedAt: data.startedAt,
+        expiresAt: data.expiresAt,
+      },
       include: {
         student: { select: { id: true, studentNumber: true } },
         assessment: { select: { id: true, title: true } },
@@ -295,6 +343,186 @@ export class LmsAssessmentsRepository {
       where: {
         studentId_courseInstanceId: { studentId, courseInstanceId },
       },
+    });
+  }
+
+  maxQuestionSortOrder(assessmentId: string, institutionId: string) {
+    return this.prisma.lmsQuestion.aggregate({
+      where: { assessmentId, institutionId },
+      _max: { sortOrder: true },
+    });
+  }
+
+  createQuestion(data: {
+    assessmentId: string;
+    institutionId: string;
+    type: LmsQuestionType;
+    content: Prisma.InputJsonValue;
+    points: number;
+    explanation?: string | null;
+    tags: string[];
+    sortOrder: number;
+  }) {
+    return this.prisma.lmsQuestion.create({
+      data: {
+        assessmentId: data.assessmentId,
+        institutionId: data.institutionId,
+        type: data.type,
+        content: data.content,
+        points: data.points,
+        explanation: data.explanation ?? null,
+        tags: data.tags,
+        sortOrder: data.sortOrder,
+      },
+    });
+  }
+
+  findQuestionScoped(institutionId: string, questionId: string, scopeEntityId?: string) {
+    return this.prisma.lmsQuestion.findFirst({
+      where: {
+        id: questionId,
+        institutionId,
+        ...(scopeEntityId
+          ? {
+              assessment: {
+                courseInstance: {
+                  section: { entityId: scopeEntityId, deletedAt: null },
+                },
+              },
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        assessmentId: true,
+        institutionId: true,
+      },
+    });
+  }
+
+  findQuestionEntityScoped(institutionId: string, questionId: string, scopeEntityId?: string) {
+    return this.prisma.lmsQuestion.findFirst({
+      where: {
+        id: questionId,
+        institutionId,
+        ...(scopeEntityId
+          ? {
+              assessment: {
+                courseInstance: {
+                  section: { entityId: scopeEntityId, deletedAt: null },
+                },
+              },
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        assessmentId: true,
+        type: true,
+        content: true,
+        points: true,
+        sortOrder: true,
+        explanation: true,
+        tags: true,
+      },
+    });
+  }
+
+  updateQuestion(
+    id: string,
+    institutionId: string,
+    data: Prisma.LmsQuestionUpdateInput,
+  ): Promise<Prisma.BatchPayload> {
+    return this.prisma.lmsQuestion.updateMany({
+      where: { id, institutionId },
+      data,
+    });
+  }
+
+  deleteQuestion(id: string, institutionId: string): Promise<Prisma.BatchPayload> {
+    return this.prisma.lmsQuestion.deleteMany({
+      where: { id, institutionId },
+    });
+  }
+
+  listTeacherRoster(institutionId: string, sectionId: string, scopeEntityId?: string) {
+    return this.prisma.studentEnrollment.findMany({
+      where: {
+        institutionId,
+        sectionId,
+        deletedAt: null,
+        status: { in: [EnrollmentRowStatus.ENROLLED, EnrollmentRowStatus.COMPLETED] },
+        ...(scopeEntityId ? { student: { entityId: scopeEntityId, deletedAt: null } } : {}),
+      },
+      select: {
+        id: true,
+        studentId: true,
+        status: true,
+        student: {
+          select: {
+            studentNumber: true,
+            user: { select: { email: true } },
+          },
+        },
+      },
+      orderBy: { student: { studentNumber: 'asc' } },
+    });
+  }
+
+  listSubmissionsForTeacherGradebook(institutionId: string, courseInstanceId: string) {
+    return this.prisma.lmsSubmission.findMany({
+      where: {
+        institutionId,
+        assessment: {
+          courseInstanceId,
+          institutionId,
+          deletedAt: null,
+        },
+      },
+      select: {
+        id: true,
+        assessmentId: true,
+        studentId: true,
+        status: true,
+        attemptNumber: true,
+        grade: true,
+        submittedAt: true,
+        assessment: { select: { totalPoints: true, title: true } },
+      },
+      orderBy: [{ assessmentId: 'asc' }, { studentId: 'asc' }, { attemptNumber: 'desc' }],
+    });
+  }
+
+  listPublishedLessonMetaForCourse(institutionId: string, courseInstanceId: string) {
+    return this.prisma.lmsLesson.findMany({
+      where: {
+        institutionId,
+        deletedAt: null,
+        isPublished: true,
+        module: {
+          institutionId,
+          deletedAt: null,
+          courseInstanceId,
+        },
+      },
+      select: {
+        id: true,
+        title: true,
+        sortOrder: true,
+        module: { select: { title: true, sortOrder: true } },
+      },
+      orderBy: [{ module: { sortOrder: 'asc' } }, { sortOrder: 'asc' }],
+    });
+  }
+
+  countLessonCompletionsGrouped(institutionId: string, lessonIds: string[]) {
+    if (lessonIds.length === 0) {
+      return Promise.resolve([]);
+    }
+    return this.prisma.lmsLessonCompletion.groupBy({
+      by: ['lessonId'],
+      where: { institutionId, lessonId: { in: lessonIds } },
+      _count: { _all: true },
     });
   }
 }

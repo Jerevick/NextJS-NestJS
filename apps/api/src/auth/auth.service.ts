@@ -67,10 +67,16 @@ export class AuthService {
       }
       return inst.id;
     }
-    throw new UnauthorizedException('Institution context required (host, X-Institution-ID, or institutionSlug)');
+    throw new UnauthorizedException(
+      'Institution context required (host, X-Institution-ID, or institutionSlug)',
+    );
   }
 
-  private async permissionsForUser(userId: string, institutionId: string, role: UserRole): Promise<string[]> {
+  private async permissionsForUser(
+    userId: string,
+    institutionId: string,
+    role: UserRole,
+  ): Promise<string[]> {
     if (role === 'SUPER_ADMIN') {
       return ['*'];
     }
@@ -138,13 +144,37 @@ export class AuthService {
     return { entityId: main.id, entityScope };
   }
 
+  private async resolveLinkedStudentId(
+    userId: string,
+    institutionId: string,
+  ): Promise<string | undefined> {
+    const student = await this.prisma.student.findFirst({
+      where: { userId, institutionId, deletedAt: null },
+      select: { id: true, enrollmentStatus: true },
+    });
+    if (!student || student.enrollmentStatus !== 'ACTIVE') {
+      return undefined;
+    }
+    return student.id;
+  }
+
   private async buildAuthSession(
-    user: { id: string; email: string; role: UserRole; institutionId: string; sessionVersion: number },
+    user: {
+      id: string;
+      email: string;
+      role: UserRole;
+      institutionId: string;
+      sessionVersion: number;
+    },
     institutionId: string,
     rememberLongLived?: boolean,
     options?: { entityId?: string | null; skipLastLoginTouch?: boolean },
   ) {
     const permissions = await this.permissionsForUser(user.id, institutionId, user.role);
+    const studentId =
+      user.role === 'STUDENT'
+        ? await this.resolveLinkedStudentId(user.id, institutionId)
+        : undefined;
     const { entityId, entityScope } = await this.resolveEntityContext(
       institutionId,
       user.role,
@@ -196,6 +226,7 @@ export class AuthService {
         entityId,
         entityScope,
         permissions,
+        ...(studentId ? { studentId } : {}),
       },
     };
   }
@@ -213,7 +244,9 @@ export class AuthService {
     return inst.id;
   }
 
-  async getGoogleOAuthAppCredentials(institutionSlug: string): Promise<{ clientId: string; clientSecret: string } | null> {
+  async getGoogleOAuthAppCredentials(
+    institutionSlug: string,
+  ): Promise<{ clientId: string; clientSecret: string } | null> {
     const inst = await this.prisma.institution.findFirst({
       where: { slug: institutionSlug.trim(), deletedAt: null },
       select: { settings: true },
@@ -243,7 +276,9 @@ export class AuthService {
       throw new UnauthorizedException('No user for this Google account in this institution');
     }
     if (user.mfaSecret) {
-      throw new BadRequestException('MFA is enabled; use password + TOTP instead of Google redirect.');
+      throw new BadRequestException(
+        'MFA is enabled; use password + TOTP instead of Google redirect.',
+      );
     }
     return this.buildAuthSession(user, institutionId, false);
   }
@@ -357,10 +392,17 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
-    if (decoded.typ !== 'refresh' || typeof decoded.sub !== 'string' || typeof decoded.jti !== 'string') {
+    if (
+      decoded.typ !== 'refresh' ||
+      typeof decoded.sub !== 'string' ||
+      typeof decoded.jti !== 'string'
+    ) {
       throw new UnauthorizedException('Invalid refresh token');
     }
-    if (this.revokedRefresh.has(decoded.jti) || (await this.redis.isRefreshJtiRevoked(decoded.jti))) {
+    if (
+      this.revokedRefresh.has(decoded.jti) ||
+      (await this.redis.isRefreshJtiRevoked(decoded.jti))
+    ) {
       throw new UnauthorizedException('Refresh token revoked');
     }
     const institutionId = decoded.institutionId as string;
@@ -383,14 +425,14 @@ export class AuthService {
     await this.redis.revokeRefreshJti(oldJti);
 
     const preferredEntityId =
-      typeof decoded.entityId === 'string' && decoded.entityId.trim() ? decoded.entityId.trim() : null;
+      typeof decoded.entityId === 'string' && decoded.entityId.trim()
+        ? decoded.entityId.trim()
+        : null;
 
-    const session = await this.buildAuthSession(
-      user,
-      institutionId,
-      false,
-      { entityId: preferredEntityId, skipLastLoginTouch: true },
-    );
+    const session = await this.buildAuthSession(user, institutionId, false, {
+      entityId: preferredEntityId,
+      skipLastLoginTouch: true,
+    });
 
     return { accessToken: session.accessToken, refreshToken: session.refreshToken };
   }
@@ -440,7 +482,9 @@ export class AuthService {
     }
     const permissions = await this.permissionsForUser(user.id, user.institutionId, user.role);
     let preferredEntityId =
-      typeof payload.entityId === 'string' && payload.entityId.trim() ? payload.entityId.trim() : null;
+      typeof payload.entityId === 'string' && payload.entityId.trim()
+        ? payload.entityId.trim()
+        : null;
     if (preferredEntityId) {
       const valid = await this.prisma.institutionEntity.findFirst({
         where: { id: preferredEntityId, institutionId: user.institutionId, deletedAt: null },
@@ -456,6 +500,10 @@ export class AuthService {
       permissions,
       preferredEntityId,
     );
+    const studentId =
+      user.role === 'STUDENT'
+        ? await this.resolveLinkedStudentId(user.id, user.institutionId)
+        : undefined;
     return {
       userId: user.id,
       email: user.email,
@@ -464,11 +512,17 @@ export class AuthService {
       entityId,
       entityScope,
       permissions,
-      accessJti: typeof payload.jti === 'string' && payload.jti.length > 0 ? payload.jti : undefined,
+      accessJti:
+        typeof payload.jti === 'string' && payload.jti.length > 0 ? payload.jti : undefined,
+      studentId,
     };
   }
 
-  private async assertCanSwitchToEntity(actor: AuthUser, institutionId: string, entityId: string): Promise<void> {
+  private async assertCanSwitchToEntity(
+    actor: AuthUser,
+    institutionId: string,
+    entityId: string,
+  ): Promise<void> {
     const trimmed = entityId.trim();
     const target = await this.prisma.institutionEntity.findFirst({
       where: { id: trimmed, institutionId, deletedAt: null, status: 'ACTIVE' },
@@ -519,7 +573,12 @@ export class AuthService {
       data: { sessionVersion: { increment: 1 } },
     });
     const user = await this.prisma.user.findFirst({
-      where: { id: actor.userId, institutionId: actor.institutionId, deletedAt: null, isActive: true },
+      where: {
+        id: actor.userId,
+        institutionId: actor.institutionId,
+        deletedAt: null,
+        isActive: true,
+      },
     });
     if (!user) {
       throw new UnauthorizedException();

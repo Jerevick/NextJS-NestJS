@@ -1,6 +1,10 @@
 import Link from 'next/link';
 import { auth } from '@/auth';
 import { appendOptionalEntityHeader } from '@/lib/api-headers';
+import {
+  BillingDisputesDataGrid,
+  type BillingDisputeGridRow,
+} from '@/components/data-grids/misc-data-grids';
 import { canAccessBillingNav } from '@/lib/permissions';
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -47,7 +51,6 @@ export default async function BillingDisputesPage() {
     ? ((await res.json()) as { data?: DisputeRow[]; total?: number })
     : { data: [], total: 0 };
   const rows = payload.data ?? [];
-  const mono = { fontFamily: 'ui-monospace, monospace' } as const;
 
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 960 }}>
@@ -61,41 +64,18 @@ export default async function BillingDisputesPage() {
         Total: <strong>{payload.total ?? rows.length}</strong>
       </p>
       {!res.ok ? <p style={{ color: '#b91c1c' }}>Could not load disputes ({res.status}).</p> : null}
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
-              <th style={{ padding: '0.5rem' }}>Status</th>
-              <th style={{ padding: '0.5rem' }}>Invoice</th>
-              <th style={{ padding: '0.5rem' }}>Created</th>
-              <th style={{ padding: '0.5rem' }}>Reason</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <td style={{ padding: '0.5rem' }}>{r.status}</td>
-                <td style={{ padding: '0.5rem', ...mono }}>
-                  {r.invoice ? (
-                    <Link href={`/billing/invoice/${encodeURIComponent(r.invoice.id)}`} style={{ color: '#2563eb' }}>
-                      {r.invoice.amount} · {r.invoice.status}
-                    </Link>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-                <td style={{ padding: '0.5rem', ...mono }}>{r.createdAt?.slice(0, 19)}</td>
-                <td style={{ padding: '0.5rem', maxWidth: 360 }}>
-                  <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.reason}</span>
-                  <Link href={`/billing/disputes/${encodeURIComponent(r.id)}`} style={{ color: '#2563eb', fontSize: '0.8rem' }}>
-                    Detail
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <BillingDisputesDataGrid
+        rows={rows.map(
+          (r): BillingDisputeGridRow => ({
+            id: r.id,
+            status: r.status,
+            invoiceLabel: r.invoice ? `${r.invoice.amount} · ${r.invoice.status}` : '—',
+            invoiceId: r.invoice?.id ?? null,
+            createdAt: r.createdAt,
+            reason: r.reason,
+          }),
+        )}
+      />
     </main>
   );
 }
