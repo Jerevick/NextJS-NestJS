@@ -15,7 +15,7 @@ function isPublicPath(pathname: string): boolean {
   if (/\.(ico|png|jpg|jpeg|svg|webp|gif|txt|xml|webmanifest)$/i.test(pathname)) {
     return true;
   }
-  const publicPaths = ['/login', '/register', '/forgot-password'];
+  const publicPaths = ['/', '/login', '/register', '/forgot-password'];
   return publicPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 

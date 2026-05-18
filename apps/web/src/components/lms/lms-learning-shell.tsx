@@ -176,7 +176,11 @@ export function LmsLearningShell({
             {accentBar}
             {children}
           </main>
-          <LmsAiTutorDrawer courseTitle={courseTitle} lessonTitle={tutorLessonTitle ?? undefined} />
+          <LmsAiTutorDrawer
+            courseInstanceId={courseInstanceId}
+            courseTitle={courseTitle}
+            lessonTitle={tutorLessonTitle ?? undefined}
+          />
         </div>
       </div>
     </div>

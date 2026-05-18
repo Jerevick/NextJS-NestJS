@@ -231,10 +231,11 @@ export class WorkflowEngineService {
         );
       }
       const dueAt = new Date(Date.now() + nextStep.slaHours * 60 * 60 * 1000);
-      return this.prisma.workflowInstance.update({
+      const nextStepNumber = instance.currentStep + 1;
+      const advanced = await this.prisma.workflowInstance.update({
         where: { id: instance.id },
         data: {
-          currentStep: instance.currentStep + 1,
+          currentStep: nextStepNumber,
           history: history as object,
           dueAt,
           currentAssigneeUserId: nextAssignee.userId,
@@ -247,6 +248,13 @@ export class WorkflowEngineService {
           } as object,
         },
       });
+      await this.completion.handleStepAdvanced(
+        instance.definitionCode,
+        instance.institutionId,
+        instance.entityId_record,
+        nextStepNumber,
+      );
+      return advanced;
     }
 
     const metadata = {
@@ -277,12 +285,13 @@ export class WorkflowEngineService {
     return approved;
   }
 
-  async getInbox(actor: AuthUser, limit = 20) {
+  async getInbox(actor: AuthUser, limit = 20, definitionCodes?: string[]) {
     const rows = await this.prisma.workflowInstance.findMany({
       where: {
         institutionId: actor.institutionId,
         currentAssigneeUserId: actor.userId,
         status: { in: [WorkflowStatus.IN_PROGRESS, WorkflowStatus.ESCALATED] },
+        ...(definitionCodes?.length ? { definitionCode: { in: definitionCodes } } : {}),
       },
       take: Math.min(limit, 50),
       orderBy: { dueAt: 'asc' },

@@ -4,6 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { LMS_LESSON_EMBED_EVENT, LMS_MODULE_EMBED_EVENT } from '../ai/ai-embed.listener';
 import { Prisma } from '@prisma/client';
 import type { AuthUser } from '../auth/auth.types';
 import { AuditService } from '../audit/audit.service';
@@ -28,7 +30,16 @@ export class LmsService {
     private readonly repo: LmsRepository,
     private readonly audit: AuditService,
     private readonly studentEligibility: LmsStudentEligibilityService,
+    private readonly events: EventEmitter2,
   ) {}
+
+  private lessonContentText(content: unknown): string {
+    if (typeof content === 'string') return content;
+    if (content && typeof content === 'object') {
+      return JSON.stringify(content);
+    }
+    return '';
+  }
 
   private scopeEntityId(actor: AuthUser): string | undefined {
     return actor.entityScope === 'ALL' ? undefined : actor.entityId;
@@ -409,6 +420,15 @@ export class LmsService {
       mod.courseInstance.id,
     );
     const row = rows.find((r) => r.id === moduleId);
+    if (row?.isPublished) {
+      this.events.emit(LMS_MODULE_EMBED_EVENT, {
+        institutionId: actor.institutionId,
+        entityId: actor.entityId ?? undefined,
+        courseInstanceId: mod.courseInstance.id,
+        moduleId,
+        title: row.title,
+      });
+    }
     return this.serializeModule(row!);
   }
 
@@ -493,6 +513,16 @@ export class LmsService {
       throw new NotFoundException('Lesson not found');
     }
     const next = await this.repo.findLesson(actor.institutionId, lessonId);
+    if (next?.isPublished && next.module) {
+      this.events.emit(LMS_LESSON_EMBED_EVENT, {
+        institutionId: actor.institutionId,
+        entityId: actor.entityId ?? undefined,
+        courseInstanceId: next.module.courseInstanceId,
+        lessonId,
+        title: next.title,
+        contentText: this.lessonContentText(next.content),
+      });
+    }
     return this.serializeLesson(next!);
   }
 

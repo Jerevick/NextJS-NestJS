@@ -8,3 +8,4 @@ export const BILLING_LOCK_INVOICE_QUEUE = 'billing-lock-invoice' as const;
 export const BILLING_RETROACTIVE_QUEUE = 'billing-retroactive' as const;
 export const FINANCE_BULK_CHARGE_QUEUE = 'finance-bulk-charge' as const;
 export const FINANCE_PAYMENT_REMINDER_QUEUE = 'finance-payment-reminder' as const;
+export const AI_EMBED_CONTENT_QUEUE = 'ai-embed-content' as const;

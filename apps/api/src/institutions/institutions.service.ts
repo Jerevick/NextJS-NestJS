@@ -13,6 +13,8 @@ import type { CreateInstitutionDto } from './dto/create-institution.dto';
 import type { ListInstitutionsQueryDto } from './dto/list-institutions-query.dto';
 import type { UpdateInstitutionModulesDto } from './dto/update-institution-modules.dto';
 import type { UpdateInstitutionDto } from './dto/update-institution.dto';
+import { packInstitutionAiKeys, readInstitutionAiSettings } from '../ai/ai-institution-settings';
+import type { UpdateInstitutionAiDto } from './dto/update-institution-ai.dto';
 import { InstitutionsRepository } from './institutions.repository';
 
 function isPlatformOperator(user: AuthUser): boolean {
@@ -119,10 +121,7 @@ export class InstitutionsService {
     }
     const plan = dto.plan ?? ('STARTER' as PlanTier);
     const maxStudents = dto.maxStudents ?? 500;
-    const settings = mergeSettings(
-      {},
-      dto.settings as Record<string, unknown> | undefined,
-    );
+    const settings = mergeSettings({}, dto.settings as Record<string, unknown> | undefined);
     const row = await this.repo.create({
       slug,
       name: dto.name.trim(),
@@ -136,10 +135,10 @@ export class InstitutionsService {
       { module: TenantModule.LMS, enabled: true },
       { module: TenantModule.FINANCE, enabled: false },
       { module: TenantModule.HR, enabled: false },
-      { module: TenantModule.ELECTIONS, enabled: false },
+      { module: TenantModule.ELECTIONS, enabled: true },
       { module: TenantModule.ALUMNI, enabled: false },
       { module: TenantModule.SPORTS, enabled: false },
-      { module: TenantModule.MEETINGS, enabled: false },
+      { module: TenantModule.MEETINGS, enabled: true },
     ]);
     await this.repo.ensureMainCampusEntity(row.id, row.name);
     const withModules = await this.repo.findById(row.id);
@@ -250,9 +249,54 @@ export class InstitutionsService {
     return this.serialize(row!);
   }
 
-  private serialize(
-    row: NonNullable<Awaited<ReturnType<InstitutionsRepository['findById']>>>,
-  ) {
+  async getAiSettings(actor: AuthUser, id: string) {
+    this.assertRead(actor);
+    this.assertCanAccessInstitution(actor, id);
+    const existing = await this.repo.findById(id);
+    if (!existing) throw new NotFoundException('Institution not found');
+    const cfg = readInstitutionAiSettings(existing.settings);
+    return {
+      aiProvider: cfg.aiProvider ?? null,
+      hasOpenAiKey: Boolean(cfg.openaiApiKey),
+      hasAnthropicKey: Boolean(cfg.anthropicApiKey),
+      dailyTokenLimit: cfg.dailyTokenLimit ?? null,
+      tutorDailyTokenLimit: cfg.tutorDailyTokenLimit ?? null,
+    };
+  }
+
+  async updateAiSettings(actor: AuthUser, id: string, dto: UpdateInstitutionAiDto) {
+    this.assertWrite(actor);
+    this.assertCanAccessInstitution(actor, id);
+    const existing = await this.repo.findById(id);
+    if (!existing) throw new NotFoundException('Institution not found');
+    const current = readInstitutionAiSettings(existing.settings);
+    const base =
+      existing.settings &&
+      typeof existing.settings === 'object' &&
+      !Array.isArray(existing.settings)
+        ? (existing.settings as Record<string, unknown>)
+        : {};
+    const aiBlock: Record<string, unknown> = {
+      ...((base.ai as Record<string, unknown>) ?? {}),
+    };
+    if (dto.aiProvider !== undefined) aiBlock.aiProvider = dto.aiProvider;
+    if (dto.dailyTokenLimit !== undefined) aiBlock.dailyTokenLimit = dto.dailyTokenLimit;
+    if (dto.tutorDailyTokenLimit !== undefined) {
+      aiBlock.tutorDailyTokenLimit = dto.tutorDailyTokenLimit;
+    }
+    if (dto.openaiApiKey !== undefined || dto.anthropicApiKey !== undefined) {
+      aiBlock.keys = packInstitutionAiKeys({
+        openaiApiKey: dto.openaiApiKey ?? current.openaiApiKey,
+        anthropicApiKey: dto.anthropicApiKey ?? current.anthropicApiKey,
+      });
+    }
+    const updated = await this.repo.update(existing.id, {
+      settings: { ...base, ai: aiBlock } as Prisma.InputJsonValue,
+    });
+    return this.getAiSettings(actor, updated.id);
+  }
+
+  private serialize(row: NonNullable<Awaited<ReturnType<InstitutionsRepository['findById']>>>) {
     return {
       id: row.id,
       slug: row.slug,

@@ -16,9 +16,17 @@ export class WorkflowEngineController {
   @UseGuards(AnyPermissionsGuard)
   @RequireAnyPermissions('workflow.read', 'workflow.act', 'students.reactivate', 'backfill.approve')
   @ApiOperation({ summary: 'Pending workflow actions for current user' })
-  inbox(@CurrentUser() user: AuthUser, @Query('limit') limit?: string) {
+  inbox(
+    @CurrentUser() user: AuthUser,
+    @Query('limit') limit?: string,
+    @Query('codes') codes?: string,
+  ) {
     const n = limit ? Number.parseInt(limit, 10) : 20;
-    return this.engine.getInbox(user, Number.isNaN(n) ? 20 : n);
+    const definitionCodes = codes
+      ?.split(',')
+      .map((c) => c.trim())
+      .filter(Boolean);
+    return this.engine.getInbox(user, Number.isNaN(n) ? 20 : n, definitionCodes);
   }
 
   @Get('initiated')
@@ -40,11 +48,7 @@ export class WorkflowEngineController {
   @UseGuards(AnyPermissionsGuard)
   @RequireAnyPermissions('workflow.act', 'students.reactivate', 'backfill.approve')
   @ApiOperation({ summary: 'Approve, reject, escalate, or request info on current step' })
-  act(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-    @Body() dto: ProcessWorkflowStepDto,
-  ) {
+  act(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: ProcessWorkflowStepDto) {
     return this.engine.processStep(user, {
       instanceId: id,
       actorId: user.userId,

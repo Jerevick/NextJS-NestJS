@@ -18,6 +18,7 @@ import type { ConfirmGraduationDto } from './dto/confirm-graduation.dto';
 import type { ImportStudentsBatchDto } from './dto/import-students-batch.dto';
 import type { UpdateStudentDto } from './dto/update-student.dto';
 import { StatusChangeService } from './status/status-change.service';
+import { assertHumanInTheLoop, isSuspensionStatus } from '../ai/ai-human-in-the-loop.util';
 import {
   StudentsRepository,
   type EnrollmentForGpaRow,
@@ -293,6 +294,7 @@ export class StudentsService {
           'statusChangeReason is required when changing enrollmentStatus (immutable audit trail)',
         );
       }
+      assertHumanInTheLoop(dto, isSuspensionStatus(dto.enrollmentStatus) ? 'suspension' : 'status');
       working = await this.statusChanges.changeEnrollmentStatus({
         institutionId: actor.institutionId,
         actorUserId: actor.userId,
@@ -316,6 +318,9 @@ export class StudentsService {
       data.expectedGraduationDate = dto.expectedGraduationDate
         ? new Date(dto.expectedGraduationDate)
         : null;
+    }
+    if (dto.careerGoals !== undefined) {
+      data.careerGoals = dto.careerGoals.trim() || null;
     }
     if (dto.guardians !== undefined) {
       data.guardians = dto.guardians as Prisma.InputJsonValue;

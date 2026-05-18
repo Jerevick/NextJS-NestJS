@@ -1,14 +1,12 @@
-import { forwardRef, Module } from '@nestjs/common';
-import { PermissionsGuard } from '../common/guards/permissions.guard';
-import { WorkflowEngineModule } from '../workflow-engine/workflow-engine.module';
-import { StaffController } from './staff.controller';
-import { StaffRepository } from './staff.repository';
-import { StaffService } from './staff.service';
+import { Module } from '@nestjs/common';
+import { AppraisalModule } from '../appraisal/appraisal.module';
+import { OrgChartModule } from '../org-chart/org-chart.module';
+import { StaffCoreModule } from './staff-core.module';
+import { StaffManagementModule } from './staff-management.module';
 
+/** Umbrella HR module — composes management, appraisal, and org chart. */
 @Module({
-  imports: [forwardRef(() => WorkflowEngineModule)],
-  controllers: [StaffController],
-  providers: [StaffService, StaffRepository, PermissionsGuard],
-  exports: [StaffService],
+  imports: [StaffCoreModule, StaffManagementModule, AppraisalModule, OrgChartModule],
+  exports: [StaffCoreModule, StaffManagementModule, AppraisalModule, OrgChartModule],
 })
 export class StaffModule {}

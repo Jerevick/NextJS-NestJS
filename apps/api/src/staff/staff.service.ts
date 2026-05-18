@@ -4,24 +4,28 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AppraisalStatus, LeaveStatus, Prisma } from '@prisma/client';
+import { Prisma, WorkflowStatus } from '@prisma/client';
 import type { AuthUser } from '../auth/auth.types';
 import { AuditService } from '../audit/audit.service';
 import { WorkflowEngineService } from '../workflow-engine/workflow-engine.service';
+import type { AllocateLeaveBalanceDto } from './dto/allocate-leave-balance.dto';
+import type { CarryForwardLeaveDto } from './dto/carry-forward-leave.dto';
 import type { CreateLeaveRequestDto } from './dto/create-leave-request.dto';
 import type { CreateLeaveTypeDto } from './dto/create-leave-type.dto';
-import type { CreateStaffAppraisalDto } from './dto/create-appraisal.dto';
+import type { RegisterExternalCalendarDto } from './dto/register-external-calendar.dto';
+import { AppraisalService } from '../appraisal/appraisal.service';
+import { LeaveService } from '../leave/leave.service';
 import type { CreateStaffProfileDto } from './dto/create-staff-profile.dto';
 import type { UpdateStaffProfileDto } from './dto/update-staff-profile.dto';
 import type { UpsertWorkloadDto } from './dto/upsert-workload.dto';
-import { leaveBalanceAvailable, leaveDurationDays } from './staff-leave.util';
+import type { ApplyWorkloadSuggestionsDto } from './dto/apply-workload-suggestions.dto';
+import type { GrantStaffEntityAccessDto } from './dto/grant-staff-entity-access.dto';
+import type { ListStaffProfilesQueryDto } from './dto/list-staff-profiles-query.dto';
+import { StaffNotificationsService } from './staff-notifications.service';
+import { decryptSalary, encryptSalary } from './staff-salary.util';
+import { parseEntityHrSettings, suggestWorkloadDistribution } from './staff-workload.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { StaffRepository } from './staff.repository';
-import {
-  createAppraisalWithWorkflowAtomic,
-  createLeaveRequestWithWorkflowAtomic,
-} from './staff-workflow.util';
-
 @Injectable()
 export class StaffService {
   constructor(
@@ -29,6 +33,8 @@ export class StaffService {
     private readonly prisma: PrismaService,
     private readonly workflows: WorkflowEngineService,
     private readonly audit: AuditService,
+    private readonly leave: LeaveService,
+    private readonly appraisal: AppraisalService,
   ) {}
 
   private entityId(user: AuthUser) {
@@ -49,26 +55,48 @@ export class StaffService {
     return profile;
   }
 
-  listProfiles(user: AuthUser) {
-    const entityId =
-      user.permissions?.includes('staff.read') || user.permissions?.includes('staff.write')
-        ? this.entityId(user)
-        : user.entityId;
+  private profileScopeEntityId(user: AuthUser, query?: ListStaffProfilesQueryDto) {
+    const scope = query?.scope ?? 'entity';
+    if (scope === 'institution') {
+      return query?.entityId?.trim() || undefined;
+    }
+    return query?.entityId?.trim() || this.entityId(user);
+  }
+
+  listProfiles(user: AuthUser, query?: ListStaffProfilesQueryDto) {
+    const entityId = this.profileScopeEntityId(user, query);
     return this.repo.listProfiles(user.institutionId, entityId).then((rows) => ({
-      data: rows.map((r) => this.mapProfile(r)),
+      data: rows.map((r) => this.mapProfile(r, user)),
+      scope: query?.scope ?? (entityId ? 'entity' : 'institution'),
     }));
   }
 
-  async getProfile(user: AuthUser, id: string) {
-    const row = await this.repo.findProfile(user.institutionId, id, this.entityId(user));
+  async getProfile(user: AuthUser, id: string, query?: ListStaffProfilesQueryDto) {
+    const entityId = this.profileScopeEntityId(user, query);
+    const row = await this.repo.findProfile(user.institutionId, id, entityId);
     if (!row) throw new NotFoundException('Staff profile not found');
-    return this.mapProfile(row);
+    return this.mapProfile(row, user);
   }
 
   async getMyProfile(user: AuthUser) {
     const row = await this.repo.findProfileByUserId(user.institutionId, user.userId);
     if (!row) throw new NotFoundException('No staff profile linked to your account');
-    return this.mapProfile(row);
+    return this.mapProfile(row, user);
+  }
+
+  listUsersAvailableForProfile(user: AuthUser, query?: string) {
+    return this.repo.listUsersWithoutStaffProfile(user.institutionId, query).then((rows) => ({
+      data: rows.map((u) => {
+        const profile = u.profile as Record<string, unknown> | null;
+        const joined = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ');
+        return {
+          id: u.id,
+          email: u.email,
+          name:
+            (profile?.displayName as string) ?? (profile?.name as string) ?? (joined || u.email),
+        };
+      }),
+    }));
   }
 
   async createProfile(user: AuthUser, dto: CreateStaffProfileDto) {
@@ -88,6 +116,17 @@ export class StaffService {
       officeLocation: dto.officeLocation,
       specializations: dto.specializations ?? [],
       researchInterests: dto.researchInterests ?? [],
+      qualifications: (dto.qualifications ?? []) as Prisma.InputJsonValue,
+      publications: (dto.publications ?? []) as Prisma.InputJsonValue,
+      ...(dto.salary
+        ? {
+            salary: encryptSalary({
+              amount: dto.salary.amount,
+              currency: dto.salary.currency ?? 'USD',
+              effectiveDate: dto.salary.effectiveDate,
+            }),
+          }
+        : {}),
     });
     this.audit.append({
       institutionId: user.institutionId,
@@ -96,7 +135,7 @@ export class StaffService {
       entity: 'StaffProfile',
       entityId: row.id,
     });
-    return this.mapProfile(row);
+    return this.mapProfile(row, user);
   }
 
   async updateProfile(user: AuthUser, id: string, dto: UpdateStaffProfileDto) {
@@ -110,185 +149,164 @@ export class StaffService {
       officeLocation: dto.officeLocation,
       specializations: dto.specializations,
       researchInterests: dto.researchInterests,
+      ...(dto.qualifications !== undefined
+        ? { qualifications: dto.qualifications as Prisma.InputJsonValue }
+        : {}),
+      ...(dto.publications !== undefined
+        ? { publications: dto.publications as Prisma.InputJsonValue }
+        : {}),
+      ...(dto.salary
+        ? {
+            salary: encryptSalary({
+              amount: dto.salary.amount,
+              currency: dto.salary.currency ?? 'USD',
+              effectiveDate: dto.salary.effectiveDate,
+            }),
+          }
+        : {}),
     });
     const row = await this.repo.findProfile(user.institutionId, id, this.entityId(user));
-    return this.mapProfile(row!);
+    return this.mapProfile(row!, user);
+  }
+
+  async grantTeachingEntityAccess(user: AuthUser, staffId: string, dto: GrantStaffEntityAccessDto) {
+    const profile = await this.repo.findProfile(user.institutionId, staffId, this.entityId(user));
+    if (!profile) throw new NotFoundException('Staff profile not found');
+    if (dto.entityId === profile.entityId) {
+      throw new BadRequestException('Cannot grant access to the staff home campus');
+    }
+    const entity = await this.prisma.institutionEntity.findFirst({
+      where: { id: dto.entityId, institutionId: user.institutionId, deletedAt: null },
+    });
+    if (!entity) throw new NotFoundException('Target entity not found');
+    await this.prisma.userEntityAccess.upsert({
+      where: { userId_entityId: { userId: profile.userId, entityId: dto.entityId } },
+      create: { userId: profile.userId, entityId: dto.entityId },
+      update: {},
+    });
+    return this.listEntityAccess(user, staffId);
+  }
+
+  async revokeTeachingEntityAccess(user: AuthUser, staffId: string, entityId: string) {
+    const profile = await this.repo.findProfile(user.institutionId, staffId, this.entityId(user));
+    if (!profile) throw new NotFoundException('Staff profile not found');
+    const result = await this.prisma.userEntityAccess.deleteMany({
+      where: { userId: profile.userId, entityId },
+    });
+    if (result.count === 0) throw new NotFoundException('Teaching access grant not found');
+    return this.listEntityAccess(user, staffId);
+  }
+
+  async deleteProfile(user: AuthUser, id: string) {
+    const row = await this.repo.findProfile(user.institutionId, id, this.entityId(user));
+    if (!row) throw new NotFoundException('Staff profile not found');
+    await this.repo.softDeleteProfile(user.institutionId, id);
+    return { ok: true };
+  }
+
+  async listEntityAccess(user: AuthUser, staffId: string) {
+    const profile = await this.repo.findProfile(user.institutionId, staffId, this.entityId(user));
+    if (!profile) throw new NotFoundException('Staff profile not found');
+    const rows = await this.prisma.userEntityAccess.findMany({
+      where: { userId: profile.userId },
+      include: { entity: { select: { id: true, code: true, name: true } } },
+    });
+    return {
+      staffId,
+      homeEntityId: profile.entityId,
+      teachingEntities: rows.map((r) => r.entity),
+    };
   }
 
   listLeaveTypes(user: AuthUser) {
-    return this.repo
-      .listLeaveTypes(user.institutionId, this.entityId(user))
-      .then((data) => ({ data }));
+    return this.leave.listLeaveTypes(user);
   }
 
-  async createLeaveType(user: AuthUser, dto: CreateLeaveTypeDto) {
-    const entityId = this.entityId(user);
-    const row = await this.repo.createLeaveType({
-      institutionId: user.institutionId,
-      entityId,
-      name: dto.name.trim(),
-      code: dto.code.trim().toUpperCase(),
-      annualAllocation: dto.annualAllocation ?? 0,
-      carryOverLimit: dto.carryOverLimit ?? 0,
-      requiresApproval: dto.requiresApproval ?? true,
-      isPaid: dto.isPaid ?? true,
-    });
-    return row;
+  createLeaveType(user: AuthUser, dto: CreateLeaveTypeDto) {
+    return this.leave.createLeaveType(user, dto);
   }
 
-  async ensureLeaveBalance(
+  listLeaveBalances(user: AuthUser, staffId?: string) {
+    return this.leave.listLeaveBalances(user, staffId);
+  }
+
+  allocateLeaveBalance(user: AuthUser, dto: AllocateLeaveBalanceDto) {
+    return this.leave.allocateLeaveBalance(user, dto);
+  }
+
+  carryForwardLeaveBalances(user: AuthUser, dto: CarryForwardLeaveDto) {
+    return this.leave.carryForwardLeaveBalances(user, dto);
+  }
+
+  leaveCalendar(user: AuthUser, fromIso: string, toIso: string) {
+    return this.leave.leaveCalendar(user, fromIso, toIso);
+  }
+
+  exportLeaveCalendarIcs(user: AuthUser, fromIso: string, toIso: string) {
+    return this.leave.exportLeaveCalendarIcs(user, fromIso, toIso);
+  }
+
+  registerExternalCalendar(
     user: AuthUser,
-    staffId: string,
-    leaveTypeId: string,
-    academicYearId: string,
+    leaveRequestId: string,
+    dto: RegisterExternalCalendarDto,
   ) {
-    const staff = await this.assertStaffAccess(user, staffId);
-    const leaveType = await this.repo.listLeaveTypes(user.institutionId, staff.entityId);
-    const lt = leaveType.find((t) => t.id === leaveTypeId);
-    if (!lt) throw new NotFoundException('Leave type not found');
-    const existing = await this.repo.findLeaveBalance(
-      user.institutionId,
-      staffId,
-      leaveTypeId,
-      academicYearId,
-    );
-    if (existing) return existing;
-    return this.repo.upsertLeaveBalance({
-      institutionId: user.institutionId,
-      entityId: staff.entityId,
-      staffId,
-      leaveTypeId,
-      academicYearId,
-      allocated: lt.annualAllocation,
-      carriedOver: 0,
-      used: 0,
-      pending: 0,
-    });
+    return this.leave.registerExternalCalendar(user, leaveRequestId, dto);
   }
 
   listLeaveRequests(user: AuthUser, staffId?: string) {
-    const entityId = this.entityId(user);
-    return this.repo
-      .listLeaveRequests(user.institutionId, entityId, staffId)
-      .then((data) => ({ data }));
+    return this.leave.listLeaveRequests(user, staffId);
   }
 
-  async createLeaveRequest(user: AuthUser, dto: CreateLeaveRequestDto) {
-    const staff = await this.assertStaffAccess(user, dto.staffId);
-    if (
-      staff.userId !== user.userId &&
-      !user.permissions?.includes('*') &&
-      !user.permissions?.includes('staff.write')
-    ) {
-      throw new ForbiddenException('Cannot submit leave for another staff member');
-    }
-    const start = new Date(dto.startDate);
-    const end = new Date(dto.endDate);
-    if (end < start) throw new BadRequestException('endDate must be on or after startDate');
-    const durationDays = leaveDurationDays(start, end);
-    const balance = await this.ensureLeaveBalance(
-      user,
-      dto.staffId,
-      dto.leaveTypeId,
-      dto.academicYearId,
-    );
-    const available = leaveBalanceAvailable(balance);
-    if (durationDays > available) {
-      throw new BadRequestException(
-        `Insufficient leave balance (${available} days available, ${durationDays} requested)`,
-      );
-    }
-    await this.repo.incrementLeavePending(balance.id, durationDays);
-    const { request } = await createLeaveRequestWithWorkflowAtomic(
-      this.workflows,
-      this.repo,
-      this.audit,
-      {
-        institutionId: user.institutionId,
-        entityId: staff.entityId,
-        staffId: dto.staffId,
-        leaveTypeId: dto.leaveTypeId,
-        startDate: start,
-        endDate: end,
-        durationDays,
-        reason: dto.reason.trim(),
-        supportingDocKey: dto.supportingDocKey,
-        coveringStaffId: dto.coveringStaffId,
-      },
-      {
-        institutionId: user.institutionId,
-        entityId: staff.entityId,
-        definitionCode: 'LEAVE_REQUEST',
-        entityType: 'LeaveRequest',
-        initiatedBy: user.userId,
-        metadata: {
-          staffId: dto.staffId,
-          leaveTypeId: dto.leaveTypeId,
-          durationDays,
-        },
-      },
-    );
-    return request;
+  createLeaveRequest(user: AuthUser, dto: CreateLeaveRequestDto) {
+    return this.leave.createLeaveRequest(user, dto);
   }
 
   listAppraisals(user: AuthUser, staffId?: string) {
-    return this.repo
-      .listAppraisals(user.institutionId, this.entityId(user), staffId)
-      .then((data) => ({ data }));
+    return this.appraisal.listAppraisals(user, staffId);
   }
 
-  async createAppraisal(user: AuthUser, dto: CreateStaffAppraisalDto) {
-    const staff = await this.repo.findProfile(user.institutionId, dto.staffId, this.entityId(user));
-    if (!staff) throw new NotFoundException('Staff profile not found');
-    const { appraisal } = await createAppraisalWithWorkflowAtomic(
-      this.workflows,
-      this.repo,
-      this.audit,
-      {
-        institutionId: user.institutionId,
-        entityId: staff.entityId,
-        staffId: dto.staffId,
-        reviewerId: dto.reviewerId,
-        periodStart: new Date(dto.periodStart),
-        periodEnd: new Date(dto.periodEnd),
-        type: dto.type,
-      },
-      {
-        institutionId: user.institutionId,
-        entityId: staff.entityId,
-        definitionCode: 'STAFF_APPRAISAL',
-        entityType: 'StaffAppraisal',
-        initiatedBy: user.userId,
-        metadata: { staffId: dto.staffId },
-      },
-    );
-    return appraisal;
+  createAppraisal(user: AuthUser, dto: Parameters<AppraisalService['createAppraisal']>[1]) {
+    return this.appraisal.createAppraisal(user, dto);
   }
 
-  async updateAppraisal(
+  createAppraisalCycle(
+    user: AuthUser,
+    dto: Parameters<AppraisalService['createAppraisalCycle']>[1],
+  ) {
+    return this.appraisal.createAppraisalCycle(user, dto);
+  }
+
+  addPeerFeedback(
+    user: AuthUser,
+    appraisalId: string,
+    dto: Parameters<AppraisalService['addPeerFeedback']>[2],
+  ) {
+    return this.appraisal.addPeerFeedback(user, appraisalId, dto);
+  }
+
+  submitAppraisal(user: AuthUser, id: string) {
+    return this.appraisal.submitAppraisal(user, id);
+  }
+
+  getKpiTemplate(user: AuthUser, positionId: string) {
+    return this.appraisal.getKpiTemplate(user, positionId);
+  }
+
+  updateAppraisalReviewer(
     user: AuthUser,
     id: string,
-    body: {
-      selfAssessment?: string;
-      kpiScores?: Record<string, unknown>;
-      peerFeedback?: unknown[];
-    },
+    dto: Parameters<AppraisalService['updateAppraisalReviewer']>[2],
   ) {
-    const row = await this.repo.findAppraisal(user.institutionId, id);
-    if (!row) throw new NotFoundException('Appraisal not found');
-    if (row.staff.userId !== user.userId && !user.permissions?.includes('staff.write')) {
-      throw new ForbiddenException('Cannot edit this appraisal');
-    }
-    await this.repo.updateAppraisal(user.institutionId, id, {
-      selfAssessment: body.selfAssessment,
-      kpiScores: body.kpiScores as Prisma.InputJsonValue,
-      peerFeedback: body.peerFeedback as Prisma.InputJsonValue,
-      status:
-        body.selfAssessment && row.status === AppraisalStatus.DRAFT
-          ? AppraisalStatus.SELF_REVIEW
-          : undefined,
-    });
-    return this.repo.findAppraisal(user.institutionId, id);
+    return this.appraisal.updateAppraisalReviewer(user, id, dto);
+  }
+
+  updateAppraisal(
+    user: AuthUser,
+    id: string,
+    body: Parameters<AppraisalService['updateAppraisal']>[2],
+  ) {
+    return this.appraisal.updateAppraisal(user, id, body);
   }
 
   listWorkload(user: AuthUser, semesterId: string) {
@@ -304,11 +322,93 @@ export class StaffService {
       }));
   }
 
+  async applyWorkloadSuggestions(user: AuthUser, dto: ApplyWorkloadSuggestionsDto) {
+    const entityId = this.entityId(user);
+    let applied = 0;
+    const skipped: Array<{ staffId: string; reason: string }> = [];
+    for (const row of dto.suggestions) {
+      const staff = await this.repo.findProfile(user.institutionId, row.staffId, entityId);
+      if (!staff) continue;
+      const entity = await this.prisma.institutionEntity.findFirst({
+        where: { id: staff.entityId, institutionId: user.institutionId },
+        select: { settings: true },
+      });
+      const hrSettings = parseEntityHrSettings(entity?.settings);
+      const maxHours = hrSettings.maxCreditHoursPerSemester ?? 18;
+      if (hrSettings.blockWorkloadOverMax && row.suggestedCreditHours > maxHours) {
+        skipped.push({
+          staffId: row.staffId,
+          reason: `Exceeds max ${maxHours} credit hours`,
+        });
+        continue;
+      }
+      await this.repo.upsertWorkload({
+        institutionId: user.institutionId,
+        entityId: staff.entityId,
+        staffId: row.staffId,
+        semesterId: dto.semesterId,
+        assignedSections: [],
+        totalCreditHours: row.suggestedCreditHours,
+        maxCreditHours: maxHours,
+        researchHours: 0,
+        adminHours: 0,
+      });
+      applied += 1;
+    }
+    return { applied, skipped };
+  }
+
+  syncAppraisalStatusOnWorkflowStep(institutionId: string, appraisalId: string, newStep: number) {
+    return this.appraisal.syncAppraisalStatusOnWorkflowStep(institutionId, appraisalId, newStep);
+  }
+
+  async getHrWorkflowInbox(user: AuthUser) {
+    const rows = await this.prisma.workflowInstance.findMany({
+      where: {
+        institutionId: user.institutionId,
+        currentAssigneeUserId: user.userId,
+        status: { in: [WorkflowStatus.IN_PROGRESS, WorkflowStatus.ESCALATED] },
+        definitionCode: { in: ['LEAVE_REQUEST', 'STAFF_APPRAISAL'] },
+      },
+      take: 30,
+      orderBy: { dueAt: 'asc' },
+      include: {
+        definition: { select: { name: true, code: true } },
+        entity: { select: { code: true, name: true } },
+        initiator: { select: { email: true, profile: true } },
+      },
+    });
+    return { data: rows };
+  }
+
+  async suggestWorkload(user: AuthUser, semesterId: string, totalHoursToAssign: number) {
+    const listed = await this.listWorkload(user, semesterId);
+    return {
+      suggestions: suggestWorkloadDistribution(
+        listed.data.map((w) => ({
+          staffId: w.staffId,
+          staffNumber: w.staff.staffNumber,
+          totalCreditHours: w.totalCreditHours,
+          maxCreditHours: w.maxCreditHours,
+        })),
+        totalHoursToAssign,
+      ),
+    };
+  }
+
   async upsertWorkload(user: AuthUser, dto: UpsertWorkloadDto) {
     const staff = await this.repo.findProfile(user.institutionId, dto.staffId, this.entityId(user));
     if (!staff) throw new NotFoundException('Staff profile not found');
-    const maxHours = dto.maxCreditHours ?? 18;
+    const entity = await this.prisma.institutionEntity.findFirst({
+      where: { id: staff.entityId, institutionId: user.institutionId },
+      select: { settings: true },
+    });
+    const hrSettings = parseEntityHrSettings(entity?.settings);
+    const maxHours = dto.maxCreditHours ?? hrSettings.maxCreditHoursPerSemester ?? 18;
     const total = dto.totalCreditHours ?? 0;
+    if (hrSettings.blockWorkloadOverMax && total > maxHours) {
+      throw new BadRequestException(`Credit hours (${total}) exceed entity maximum (${maxHours})`);
+    }
     const row = await this.repo.upsertWorkload({
       institutionId: user.institutionId,
       entityId: staff.entityId,
@@ -328,101 +428,37 @@ export class StaffService {
     };
   }
 
-  async orgChart(user: AuthUser, entityId: string) {
-    const units = await this.repo.orgUnitsWithHolders(user.institutionId, entityId);
-    const roots = units.filter((u) => !u.parentId);
-    const byParent = new Map<string | null, typeof units>();
-    for (const u of units) {
-      const key = u.parentId ?? null;
-      const list = byParent.get(key) ?? [];
-      list.push(u);
-      byParent.set(key, list);
-    }
-    const build = (parentId: string | null): unknown[] =>
-      (byParent.get(parentId) ?? []).map((unit) => ({
-        id: unit.id,
-        name: unit.name,
-        code: unit.code,
-        staff: unit.staffProfiles.map((s) => this.mapProfile(s)),
-        positions: unit.positions.map((p) => ({
-          id: p.id,
-          title: p.title,
-          code: p.code,
-          holders: p.holders.map((h) => ({
-            userId: h.userId,
-            email: h.user.email,
-            profile: h.user.profile,
-            isActing: h.isActing,
-          })),
-        })),
-        children: build(unit.id),
-      }));
-    return { entityId, tree: build(null) };
+  completeLeaveFromWorkflow(institutionId: string, leaveRequestId: string) {
+    return this.leave.completeLeaveFromWorkflow(institutionId, leaveRequestId);
   }
 
-  async completeLeaveFromWorkflow(institutionId: string, leaveRequestId: string) {
-    const req = await this.repo.findLeaveRequest(institutionId, leaveRequestId);
-    if (!req || req.status !== LeaveStatus.PENDING) return;
-    const year = await this.academicYearForLeave(req);
-    const balance = await this.repo.findLeaveBalance(
-      institutionId,
-      req.staffId,
-      req.leaveTypeId,
-      year.id,
-    );
-    if (balance) {
-      await this.repo.finalizeLeaveApproval(balance.id, req.durationDays);
-    }
-    await this.repo.updateLeaveRequestStatus(institutionId, leaveRequestId, LeaveStatus.APPROVED);
+  rejectLeaveFromWorkflow(institutionId: string, leaveRequestId: string) {
+    return this.leave.rejectLeaveFromWorkflow(institutionId, leaveRequestId);
   }
 
-  async rejectLeaveFromWorkflow(institutionId: string, leaveRequestId: string) {
-    const req = await this.repo.findLeaveRequest(institutionId, leaveRequestId);
-    if (!req || req.status !== LeaveStatus.PENDING) return;
-    const year = await this.academicYearForLeave(req);
-    const balance = await this.repo.findLeaveBalance(
-      institutionId,
-      req.staffId,
-      req.leaveTypeId,
-      year.id,
-    );
-    if (balance) {
-      await this.repo.releaseLeavePending(balance.id, req.durationDays);
-    }
-    await this.repo.updateLeaveRequestStatus(institutionId, leaveRequestId, LeaveStatus.REJECTED);
+  completeAppraisalFromWorkflow(institutionId: string, appraisalId: string) {
+    return this.appraisal.completeAppraisalFromWorkflow(institutionId, appraisalId);
   }
 
-  async completeAppraisalFromWorkflow(institutionId: string, appraisalId: string) {
-    await this.repo.updateAppraisal(institutionId, appraisalId, {
-      status: AppraisalStatus.COMPLETED,
-    });
+  rejectAppraisalFromWorkflow(institutionId: string, appraisalId: string) {
+    return this.appraisal.rejectAppraisalFromWorkflow(institutionId, appraisalId);
   }
 
-  async rejectAppraisalFromWorkflow(institutionId: string, appraisalId: string) {
-    await this.repo.updateAppraisal(institutionId, appraisalId, {
-      status: AppraisalStatus.REJECTED,
-    });
-  }
-
-  private async academicYearForLeave(req: { startDate: Date; institutionId: string }) {
-    const year = await this.prisma.academicYear.findFirst({
-      where: {
-        institutionId: req.institutionId,
-        startDate: { lte: req.startDate },
-        endDate: { gte: req.startDate },
-        deletedAt: null,
-      },
-      orderBy: { startDate: 'desc' },
-    });
-    if (!year) throw new BadRequestException('No academic year covers leave dates');
-    return year;
-  }
-
-  private mapProfile(row: Awaited<ReturnType<StaffRepository['findProfile']>> & object) {
+  private mapProfile(
+    row: NonNullable<Awaited<ReturnType<StaffRepository['findProfile']>>>,
+    user?: AuthUser,
+  ) {
     const profile = row.user.profile as Record<string, unknown> | null;
     const joined = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ');
     const name =
       (profile?.displayName as string) ?? (profile?.name as string) ?? (joined || row.user.email);
+    const photoUrl =
+      (profile?.avatarUrl as string) ??
+      (profile?.photoUrl as string) ??
+      (profile?.image as string) ??
+      null;
+    const canViewSalary =
+      user?.permissions?.includes('*') || user?.permissions?.includes('staff.write');
     return {
       id: row.id,
       staffNumber: row.staffNumber,
@@ -430,12 +466,17 @@ export class StaffService {
       userId: row.userId,
       email: row.user.email,
       name,
+      photoUrl,
       employmentType: row.employmentType,
       officeLocation: row.officeLocation,
+      entity: row.entity,
       orgUnit: row.orgUnit,
       position: row.position,
       specializations: row.specializations,
       researchInterests: row.researchInterests,
+      qualifications: row.qualifications,
+      publications: row.publications,
+      salary: canViewSalary ? decryptSalary(row.salary) : undefined,
     };
   }
 }

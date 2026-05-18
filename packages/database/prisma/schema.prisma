@@ -198,6 +198,21 @@ model Institution {
   leaveRequests                  LeaveRequest[]
   staffAppraisals                StaffAppraisal[]
   workloadRecords                WorkloadRecord[]
+  elections                      Election[]
+  electionCandidates             ElectionCandidate[]
+  electionVoters                 ElectionVoter[]
+  electionVotes                  ElectionVote[]
+  electionAuditLogs              ElectionAuditLog[]
+  meetings                       Meeting[]
+  alumniProfiles                 AlumniProfile[]
+  mentorshipPrograms             MentorshipProgram[]
+  mentorshipPairs                MentorshipPair[]
+  embeddingDocuments             EmbeddingDocument[]
+  meetingAttendees               MeetingAttendee[]
+  agendaItems                    AgendaItem[]
+  resolutions                    Resolution[]
+  meetingCommittees              MeetingCommittee[]
+  meetingActionItems             MeetingActionItem[]
 }
 
 model InstitutionEntity {
@@ -250,6 +265,20 @@ model InstitutionEntity {
   leaveRequests                 LeaveRequest[]
   staffAppraisals               StaffAppraisal[]
   workloadRecords               WorkloadRecord[]
+  elections                     Election[]
+  electionCandidates            ElectionCandidate[]
+  electionVoters                ElectionVoter[]
+  electionVotes                 ElectionVote[]
+  electionAuditLogs             ElectionAuditLog[]
+  meetings                      Meeting[]
+  meetingAttendees              MeetingAttendee[]
+  agendaItems                   AgendaItem[]
+  resolutions                   Resolution[]
+  meetingCommittees             MeetingCommittee[]
+  meetingActionItems            MeetingActionItem[]
+  alumniProfiles                  AlumniProfile[]
+  mentorshipPrograms              MentorshipProgram[]
+  mentorshipPairs                 MentorshipPair[]
 
   @@unique([institutionId, code])
   @@index([institutionId])
@@ -396,8 +425,11 @@ model OrgUnit {
   entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
   parent      OrgUnit?          @relation("OrgUnitTree", fields: [parentId], references: [id], onDelete: SetNull)
   children      OrgUnit[]       @relation("OrgUnitTree")
-  positions     Position[]
-  staffProfiles StaffProfile[]
+  positions          Position[]
+  staffProfiles      StaffProfile[]
+  meetings           Meeting[]
+  meetingCommittees  MeetingCommittee[]
+  electionsEligibility Election[]
 
   @@unique([institutionId, entityId, code])
   @@index([institutionId, entityId, deletedAt])
@@ -424,8 +456,10 @@ model Position {
   institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
   orgUnit       OrgUnit           @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
-  holders       PositionHolder[]
-  staffProfiles StaffProfile[]
+  holders              PositionHolder[]
+  staffProfiles          StaffProfile[]
+  meetingsAsConvener     Meeting[]          @relation("MeetingConvenerPosition")
+  meetingAttendees       MeetingAttendee[]
 
   @@unique([institutionId, entityId, orgUnitId, code])
   @@index([institutionId, entityId, deletedAt])
@@ -734,6 +768,12 @@ model User {
   notifications                 UserNotification[]
   staffProfile                  StaffProfile?
   staffAppraisalsAsReviewer     StaffAppraisal[]       @relation("AppraisalReviewer")
+  electionCandidates            ElectionCandidate[]
+  electionVoters                ElectionVoter[]
+  meetingAttendees              MeetingAttendee[]
+  meetingActionItemsAssigned    MeetingActionItem[]    @relation("MeetingActionAssignee")
+  alumniProfile                 AlumniProfile?
+  mentorshipPairsAsMentor       MentorshipPair[]       @relation("MentorshipMentor")
 
   @@unique([institutionId, email])
   @@index([institutionId])
@@ -920,6 +960,7 @@ model Program {
   progressionDecisions ProgressionDecision[]
   academicSessionRecords StudentAcademicSessionRecord[]
   financeBulkChargeJobs FinanceBulkChargeJob[]
+  alumniProfiles        AlumniProfile[]
 
   @@unique([institutionId, code])
   @@index([institutionId])
@@ -1662,6 +1703,7 @@ model Student {
   admissionDate          DateTime?
   expectedGraduationDate DateTime?
   graduationConfirmedAt  DateTime?
+  careerGoals            String?
   guardians              Json                       @default("[]")
   emergencyContacts      Json                       @default("[]")
   specialNeeds           Json                       @default("{}")
@@ -1695,6 +1737,8 @@ model Student {
   financeAccount         StudentAccount?
   financeScholarshipAwards       FinanceScholarshipAward[]
   financeScholarshipApplications FinanceScholarshipApplication[]
+  alumniProfile                  AlumniProfile?
+  mentorshipPairsAsMentee        MentorshipPair[] @relation("MentorshipMentee")
 
   @@unique([institutionId, studentNumber])
   @@index([institutionId])
@@ -2539,6 +2583,7 @@ enum AppraisalType {
   ANNUAL
   PROBATION
   MID_YEAR
+  THREE_SIXTY
 }
 
 enum AppraisalStatus {
@@ -2647,6 +2692,8 @@ model LeaveRequest {
   status             LeaveStatus @default(PENDING)
   workflowInstanceId String?
   coveringStaffId    String?
+  metadata           Json        @default("{}")
+  calendarBlockedAt  DateTime?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
@@ -2673,6 +2720,7 @@ model StaffAppraisal {
   selfAssessment     String?
   reviewerComments   String?
   peerFeedback       Json            @default("[]")
+  roleExpectations   Json            @default("{}")
   overallRating      Decimal?        @db.Decimal(4, 2)
   status             AppraisalStatus @default(DRAFT)
   workflowInstanceId String?
@@ -2709,4 +2757,495 @@ model WorkloadRecord {
 
   @@unique([staffId, semesterId])
   @@index([institutionId, entityId])
+}
+
+// --- Elections & meetings (Phase 11) ---
+
+enum ElectionScope {
+  ENTITY
+  INSTITUTION
+}
+
+enum ElectionType {
+  STUDENT_GOVERNMENT
+  FACULTY_COUNCIL
+  STAFF_REPRESENTATIVE
+  GENERAL
+}
+
+enum ElectionStatus {
+  DRAFT
+  NOMINATIONS_OPEN
+  NOMINATIONS_CLOSED
+  VOTING_OPEN
+  VOTING_CLOSED
+  CERTIFICATION_PENDING
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CandidateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum MeetingType {
+  SENATE
+  ACADEMIC_BOARD
+  FACULTY_BOARD
+  DEPARTMENTAL
+  COMMITTEE
+  AD_HOC
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  POSTPONED
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  TENTATIVE
+}
+
+enum AgendaItemType {
+  INFORMATION
+  DISCUSSION
+  DECISION
+  RESOLUTION
+  OTHER
+}
+
+enum ResolutionOutcome {
+  PASSED
+  FAILED
+  DEFERRED
+  WITHDRAWN
+}
+
+enum CommitteeType {
+  STANDING
+  AD_HOC
+}
+
+enum MeetingActionStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Election {
+  id                   String         @id @default(cuid())
+  institutionId        String
+  entityId             String
+  title                String
+  description          String         @default("")
+  type                 ElectionType   @default(GENERAL)
+  scope                ElectionScope  @default(ENTITY)
+  eligibilityOrgUnitId String?
+  eligibilityRules     Json           @default("{}")
+  positions            Json           @default("[]")
+  nominationOpenDate   DateTime
+  nominationCloseDate  DateTime
+  votingOpenDate       DateTime
+  votingCloseDate      DateTime
+  status               ElectionStatus @default(DRAFT)
+  workflowInstanceId   String?
+  resultsPublishedAt   DateTime?
+  votingNotifiedAt     DateTime?
+  certifiedBy          String?
+  certifiedAt          DateTime?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  deletedAt            DateTime?
+
+  institution   Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity        InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  eligibilityOrgUnit OrgUnit?     @relation(fields: [eligibilityOrgUnitId], references: [id], onDelete: SetNull)
+  candidates    ElectionCandidate[]
+  voters        ElectionVoter[]
+  votes         ElectionVote[]
+  auditLogs     ElectionAuditLog[]
+
+  @@index([institutionId, entityId, status])
+  @@index([institutionId, deletedAt])
+}
+
+model ElectionCandidate {
+  id              String          @id @default(cuid())
+  institutionId   String
+  entityId        String
+  electionId      String
+  userId          String
+  position        String
+  manifesto       String          @default("")
+  manifestoDocKey String?
+  photo           String?
+  nominatedBy     String
+  secondedBy      String?
+  status          CandidateStatus @default(PENDING)
+  rejectionReason String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  election    Election          @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  votes       ElectionVote[]
+
+  @@unique([electionId, userId, position])
+  @@index([electionId, status])
+}
+
+model ElectionVoter {
+  id                String    @id @default(cuid())
+  institutionId     String
+  entityId          String
+  electionId        String
+  userId            String
+  hasVoted          Boolean   @default(false)
+  votedAt           DateTime?
+  verificationToken String?   @unique
+  ballotToken         String?   @unique
+  ballotSignature     String?
+  ballotExpiresAt     DateTime?
+  ballotCommitment    String?   @unique
+  blindRsaSignature   String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  election    Election          @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([electionId, userId])
+  @@index([electionId])
+}
+
+model ElectionVote {
+  id                String   @id @default(cuid())
+  institutionId     String
+  entityId          String
+  electionId        String
+  voterHash         String
+  position          String
+  candidateId       String
+  castAt            DateTime @default(now())
+  verificationToken String   @unique
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  election    Election          @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  candidate   ElectionCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([electionId, voterHash, position])
+  @@index([electionId, position])
+}
+
+model ElectionAuditLog {
+  id            String   @id @default(cuid())
+  institutionId String
+  entityId      String
+  electionId    String
+  actorId       String
+  action        String
+  details       Json     @default("{}")
+  createdAt     DateTime @default(now())
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  election    Election          @relation(fields: [electionId], references: [id], onDelete: Cascade)
+
+  @@index([electionId, createdAt])
+}
+
+model Meeting {
+  id                   String        @id @default(cuid())
+  institutionId        String
+  entityId             String
+  title                String
+  type                 MeetingType
+  convenerPositionId   String
+  orgUnitId            String
+  committeeId          String?
+  scheduledAt          DateTime
+  durationMinutes      Int           @default(60)
+  location             String?
+  meetingLink              String?
+  zoomMeetingId            String?
+  googleCalendarEventId    String?
+  microsoftCalendarEventId String?
+  status               MeetingStatus @default(SCHEDULED)
+  quorumRequired       Int           @default(0)
+  quorumMet            Boolean?
+  agenda               Json          @default("[]")
+  minutesFileKey       String?
+  minutesDraftKey      String?
+  minutesDraft         Json?
+  minutesApprovedAt    DateTime?
+  minutesApprovedBy    String?
+  workflowInstanceId   String?
+  registrarFiledAt     DateTime?
+  registrarFiledBy     String?
+  isConfidential       Boolean       @default(false)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  deletedAt            DateTime?
+
+  institution        Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity             InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  convenerPosition   Position          @relation("MeetingConvenerPosition", fields: [convenerPositionId], references: [id], onDelete: Restrict)
+  orgUnit            OrgUnit           @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+  committee          MeetingCommittee? @relation(fields: [committeeId], references: [id], onDelete: SetNull)
+  attendees          MeetingAttendee[]
+  agendaItems        AgendaItem[]
+  resolutions        Resolution[]
+  actionItems        MeetingActionItem[]
+
+  @@index([institutionId, entityId, status])
+  @@index([scheduledAt])
+}
+
+model MeetingAttendee {
+  id            String       @id @default(cuid())
+  institutionId String
+  entityId      String
+  meetingId     String
+  userId        String
+  positionId    String?
+  inviteStatus  InviteStatus @default(PENDING)
+  isRequired    Boolean      @default(true)
+  attended      Boolean?
+  arrivalTime   DateTime?
+  departureTime DateTime?
+  apology       String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  meeting     Meeting           @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  position    Position?         @relation(fields: [positionId], references: [id], onDelete: SetNull)
+
+  @@unique([meetingId, userId])
+  @@index([meetingId])
+}
+
+model AgendaItem {
+  id            String         @id @default(cuid())
+  institutionId String
+  entityId      String
+  meetingId     String
+  itemNumber    String
+  title         String
+  description   String?
+  presenterId   String?
+  duration      Int            @default(15)
+  order         Int            @default(0)
+  type          AgendaItemType @default(DISCUSSION)
+  papers        Json           @default("[]")
+  discussion    String?
+  decision      String?
+  actionItems   Json           @default("[]")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  meeting     Meeting           @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  resolutions Resolution[]
+
+  @@index([meetingId, order])
+}
+
+model Resolution {
+  id               String            @id @default(cuid())
+  institutionId    String
+  entityId         String
+  meetingId        String
+  agendaItemId     String?
+  resolutionNumber String
+  title            String
+  content          String
+  movedBy          String
+  secondedBy       String
+  votesFor         Int               @default(0)
+  votesAgainst     Int               @default(0)
+  abstentions      Int               @default(0)
+  outcome          ResolutionOutcome @default(PASSED)
+  implementedAt    DateTime?
+  implementedBy    String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  meeting     Meeting           @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  agendaItem  AgendaItem?       @relation(fields: [agendaItemId], references: [id], onDelete: SetNull)
+
+  @@unique([institutionId, resolutionNumber])
+  @@index([institutionId, entityId])
+  @@index([meetingId])
+}
+
+model MeetingCommittee {
+  id            String        @id @default(cuid())
+  institutionId String
+  entityId      String?
+  orgUnitId     String?
+  name          String
+  type          CommitteeType @default(STANDING)
+  termStart     DateTime?
+  termEnd       DateTime?
+  memberUserIds String[]      @default([])
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  institution Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity? @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  orgUnit     OrgUnit?           @relation(fields: [orgUnitId], references: [id], onDelete: SetNull)
+  meetings    Meeting[]
+
+  @@index([institutionId, isActive])
+}
+
+model MeetingActionItem {
+  id            String              @id @default(cuid())
+  institutionId String
+  entityId      String
+  meetingId     String
+  description   String
+  assignedToId  String?
+  dueDate       DateTime?
+  status        MeetingActionStatus @default(OPEN)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  institution  Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity       InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  meeting      Meeting           @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  assignedTo   User?             @relation("MeetingActionAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([meetingId, status])
+  @@index([assignedToId, status])
+}
+
+// --- Alumni & mentorship (Phase 12) ---
+
+enum MentorshipStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model AlumniProfile {
+  id                  String   @id @default(cuid())
+  institutionId       String
+  entityId            String
+  userId              String   @unique
+  studentId           String?  @unique
+  programmeId         String?
+  graduationYear      Int?
+  currentEmployer     String?
+  jobTitle            String?
+  industry            String?
+  linkedinUrl         String?
+  bio                 String?
+  isVerified          Boolean  @default(false)
+  isPublic            Boolean  @default(true)
+  chapters            String[] @default([])
+  mentorshipAvailable Boolean  @default(true)
+  expertiseAreas      String[] @default([])
+  geoLocation         Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  deletedAt           DateTime?
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  student     Student?          @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  programme   Program?          @relation(fields: [programmeId], references: [id], onDelete: SetNull)
+
+  @@index([institutionId, entityId])
+  @@index([institutionId, mentorshipAvailable])
+}
+
+model MentorshipProgram {
+  id            String   @id @default(cuid())
+  institutionId String
+  entityId      String
+  name          String
+  description   String?
+  startDate     DateTime
+  endDate       DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  pairs       MentorshipPair[]
+
+  @@index([institutionId, entityId, isActive])
+}
+
+model MentorshipPair {
+  id              String           @id @default(cuid())
+  institutionId   String
+  entityId        String
+  programId       String
+  mentorUserId    String
+  menteeStudentId String
+  status          MentorshipStatus @default(PENDING)
+  goals           Json             @default("{}")
+  sessionCount    Int              @default(0)
+  nextSessionDate DateTime?
+  rating          Decimal?
+  feedback        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  program     MentorshipProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  mentor      User              @relation("MentorshipMentor", fields: [mentorUserId], references: [id], onDelete: Cascade)
+  mentee      Student           @relation("MentorshipMentee", fields: [menteeStudentId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, mentorUserId, menteeStudentId])
+  @@index([institutionId, status])
+}
+
+/// Phase 13 — RAG document chunks (embedding stored as JSON number[]; pgvector optional upgrade).
+model EmbeddingDocument {
+  id            String   @id @default(cuid())
+  institutionId String
+  entityId      String?
+  sourceType    String
+  sourceId      String
+  content       String
+  metadata      Json?
+  embedding        Json
+  /// Native pgvector column (1536-dim); synced when PGVECTOR_ENABLED=1.
+  embeddingVector  Unsupported("vector(1536)")?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, sourceType, sourceId])
+  @@index([institutionId, entityId, sourceType])
 }

@@ -38,6 +38,10 @@ async function main() {
         create: [
           { module: TenantModule.SIS, enabled: true },
           { module: TenantModule.LMS, enabled: true },
+          { module: TenantModule.HR, enabled: true },
+          { module: TenantModule.FINANCE, enabled: true },
+          { module: TenantModule.ELECTIONS, enabled: true },
+          { module: TenantModule.MEETINGS, enabled: true },
         ],
       },
     },
@@ -60,6 +64,59 @@ async function main() {
             { key: 'midterm', label: 'Midterm', weight: 0.3 },
             { key: 'finalExam', label: 'Final exam', weight: 0.35 },
           ],
+        },
+        hr: {
+          maxCreditHoursPerSemester: 18,
+          blockWorkloadOverMax: true,
+          defaultKpi: [
+            { key: 'teaching', label: 'Teaching effectiveness', weight: 0.4 },
+            { key: 'research', label: 'Research output', weight: 0.3 },
+            { key: 'service', label: 'Institutional service', weight: 0.3 },
+          ],
+          kpiByPositionLevel: {
+            '2': [
+              { key: 'leadership', label: 'Academic leadership', weight: 0.35 },
+              { key: 'teaching', label: 'Teaching quality', weight: 0.35 },
+              { key: 'research', label: 'Research impact', weight: 0.3 },
+            ],
+            '3': [
+              { key: 'teaching', label: 'Teaching effectiveness', weight: 0.5 },
+              { key: 'service', label: 'Department service', weight: 0.25 },
+              { key: 'research', label: 'Research output', weight: 0.25 },
+            ],
+          },
+          roleExpectationsByPositionCode: {
+            PC: {
+              duties: [
+                'Coordinate programme delivery and timetabling',
+                'Monitor student progress and assessment quality',
+              ],
+              responsibilities: [
+                'Line-manage academic staff in the programme',
+                'Report programme performance to the Head of Department',
+              ],
+            },
+            HOD: {
+              duties: [
+                'Lead departmental academic planning',
+                'Oversee staff development and appraisals',
+              ],
+              responsibilities: [
+                'Accountable to the Dean for departmental outcomes',
+                'Endorse appraisal outcomes before faculty review',
+              ],
+            },
+          },
+          defaultRoleExpectations: {
+            duties: [
+              'Deliver assigned teaching and assessment',
+              'Participate in departmental meetings and committees',
+            ],
+            responsibilities: [
+              'Meet professional standards for the role',
+              'Support institutional policies and student welfare',
+            ],
+          },
         },
       },
     },
@@ -111,6 +168,8 @@ async function main() {
       { code: 'institutions.write', label: 'Manage institutions' },
       { code: 'students.read', label: 'Read students' },
       { code: 'students.write', label: 'Manage students' },
+      { code: 'alumni.read', label: 'Read alumni directory and mentorship matches' },
+      { code: 'alumni.write', label: 'Manage alumni profiles' },
       { code: 'enrollments.read', label: 'Read enrollments' },
       { code: 'enrollments.write', label: 'Manage enrollments' },
       { code: 'grades.read', label: 'Read grades' },
@@ -162,9 +221,38 @@ async function main() {
       },
       { code: 'staff.read', label: 'Read staff directory, leave, and workload' },
       { code: 'staff.write', label: 'Manage staff profiles, leave types, and workload' },
+      { code: 'elections.read', label: 'View elections and cast ballots' },
+      { code: 'elections.manage', label: 'Manage elections, certify and publish results' },
+      { code: 'meetings.read', label: 'View meetings, agendas, and resolution register' },
+      { code: 'meetings.convene', label: 'Convene meetings and approve minutes' },
+      { code: 'meetings.write', label: 'Full meeting administration' },
     ],
     skipDuplicates: true,
   });
+
+  for (const bundle of [
+    {
+      code: 'ELECTIONS_MANAGE',
+      name: 'Elections administration',
+      permissions: ['elections.read', 'elections.manage'],
+    },
+    {
+      code: 'MEETINGS_CONVENE',
+      name: 'Meetings convene & minutes',
+      permissions: ['meetings.read', 'meetings.convene', 'meetings.write'],
+    },
+  ]) {
+    await prisma.permissionBundle.upsert({
+      where: { institutionId_code: { institutionId: demo.id, code: bundle.code } },
+      create: {
+        institutionId: demo.id,
+        code: bundle.code,
+        name: bundle.name,
+        permissions: bundle.permissions,
+      },
+      update: { name: bundle.name, permissions: bundle.permissions },
+    });
+  }
 
   /** Demo user with institution-wide JWT scope (entityScope ALL) via `institutions.write`, not SUPER_ADMIN. */
   const registrarRole = await prisma.role.upsert({
@@ -197,6 +285,11 @@ async function main() {
     'progression.write',
     'staff.read',
     'staff.write',
+    'elections.read',
+    'elections.manage',
+    'meetings.read',
+    'meetings.convene',
+    'meetings.write',
   ] as const;
   const registrarPerms = await prisma.permission.findMany({
     where: { code: { in: [...registrarPermCodes] } },
@@ -544,6 +637,16 @@ async function main() {
           scope: 'UNIT',
           permissionBundles: ['FINANCE_FULL'],
         },
+        {
+          institutionId: demo.id,
+          entityId: mainCampus.id,
+          orgUnitId: reg.id,
+          code: 'HR_DIRECTOR',
+          title: 'HR Director',
+          level: 2,
+          scope: 'INSTITUTION',
+          permissionBundles: ['ORG_MANAGE'],
+        },
       ],
     });
     const regPos = await prisma.position.findFirst({
@@ -592,6 +695,32 @@ async function main() {
           isActing: true,
         },
       });
+    }
+    const hrDirPos = await prisma.position.findFirst({
+      where: {
+        institutionId: demo.id,
+        entityId: mainCampus.id,
+        code: 'HR_DIRECTOR',
+        deletedAt: null,
+      },
+    });
+    if (hrDirPos) {
+      const existingHr = await prisma.positionHolder.findFirst({
+        where: { institutionId: demo.id, positionId: hrDirPos.id, endDate: null },
+      });
+      if (!existingHr) {
+        await prisma.positionHolder.create({
+          data: {
+            institutionId: demo.id,
+            entityId: mainCampus.id,
+            positionId: hrDirPos.id,
+            userId: registrarUser.id,
+            startDate: new Date('2025-01-01'),
+            appointedById: registrarUser.id,
+            isActing: true,
+          },
+        });
+      }
     }
   }
 
@@ -917,6 +1046,64 @@ async function main() {
         },
       ],
     },
+    {
+      code: 'LEAVE_REQUEST',
+      name: 'Staff leave request',
+      scope: 'ENTITY' as const,
+      triggerEntity: 'LeaveRequest',
+      steps: [
+        {
+          stepNumber: 1,
+          name: 'Line manager (PC)',
+          assignedTo: { positionCode: 'PC' },
+          slaHours: 48,
+          scope: 'ENTITY',
+        },
+        {
+          stepNumber: 2,
+          name: 'Head of Department',
+          assignedTo: { positionCode: 'HOD' },
+          slaHours: 48,
+          scope: 'ENTITY',
+        },
+        {
+          stepNumber: 3,
+          name: 'HR Director approval',
+          assignedTo: { positionCode: 'HR_DIRECTOR' },
+          slaHours: 72,
+          scope: 'INSTITUTION',
+        },
+      ],
+    },
+    {
+      code: 'STAFF_APPRAISAL',
+      name: 'Staff performance appraisal',
+      scope: 'ENTITY' as const,
+      triggerEntity: 'StaffAppraisal',
+      steps: [
+        {
+          stepNumber: 1,
+          name: 'Immediate head review',
+          assignedTo: { positionCode: 'PC' },
+          slaHours: 72,
+          scope: 'ENTITY',
+        },
+        {
+          stepNumber: 2,
+          name: 'HoD endorsement',
+          assignedTo: { positionCode: 'HOD' },
+          slaHours: 72,
+          scope: 'ENTITY',
+        },
+        {
+          stepNumber: 3,
+          name: 'Dean endorsement',
+          assignedTo: { positionCode: 'DEAN' },
+          slaHours: 72,
+          scope: 'FACULTY',
+        },
+      ],
+    },
   ];
   for (const def of workflowDefs) {
     const exists = await prisma.workflowDefinition.findFirst({
@@ -935,6 +1122,158 @@ async function main() {
         },
       });
     }
+  }
+
+  const hodPos = await prisma.position.findFirst({
+    where: {
+      institutionId: demo.id,
+      entityId: mainCampus.id,
+      code: 'HOD',
+      deletedAt: null,
+    },
+  });
+  const cseUnit = await prisma.orgUnit.findFirst({
+    where: {
+      institutionId: demo.id,
+      entityId: mainCampus.id,
+      code: 'CSE',
+      deletedAt: null,
+    },
+  });
+  const existingStaff = await prisma.staffProfile.findFirst({
+    where: { institutionId: demo.id, userId: registrarUser.id, deletedAt: null },
+  });
+  if (!existingStaff && hodPos && cseUnit) {
+    await prisma.staffProfile.create({
+      data: {
+        institutionId: demo.id,
+        entityId: mainCampus.id,
+        userId: registrarUser.id,
+        staffNumber: 'STF-0001',
+        orgUnitId: cseUnit.id,
+        positionId: hodPos.id,
+        employmentType: 'FULL_TIME',
+        contractStart: new Date('2025-01-01'),
+      },
+    });
+  }
+
+  const leaveTypeCount = await prisma.leaveType.count({
+    where: { institutionId: demo.id, entityId: mainCampus.id },
+  });
+  if (leaveTypeCount === 0) {
+    await prisma.leaveType.createMany({
+      data: [
+        {
+          institutionId: demo.id,
+          entityId: mainCampus.id,
+          code: 'ANNUAL',
+          name: 'Annual leave',
+          annualAllocation: 21,
+          requiresApproval: true,
+        },
+        {
+          institutionId: demo.id,
+          entityId: mainCampus.id,
+          code: 'SICK',
+          name: 'Sick leave',
+          annualAllocation: 10,
+          requiresApproval: true,
+        },
+      ],
+    });
+  }
+
+  for (const mod of [TenantModule.ELECTIONS, TenantModule.MEETINGS] as const) {
+    await prisma.institutionModule.upsert({
+      where: { institutionId_module: { institutionId: demo.id, module: mod } },
+      create: { institutionId: demo.id, module: mod, enabled: true },
+      update: { enabled: true },
+    });
+  }
+
+  const electionCount = await prisma.election.count({
+    where: { institutionId: demo.id, entityId: mainCampus.id },
+  });
+  if (electionCount === 0 && hodPos) {
+    const now = new Date();
+    const nomOpen = new Date(now.getTime() - 7 * 86_400_000);
+    const nomClose = new Date(now.getTime() + 7 * 86_400_000);
+    const voteOpen = new Date(now.getTime() + 8 * 86_400_000);
+    const voteClose = new Date(now.getTime() + 14 * 86_400_000);
+    await prisma.election.create({
+      data: {
+        institutionId: demo.id,
+        entityId: mainCampus.id,
+        title: 'Student Guild President 2026',
+        description: 'Campus-wide student leadership election (demo).',
+        type: 'STUDENT_GOVERNMENT',
+        eligibilityRules: { enrollmentStatuses: ['ACTIVE'] },
+        positions: [{ title: 'President', description: 'Guild president', maxCandidates: 5 }],
+        nominationOpenDate: nomOpen,
+        nominationCloseDate: nomClose,
+        votingOpenDate: voteOpen,
+        votingCloseDate: voteClose,
+        status: 'NOMINATIONS_OPEN',
+      },
+    });
+  }
+
+  const meetingCount = await prisma.meeting.count({
+    where: { institutionId: demo.id, entityId: mainCampus.id },
+  });
+  if (meetingCount === 0 && hodPos && cseUnit) {
+    const scheduled = new Date(Date.now() + 3 * 86_400_000);
+    await prisma.meeting.create({
+      data: {
+        institutionId: demo.id,
+        entityId: mainCampus.id,
+        title: 'Faculty Board — Q2 Planning',
+        type: 'FACULTY_BOARD',
+        convenerPositionId: hodPos.id,
+        orgUnitId: cseUnit.id,
+        scheduledAt: scheduled,
+        durationMinutes: 90,
+        location: 'Senate Chamber',
+        meetingLink: 'https://teams.microsoft.com/l/meetup-join/demo',
+        quorumRequired: 3,
+        agenda: [
+          { itemNumber: '1', title: 'Opening', duration: 10, type: 'INFORMATION' },
+          { itemNumber: '2', title: 'Workload review', duration: 45, type: 'DISCUSSION' },
+        ],
+        attendees: {
+          create: {
+            institutionId: demo.id,
+            entityId: mainCampus.id,
+            userId: registrarUser.id,
+            inviteStatus: 'ACCEPTED',
+            isRequired: true,
+          },
+        },
+        agendaItems: {
+          create: [
+            {
+              institutionId: demo.id,
+              entityId: mainCampus.id,
+              itemNumber: '1',
+              title: 'Opening remarks',
+              order: 0,
+              duration: 10,
+              type: 'INFORMATION',
+            },
+            {
+              institutionId: demo.id,
+              entityId: mainCampus.id,
+              itemNumber: '2',
+              title: 'Workload review',
+              order: 1,
+              duration: 45,
+              type: 'DISCUSSION',
+            },
+          ],
+        },
+      },
+    });
   }
 }
 

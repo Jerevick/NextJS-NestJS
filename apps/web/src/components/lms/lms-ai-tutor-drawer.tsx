@@ -1,50 +1,26 @@
 'use client';
 
 import { useCallback, useId, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { appendOptionalEntityHeader } from '@/lib/api-headers';
+
+const apiPublic = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 type TutorRole = 'user' | 'assistant';
 
 type TutorMsg = { id: string; role: TutorRole; text: string };
 
-function replyForMessage(
-  courseTitle: string,
-  lessonTitle: string | undefined,
-  userText: string,
-): string {
-  const m = userText.trim().toLowerCase();
-  if (!m.length) {
-    return 'Say something—I am a deterministic preview until Phase 13 streams tutoring.';
-  }
-  if (/^hello|^hi\b|^hey\b/.test(m)) {
-    return lessonTitle
-      ? `Hey! You are in **${courseTitle}**, lesson “${lessonTitle}”. Streaming RAG tutoring is slated for Phase 13; meanwhile I echo study tips from your question.`
-      : `Hey! You are browsing **${courseTitle}**. Add a keyword or syllabus question—I will answer conversationally once the tutor backend lands.`;
-  }
-  if (/summary|summarize/.test(m)) {
-    return 'I cannot see raw lesson text here yet — ask faculty for a synopsis or skim “Course home”. Phase 13 will hydrate me with chunked lesson embeddings.';
-  }
-  if (/exam|quiz|test/.test(m)) {
-    return 'Check the Assessments strip on Course home — attempts are routed through LMS assessments. Quiz timing + autosave are already live in **quiz-engine**.';
-  }
-  if (/chapter|minute|seek/.test(m)) {
-    return 'Video instructors can drop `chapters: [{ title, timeSeconds }]` on lesson JSON; chips appear above the player for learners.';
-  }
-  return `I'll route “${userText
-    .trim()
-    .slice(
-      0,
-      220,
-    )}” once the SSE tutor endpoint lands. Tip: jot notes in VIDEO lessons—they persist locally via your browser storage.`;
-}
-
-/** Collapsible right-rail tutor chat UX (deterministic stub until Phase 13 SSE/RAG). */
+/** Collapsible right-rail tutor chat with SSE streaming when courseInstanceId is set. */
 export function LmsAiTutorDrawer({
+  courseInstanceId,
   courseTitle,
   lessonTitle,
 }: {
+  courseInstanceId: string;
   courseTitle: string;
   lessonTitle?: string | undefined;
 }) {
+  const { data: session } = useSession();
   const [open, setOpen] = useState(false);
   const formId = useId();
   const [messages, setMessages] = useState<TutorMsg[]>(() => [
@@ -53,11 +29,16 @@ export function LmsAiTutorDrawer({
       role: 'assistant',
       text:
         lessonTitle != null && lessonTitle.length > 0
-          ? `How can I help with “${lessonTitle}” inside ${courseTitle}? (Preview mode — canned replies until Phase 13.)`
-          : `Questions about ${courseTitle}? Preview mode spins simple answers while RAG tutors ship.`,
+          ? `How can I help with “${lessonTitle}” in ${courseTitle}? Ask anything from the syllabus.`
+          : `Questions about ${courseTitle}? I use course materials (RAG) to guide you.`,
     },
   ]);
   const [draft, setDraft] = useState('');
+  const [streaming, setStreaming] = useState(false);
+  const [citations, setCitations] = useState<
+    Array<{ sourceType: string; sourceId: string; title?: string; lessonId?: string }>
+  >([]);
+  const [tokenHint, setTokenHint] = useState<string | null>(null);
 
   const heading = useMemo(
     () =>
@@ -65,26 +46,95 @@ export function LmsAiTutorDrawer({
     [courseTitle, lessonTitle],
   );
 
-  const submit = useCallback(() => {
+  const submit = useCallback(async () => {
     const text = draft.trim();
-    if (!text.length) {
+    if (!text.length || streaming) return;
+    setDraft('');
+    const userMsg: TutorMsg = { id: `u:${Date.now()}`, role: 'user', text };
+    const botId = `a:${Date.now()}`;
+    setMessages((prev) => [...prev, userMsg, { id: botId, role: 'assistant', text: '' }]);
+
+    const token = session?.accessToken;
+    const institutionId = session?.user?.institutionId;
+    if (!token || !institutionId) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === botId ? { ...m, text: 'Sign in to use the AI tutor.' } : m)),
+      );
       return;
     }
-    setDraft('');
-    setMessages((prev) => {
-      const userMsg: TutorMsg = {
-        id: `u:${Date.now()}`,
-        role: 'user',
-        text,
+
+    setStreaming(true);
+    try {
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        'X-Institution-ID': institutionId,
+        'Content-Type': 'application/json',
       };
-      const bot: TutorMsg = {
-        id: `a:${Date.now()}`,
-        role: 'assistant',
-        text: replyForMessage(courseTitle, lessonTitle, text),
-      };
-      return [...prev, userMsg, bot];
-    });
-  }, [draft, courseTitle, lessonTitle]);
+      appendOptionalEntityHeader(headers, session.user);
+      const res = await fetch(
+        `${apiPublic}/ai/tutor/${encodeURIComponent(courseInstanceId)}/message`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ message: text }),
+        },
+      );
+      if (!res.ok || !res.body) {
+        throw new Error(await res.text());
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() ?? '';
+        for (const part of parts) {
+          const line = part.split('\n').find((l) => l.startsWith('data: '));
+          if (!line) continue;
+          try {
+            const payload = JSON.parse(line.slice(6)) as {
+              chunk?: string;
+              error?: string;
+              done?: boolean;
+              citations?: Array<{
+                sourceType: string;
+                sourceId: string;
+                title?: string;
+                lessonId?: string;
+              }>;
+              tokensRemaining?: number | null;
+              dailyTokenLimit?: number | null;
+            };
+            if (payload.error) throw new Error(payload.error);
+            if (payload.done) {
+              if (payload.citations) setCitations(payload.citations);
+              if (payload.dailyTokenLimit != null && payload.tokensRemaining != null) {
+                setTokenHint(
+                  `${payload.tokensRemaining.toLocaleString()} of ${payload.dailyTokenLimit.toLocaleString()} tutor tokens left today`,
+                );
+              }
+            }
+            if (payload.chunk) {
+              setMessages((prev) =>
+                prev.map((m) => (m.id === botId ? { ...m, text: m.text + payload.chunk } : m)),
+              );
+            }
+          } catch {
+            /* ignore partial JSON */
+          }
+        }
+      }
+    } catch (e) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === botId ? { ...m, text: `Tutor unavailable: ${String(e)}` } : m)),
+      );
+    } finally {
+      setStreaming(false);
+    }
+  }, [draft, streaming, session, courseInstanceId]);
 
   return (
     <aside
@@ -135,8 +185,13 @@ export function LmsAiTutorDrawer({
             <p
               style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', lineHeight: 1.4 }}
             >
-              Phase 13 swaps these canned replies with pgvector+RAG SSE — layout stays intact.
+              Socratic tutor — guides you using enrolled course materials only.
             </p>
+            {tokenHint ? (
+              <p style={{ margin: '4px 0 0', fontSize: '0.68rem', color: '#94a3b8' }}>
+                {tokenHint}
+              </p>
+            ) : null}
           </div>
           <div
             style={{
@@ -164,7 +219,7 @@ export function LmsAiTutorDrawer({
                     borderRadius: 12,
                   }}
                 >
-                  {msg.text}
+                  {msg.text || (streaming ? '…' : '')}
                 </div>
               ) : (
                 <div
@@ -182,11 +237,29 @@ export function LmsAiTutorDrawer({
               ),
             )}
           </div>
+          {citations.length > 0 ? (
+            <div
+              style={{
+                padding: '0.35rem 0.65rem',
+                borderTop: '1px solid #e2e8f0',
+                fontSize: '0.72rem',
+                color: '#64748b',
+              }}
+            >
+              Sources:{' '}
+              {citations.map((c, i) => (
+                <span key={`${c.sourceType}-${c.sourceId}`}>
+                  {i > 0 ? ', ' : ''}
+                  {c.title ?? `${c.sourceType}:${c.sourceId.slice(0, 6)}`}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <form
             style={{ padding: '0.55rem', borderTop: '1px solid #e2e8f0', display: 'flex', gap: 6 }}
             onSubmit={(e) => {
               e.preventDefault();
-              submit();
+              void submit();
             }}
           >
             <input
@@ -195,6 +268,7 @@ export function LmsAiTutorDrawer({
               placeholder="Ask a syllabus question..."
               aria-label="Message to tutor"
               autoComplete="off"
+              disabled={streaming}
               style={{
                 flex: 1,
                 minWidth: 0,
@@ -209,16 +283,16 @@ export function LmsAiTutorDrawer({
               style={{
                 borderRadius: 999,
                 border: 'none',
-                cursor: draft.trim() ? 'pointer' : 'not-allowed',
+                cursor: draft.trim() && !streaming ? 'pointer' : 'not-allowed',
                 padding: '0 0.9rem',
                 fontSize: '0.78rem',
                 fontWeight: 700,
-                background: draft.trim() ? '#2563eb' : '#94a3b8',
+                background: draft.trim() && !streaming ? '#2563eb' : '#94a3b8',
                 color: '#fff',
               }}
-              disabled={!draft.trim()}
+              disabled={!draft.trim() || streaming}
             >
-              Send
+              {streaming ? '…' : 'Send'}
             </button>
           </form>
         </div>

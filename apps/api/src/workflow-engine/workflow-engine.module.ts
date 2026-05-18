@@ -3,6 +3,10 @@ import { AuditModule } from '../audit/audit.module';
 import { BillingCoreModule } from '../billing/billing-core.module';
 import { GradesModule } from '../grades/grades.module';
 import { FinanceModule } from '../finance/finance.module';
+import { AppraisalModule } from '../appraisal/appraisal.module';
+import { ElectionsModule } from '../elections/elections.module';
+import { LeaveModule } from '../leave/leave.module';
+import { MeetingsModule } from '../meetings/meetings.module';
 import { StaffModule } from '../staff/staff.module';
 import { ProgressionModule } from '../progression/progression.module';
 import { StudentsModule } from '../students/students.module';
@@ -23,6 +27,10 @@ import { AnyPermissionsGuard } from '../common/guards/any-permissions.guard';
     ProgressionModule,
     forwardRef(() => FinanceModule),
     forwardRef(() => StaffModule),
+    forwardRef(() => LeaveModule),
+    forwardRef(() => AppraisalModule),
+    forwardRef(() => ElectionsModule),
+    forwardRef(() => MeetingsModule),
   ],
   controllers: [WorkflowEngineController],
   providers: [

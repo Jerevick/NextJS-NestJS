@@ -15,6 +15,10 @@ import { StatusChangeService } from '../students/status/status-change.service';
 import { GradesRepository } from '../grades/grades.repository';
 import { ResitGradeService } from '../progression/resit-grade.service';
 import { FinanceService } from '../finance/finance.service';
+import { AppraisalService } from '../appraisal/appraisal.service';
+import { ElectionsService } from '../elections/elections.service';
+import { LeaveService } from '../leave/leave.service';
+import { MeetingsService } from '../meetings/meetings.service';
 import { StaffService } from '../staff/staff.service';
 
 @Injectable()
@@ -34,6 +38,14 @@ export class WorkflowCompletionHandler {
     private readonly finance: FinanceService,
     @Inject(forwardRef(() => StaffService))
     private readonly staff: StaffService,
+    @Inject(forwardRef(() => LeaveService))
+    private readonly leave: LeaveService,
+    @Inject(forwardRef(() => AppraisalService))
+    private readonly appraisal: AppraisalService,
+    @Inject(forwardRef(() => ElectionsService))
+    private readonly elections: ElectionsService,
+    @Inject(forwardRef(() => MeetingsService))
+    private readonly meetings: MeetingsService,
   ) {}
 
   async handleCompleted(
@@ -99,13 +111,38 @@ export class WorkflowCompletionHandler {
         );
         break;
       case 'LEAVE_REQUEST':
-        await this.staff.completeLeaveFromWorkflow(institutionId, entityId_record);
+        await this.leave.completeLeaveFromWorkflow(institutionId, entityId_record);
         break;
       case 'STAFF_APPRAISAL':
-        await this.staff.completeAppraisalFromWorkflow(institutionId, entityId_record);
+        await this.appraisal.completeAppraisalFromWorkflow(institutionId, entityId_record);
+        break;
+      case 'ELECTION_CERTIFICATION':
+        await this.elections.completeCertificationFromWorkflow(institutionId, entityId_record);
+        break;
+      case 'MEETING_MINUTES_FILING':
+        await this.meetings.completeMinutesFilingFromWorkflow(
+          institutionId,
+          entityId_record,
+          actorUserId,
+        );
         break;
       default:
         this.log.debug(`No completion handler for workflow ${definitionCode}`);
+    }
+  }
+
+  async handleStepAdvanced(
+    definitionCode: string,
+    institutionId: string,
+    entityId_record: string,
+    newStep: number,
+  ): Promise<void> {
+    if (definitionCode === 'STAFF_APPRAISAL') {
+      await this.appraisal.syncAppraisalStatusOnWorkflowStep(
+        institutionId,
+        entityId_record,
+        newStep,
+      );
     }
   }
 
@@ -172,10 +209,10 @@ export class WorkflowCompletionHandler {
         );
         break;
       case 'LEAVE_REQUEST':
-        await this.staff.rejectLeaveFromWorkflow(institutionId, entityId_record);
+        await this.leave.rejectLeaveFromWorkflow(institutionId, entityId_record);
         break;
       case 'STAFF_APPRAISAL':
-        await this.staff.rejectAppraisalFromWorkflow(institutionId, entityId_record);
+        await this.appraisal.rejectAppraisalFromWorkflow(institutionId, entityId_record);
         break;
       default:
         break;

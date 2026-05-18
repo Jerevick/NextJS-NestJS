@@ -55,13 +55,21 @@ export default async function WorkflowInboxPage() {
       <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
         Actions waiting on your position assignment.
       </p>
-      <p style={{ fontSize: '0.9rem' }}>
+      <p style={{ fontSize: '0.9rem', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         <Link href="/workflow/initiated" style={{ color: '#2563eb' }}>
           Requests I started →
         </Link>
+        <Link href="/elections/inbox" style={{ color: '#2563eb' }}>
+          Elections certification
+        </Link>
+        <Link href="/meetings/inbox" style={{ color: '#2563eb' }}>
+          Meeting minutes filing
+        </Link>
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.25rem' }}>
+      <div
+        style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.25rem' }}
+      >
         {rows.map((r) => (
           <Link
             key={r.id}
@@ -75,7 +83,14 @@ export default async function WorkflowInboxPage() {
               display: 'block',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+                flexWrap: 'wrap',
+              }}
+            >
               <div>
                 <div style={{ fontWeight: 700 }}>{r.definition.name}</div>
                 <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 4 }}>

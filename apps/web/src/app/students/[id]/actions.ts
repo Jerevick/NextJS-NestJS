@@ -2,9 +2,42 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
+import { appendOptionalEntityHeader } from '@/lib/api-headers';
 import { hasPermission } from '@/lib/permissions';
 
-const apiBase = process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiBase =
+  process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+
+export async function fetchAiAdvisorAction(studentId: string) {
+  const session = await auth();
+  if (!session?.accessToken) return { error: 'Not signed in.' as const };
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${session.accessToken}`,
+    'X-Institution-ID': session.user.institutionId,
+    'Content-Type': 'application/json',
+  };
+  appendOptionalEntityHeader(headers, session.user);
+  const res = await fetch(`${apiBase}/ai/advisor/${encodeURIComponent(studentId)}`, {
+    method: 'POST',
+    headers,
+    cache: 'no-store',
+  });
+  if (!res.ok) return { error: `Advisor failed (${res.status})` as const };
+  const body = (await res.json()) as {
+    narrative: string;
+    atRisk: boolean;
+    gaps?: Array<{ description: string; severity?: string }>;
+    recommendations?: Array<{ courseCode?: string; title?: string; rationale: string }>;
+    riskFlags?: Array<{ flag: string; detail: string }>;
+  };
+  return {
+    narrative: body.narrative,
+    atRisk: body.atRisk,
+    gaps: body.gaps ?? [],
+    recommendations: body.recommendations ?? [],
+    riskFlags: body.riskFlags ?? [],
+  };
+}
 
 export type DropEnrollmentState = { error?: string; ok?: string };
 
@@ -137,14 +170,17 @@ export async function confirmGraduation(
     return { error: 'A justification of at least 3 characters is required.' };
   }
 
-  const res = await fetch(`${apiBase}/students/${encodeURIComponent(studentId)}/confirm-graduation`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+  const res = await fetch(
+    `${apiBase}/students/${encodeURIComponent(studentId)}/confirm-graduation`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reason, ...(notes ? { notes } : {}) }),
     },
-    body: JSON.stringify({ reason, ...(notes ? { notes } : {}) }),
-  });
+  );
 
   const raw = await res.text();
   if (!res.ok) {

@@ -24,6 +24,12 @@ import { InstitutionsModule } from './institutions/institutions.module';
 import { LmsFeatureModule } from './lms/lms.module';
 import { LmsAssessmentsModule } from './lms-assessments/lms-assessments.module';
 import { FinanceModule } from './modules/finance';
+import { AppraisalModule } from './modules/appraisal';
+import { AiModule } from './modules/ai';
+import { AlumniModule } from './modules/alumni';
+import { ElectionsModule } from './modules/elections';
+import { LeaveModule } from './modules/leave';
+import { MeetingsModule } from './modules/meetings';
 import { StaffModule } from './modules/staff';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -39,6 +45,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { StudentRecordPostingGuard } from './common/guards/student-record-posting.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
+import { TenantModulesModule } from './common/tenant-modules/tenant-modules.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
 import { RedisThrottlerStorage } from './redis/redis-throttler.storage';
@@ -63,6 +70,7 @@ import { SessionsModule } from './sessions/sessions.module';
       },
     }),
     PrismaModule,
+    TenantModulesModule,
     StorageModule,
     RedisModule,
     ...(process.env.REDIS_URL?.trim() ? [QueuesModule] : []),
@@ -93,6 +101,12 @@ import { SessionsModule } from './sessions/sessions.module';
     LmsAssessmentsModule,
     FinanceModule,
     StaffModule,
+    LeaveModule,
+    AppraisalModule,
+    ElectionsModule,
+    MeetingsModule,
+    AiModule.register(),
+    AlumniModule,
     NotificationsModule,
   ],
   providers: [

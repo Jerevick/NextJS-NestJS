@@ -22,6 +22,7 @@ import {
   patchTeachLessonAction,
 } from './actions';
 import { TeachLessonRichTextEditor } from './teach-lesson-tiptap';
+import { TeachFacultyAiPanel } from './teach-faculty-ai-panel';
 
 const LESSON_TYPES = ['TEXT', 'VIDEO', 'DOCUMENT', 'EMBED', 'QUIZ'] as const;
 
@@ -452,6 +453,7 @@ export function TeachLessonWorkspace({
               {notice.text}
             </Alert>
           ) : null}
+          <TeachFacultyAiPanel lessonId={detail?.id ?? lesson?.id ?? null} />
         </Stack>
       </Box>
     </Stack>

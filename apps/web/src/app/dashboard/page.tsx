@@ -136,6 +136,21 @@ export default async function DashboardPage() {
             Staff & HR
           </Link>
         ) : null}
+        {session?.user &&
+        (hasPermission(session.user.permissions, 'elections.read') ||
+          hasPermission(session.user.permissions, 'elections.manage')) ? (
+          <Link href="/elections" style={{ color: '#2563eb' }}>
+            Elections
+          </Link>
+        ) : null}
+        {session?.user &&
+        (hasPermission(session.user.permissions, 'meetings.read') ||
+          hasPermission(session.user.permissions, 'meetings.convene') ||
+          hasPermission(session.user.permissions, 'meetings.write')) ? (
+          <Link href="/meetings" style={{ color: '#2563eb' }}>
+            Meetings
+          </Link>
+        ) : null}
         {session?.user && canAccessBillingNav(session.user.permissions) ? (
           <Link href="/billing/disputes" style={{ color: '#2563eb' }}>
             Billing disputes

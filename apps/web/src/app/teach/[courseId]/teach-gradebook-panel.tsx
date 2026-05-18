@@ -1,10 +1,11 @@
 'use client';
 
-import { Alert, Typography } from '@mui/material';
+import { Alert, Button, Stack, TextField, Typography } from '@mui/material';
 import type { GridColDef } from '@mui/x-data-grid';
 import { DataGrid } from '@mui/x-data-grid';
 import { useCallback, useMemo, useState } from 'react';
 
+import { essayFeedbackAction } from './ai-content-actions';
 import { gradeSubmissionFromTeachAction } from './actions';
 
 export type TeachGradebookApi = {
@@ -28,6 +29,9 @@ export function TeachGradebookPanel({
   gradebook: TeachGradebookApi | null;
 }) {
   const [err, setErr] = useState<string | null>(null);
+  const [submissionId, setSubmissionId] = useState('');
+  const [essayFeedback, setEssayFeedback] = useState<string | null>(null);
+  const [essayBusy, setEssayBusy] = useState(false);
 
   const cellMap = useMemo(() => {
     const map = new Map<string, TeachGradebookApi['cells'][number]>();
@@ -169,6 +173,40 @@ export function TeachGradebookPanel({
           disableRowSelectionOnClick
         />
       </div>
+      <Stack spacing={1} sx={{ mt: 2, maxWidth: 720 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+          Essay AI feedback (draft for faculty)
+        </Typography>
+        <Stack direction="row" spacing={1} alignItems="flex-start">
+          <TextField
+            size="small"
+            fullWidth
+            label="Submission ID"
+            value={submissionId}
+            onChange={(e) => setSubmissionId(e.target.value)}
+          />
+          <Button
+            variant="outlined"
+            size="small"
+            disabled={essayBusy || !submissionId.trim()}
+            onClick={async () => {
+              setEssayBusy(true);
+              setEssayFeedback(null);
+              const res = await essayFeedbackAction(submissionId.trim());
+              setEssayBusy(false);
+              if (res.error) setErr(res.error);
+              else setEssayFeedback(res.data?.feedback ?? '');
+            }}
+          >
+            {essayBusy ? '…' : 'Generate'}
+          </Button>
+        </Stack>
+        {essayFeedback ? (
+          <Alert severity="info" sx={{ whiteSpace: 'pre-wrap' }}>
+            {essayFeedback}
+          </Alert>
+        ) : null}
+      </Stack>
     </>
   );
 }

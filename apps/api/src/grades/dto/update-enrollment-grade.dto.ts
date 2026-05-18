@@ -1,5 +1,14 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsNumber, IsObject, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class UpdateEnrollmentGradeDto {
   @IsOptional()
@@ -27,4 +36,13 @@ export class UpdateEnrollmentGradeDto {
   @IsOptional()
   @IsIn(['DRAFT', 'SUBMITTED', 'APPROVED'])
   workflowStatus?: 'DRAFT' | 'SUBMITTED' | 'APPROVED';
+
+  /** When true, grade change was suggested by AI and requires humanConfirmed. */
+  @IsOptional()
+  @IsBoolean()
+  aiSuggested?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  humanConfirmed?: boolean;
 }

@@ -333,38 +333,86 @@ Track progress against [`UNICORE_MASTER_PROMPT.md`](./UNICORE_MASTER_PROMPT.md) 
 
 ---
 
-## Phase 10 — HR & staff (~75%)
+## Phase 10 — HR & staff (100%)
 
 ### Prompt 10.1
 
-| Item                                                        | Status |
-| ----------------------------------------------------------- | ------ |
-| Prisma HR models (StaffProfile, Leave, Appraisal, Workload) | ✅     |
-| Staff profiles CRUD (dual-scoped)                           | ✅     |
-| Leave types, balances, requests + `LEAVE_REQUEST` workflow  | ✅     |
-| Appraisals + `STAFF_APPRAISAL` workflow                     | ✅     |
-| Workload records + capacity heatmap                         | ✅     |
-| Org chart API (`GET /staff/org-chart`)                      | ✅     |
-| Permissions `staff.read` / `staff.write`                    | ✅     |
-| `/staff` hub UI                                             | ✅     |
-| FullCalendar leave UI, profile create forms                 | 🟡     |
-| AI workload distribution suggestion                         | 🟡     |
+| Item                                                                | Status |
+| ------------------------------------------------------------------- | ------ |
+| Prisma HR models (StaffProfile, Leave, Appraisal, Workload)         | ✅     |
+| Staff profiles CRUD (dual-scoped)                                   | ✅     |
+| Leave types, balances, requests + `LEAVE_REQUEST` workflow          | ✅     |
+| Appraisals + `STAFF_APPRAISAL` workflow                             | ✅     |
+| Workload records + capacity heatmap                                 | ✅     |
+| Org chart API (`GET /staff/org-chart`)                              | ✅     |
+| Permissions `staff.read` / `staff.write`                            | ✅     |
+| `/staff` hub UI                                                     | ✅     |
+| FullCalendar leave UI, profile create forms                         | ✅     |
+| AI workload distribution suggestion (`GET /staff/workload/suggest`) | ✅     |
+| Leave calendar + `/leave/*` alias routes                            | ✅     |
+| Seed: HR module, demo staff, leave types, workflows                 | ✅     |
+| Salary field encryption at rest (AES-256-GCM)                       | ✅     |
+| Cross-entity access (`GET /staff/profiles/:id/entity-access`)       | ✅     |
+| 360° appraisals + batch cycle + peer feedback                       | ✅     |
+| iCal export + Google/Outlook calendar links                         | ✅     |
+| HR Director workflow step (`HR_DIRECTOR` position)                  | ✅     |
+| Nice-to-have: `LeaveModule` + `modules/*` aliases                   | ✅     |
+| Cross-entity grant/revoke UI + API                                  | ✅     |
+| Google/Outlook OAuth calendar push                                  | ✅     |
+| Reviewer appraisal + KPI template (API + hub UI)                    | ✅     |
+| Leave covering staff + supporting doc (web)                         | ✅     |
+| Qualifications/publications on profiles                             | ✅     |
+| ReactFlow org chart on `/staff`                                     | ✅     |
+| `/staff/inbox` HR workflow filter                                   | ✅     |
+| Seed `HR_DIRECTOR` position holder                                  | ✅     |
+| Apply workload suggestions (web)                                    | ✅     |
 
 ---
 
-## Phase 11 — Elections & meetings (~0%)
+## Phase 11 — Elections & meetings (100%)
 
 ### Prompt 11.1 — Elections
 
-| Item                                    | Status |
-| --------------------------------------- | ------ |
-| Blind-signature voting, booths, results | ⬜     |
+| Item                                     | Status |
+| ---------------------------------------- | ------ |
+| Prisma Election models + migration       | ✅     |
+| Blind-signature voting (voterHash)       | ✅     |
+| Nominations, ballot, verify token        | ✅     |
+| Admin results + certification workflow   | ✅     |
+| Election management audit log            | ✅     |
+| `/elections` API + web hub               | ✅     |
+| Permissions elections.read/manage        | ✅     |
+| Seed demo election + ELECTIONS module    | ✅     |
+| Institution-wide scope (`ElectionScope`) | ✅     |
+| Auto lifecycle sync (cron + manual)      | ✅     |
+| Voting-open notifications                | ✅     |
+| Manifesto upload (storage)               | ✅     |
+| Public published results                 | ✅     |
+| `ELECTION_CERTIFICATION` workflow        | ✅     |
+| Tenant module gating (`ELECTIONS`)       | ✅     |
+| Rich web hub (candidates, audit, booth)  | ✅     |
 
 ### Prompt 11.2 — Meetings + AI minutes
 
-| Item                             | Status |
-| -------------------------------- | ------ |
-| Meetings, governance, AI minutes | ⬜     |
+| Item                                | Status |
+| ----------------------------------- | ------ |
+| Prisma Meeting models + migration   | ✅     |
+| Meeting CRUD, agenda, attendees     | ✅     |
+| Resolutions register + live vote    | ✅     |
+| AI minutes (OpenAI + heuristic)     | ✅     |
+| Committees, action items, iCal      | ✅     |
+| `/meetings` API + web hub           | ✅     |
+| Permissions meetings.\* + seed      | ✅     |
+| Meeting PATCH/cancel/start/end      | ✅     |
+| Agenda edit/delete + reorder        | ✅     |
+| Minutes text file (storage)         | ✅     |
+| `MEETING_MINUTES_FILING` workflow   | ✅     |
+| Action-item due reminders (cron)    | ✅     |
+| Meeting type hierarchy validation   | ✅     |
+| Committee update/retire             | ✅     |
+| Tenant module gating (`MEETINGS`)   | ✅     |
+| Rich web hub (create, agenda, live) | ✅     |
+| Permission bundles seed             | ✅     |
 
 ---
 

@@ -33,6 +33,7 @@ import { StudentPayOnlineButton } from '@/components/finance/student-pay-online-
 import { StudentPaymentPlanForm } from '@/components/finance/student-payment-plan-form';
 import { StudentProgressionInsights } from '@/components/students/student-progression-insights';
 import { StudentAcademicInsightsPanel } from '@/components/students/student-academic-insights-panel';
+import { StudentAiAdvisorPanel } from '@/components/students/student-ai-advisor-panel';
 
 const apiBase =
   process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -686,6 +687,13 @@ export default async function StudentProfilePage({
             gpa={student.metrics.gpa}
             standing={student.metrics.standing}
             creditsEarned={student.metrics.creditHoursEarned}
+          />
+
+          <StudentAiAdvisorPanel
+            studentId={student.id}
+            primary={primary}
+            accent={accent}
+            muted={muted}
           />
 
           <section style={{ marginBottom: '2rem' }}>

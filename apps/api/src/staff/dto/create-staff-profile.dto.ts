@@ -1,5 +1,15 @@
 import { EmploymentType } from '@prisma/client';
-import { IsArray, IsDateString, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
+import { StaffSalaryDto } from './staff-salary.dto';
 
 export class CreateStaffProfileDto {
   @IsString()
@@ -38,4 +48,15 @@ export class CreateStaffProfileDto {
   @IsOptional()
   @IsArray()
   researchInterests?: string[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => StaffSalaryDto)
+  salary?: StaffSalaryDto;
+
+  @IsOptional()
+  qualifications?: unknown[];
+
+  @IsOptional()
+  publications?: unknown[];
 }

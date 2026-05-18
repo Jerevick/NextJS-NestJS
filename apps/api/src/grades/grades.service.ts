@@ -16,6 +16,7 @@ import type { CreateGradingScaleDto } from './dto/create-grading-scale.dto';
 import type { ListGradeOverridesQueryDto } from './dto/list-grade-overrides-query.dto';
 import type { PatchGradeComponentWeightsDto } from './dto/patch-grade-component-weights.dto';
 import type { UpdateEnrollmentGradeDto } from './dto/update-enrollment-grade.dto';
+import { assertHumanInTheLoop } from '../ai/ai-human-in-the-loop.util';
 import type { UpdateGradingScaleDto } from './dto/update-grading-scale.dto';
 import { parseGradeGovernance, userHasAnyPermission } from './grade-governance';
 import {
@@ -256,6 +257,7 @@ export class GradesService {
     if (!row) {
       throw new NotFoundException('Enrollment not found');
     }
+    assertHumanInTheLoop(dto, 'grade');
     const inst = await this.repo.getInstitutionSettings(actor.institutionId);
     const governance = parseGradeGovernance(inst?.settings);
 

@@ -1,19 +1,12 @@
-import Link from 'next/link';
-import { BrandMark } from '@unicore/ui';
-import { env } from '@/env';
+import type { Metadata } from 'next';
+import { LandingPage } from '@/components/landing/landing-page';
+
+export const metadata: Metadata = {
+  title: 'UniCore — University SIS + LMS Platform',
+  description:
+    'One platform for admissions, academics, finance, HR, and learning — built for multi-campus universities and every institution type.',
+};
 
 export default function HomePage() {
-  return (
-    <main style={{ padding: '2rem', fontFamily: 'system-ui' }}>
-      <BrandMark />
-      <p style={{ marginTop: '1rem', color: '#334155' }}>
-        Institution portal. API: {env.NEXT_PUBLIC_API_URL}
-      </p>
-      <p style={{ marginTop: '1rem' }}>
-        <Link href="/login">Sign in</Link>
-        {' · '}
-        <Link href="/dashboard">Dashboard</Link>
-      </p>
-    </main>
-  );
+  return <LandingPage />;
 }

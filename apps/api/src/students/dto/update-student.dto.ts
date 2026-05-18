@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -55,4 +56,17 @@ export class UpdateStudentDto {
   @IsString()
   @MaxLength(2048)
   photo?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  careerGoals?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  aiSuggested?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  humanConfirmed?: boolean;
 }

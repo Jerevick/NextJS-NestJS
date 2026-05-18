@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -17,6 +8,7 @@ import { AnyPermissionsGuard } from '../common/guards/any-permissions.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { ListInstitutionsQueryDto } from './dto/list-institutions-query.dto';
+import { UpdateInstitutionAiDto } from './dto/update-institution-ai.dto';
 import { UpdateInstitutionModulesDto } from './dto/update-institution-modules.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
 import { InstitutionsService } from './institutions.service';
@@ -51,8 +43,30 @@ export class InstitutionsController {
   @Patch(':id')
   @UseGuards(PermissionsGuard)
   @RequirePermissions('institutions.write')
-  update(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: UpdateInstitutionDto) {
+  update(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateInstitutionDto,
+  ) {
     return this.institutions.update(user, id, dto);
+  }
+
+  @Get(':id/ai')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('institutions.read', 'institutions.write')
+  getAi(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.institutions.getAiSettings(user, id);
+  }
+
+  @Patch(':id/ai')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('institutions.write')
+  updateAi(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateInstitutionAiDto,
+  ) {
+    return this.institutions.updateAiSettings(user, id, dto);
   }
 
   @Patch(':id/modules')

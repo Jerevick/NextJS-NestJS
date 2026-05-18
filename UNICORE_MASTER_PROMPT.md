@@ -2747,32 +2747,32 @@ CRITICAL RULES:
 
 Build apps/api/src/modules/staff/ and apps/api/src/modules/leave/.
 
-StaffManagementModule:
+1. StaffManagementModule:
   StaffProfile CRUD (dual-scoped — staff belongs to one entity)
   Cross-entity staff: UserEntityAccess grants teaching rights in multiple entities
   Workload tracking: credit hours per semester (WorkloadRecord)
   Workload limit enforcement: alert/block if exceeding maxCreditHours per entity settings
   AI feature: optimal workload distribution suggestion
 
-LeaveModule:
+2. LeaveModule:
   Leave type configuration per institution
   Leave balance management (allocated, used, carried over)
   Request workflow (WorkflowEngine: LEAVE_REQUEST)
   Calendar integration: block dates after approval
   Entitlement enforcement: reject if insufficient balance
 
-AppraisalModule:
+3. AppraisalModule:
   Configurable KPI sets per position level
   Annual appraisal cycle management
   360 review option: collect peer feedback
   Self-assessment + reviewer rating
   Workflow: staff submits → HoD reviews → Dean endorses
 
-OrgChartModule:
+4. OrgChartModule:
   Staff directory with org chart derived from OrgUnit tree + PositionHolder
   GET /staff/org-chart?entityId=X → nested structure with staff photos + positions
 
-Frontend (/staff/page.tsx):
+5. Frontend (/staff/page.tsx):
   Staff registry table with position, entity, contact
   Workload heatmap (which lecturers are near capacity)
   Leave calendar (FullCalendar)

@@ -10,10 +10,14 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./election-blind-rsa-browser": {
+      "types": "./dist/election-blind-rsa-browser.d.ts",
+      "import": "./dist/election-blind-rsa-browser.js"
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "build": "tsup src/index.ts src/election-blind-rsa-browser.ts --format esm,cjs --dts --clean",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
