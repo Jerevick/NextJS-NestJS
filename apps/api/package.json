@@ -8,10 +8,12 @@
     "start": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
-    "test": "jest --config jest.config.cjs"
+    "test": "jest --config jest.config.cjs",
+    "test:e2e": "jest --config jest.e2e.config.cjs --runInBand"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/s3-request-presigner": "^3.1049.0",
     "@nestjs/bullmq": "^10.2.3",
     "@nestjs/common": "^10.4.15",
     "@nestjs/config": "^3.3.0",
@@ -35,9 +37,13 @@
     "bullmq": "^5.34.5",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "docx": "^9.6.1",
     "exceljs": "^4.4.0",
+    "firebase-admin": "^13.4.0",
+    "handlebars": "^4.7.9",
+    "helmet": "^8.1.0",
     "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^8.0.7",
@@ -57,7 +63,9 @@
     "@nestjs/cli": "^10.4.9",
     "@nestjs/schematics": "^10.2.3",
     "@nestjs/testing": "^10.4.15",
+    "@testcontainers/postgresql": "^11.14.0",
     "@types/bcrypt": "^5.0.2",
+    "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
@@ -70,6 +78,7 @@
     "@unicore/typescript-config": "workspace:*",
     "eslint": "catalog:",
     "jest": "^30.4.2",
+    "testcontainers": "^11.14.0",
     "ts-jest": "^29.4.9",
     "typescript": "catalog:"
   }

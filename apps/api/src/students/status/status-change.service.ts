@@ -1,11 +1,13 @@
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+  PLATFORM_WEBHOOK_DISPATCH,
+  type PlatformWebhookDispatchPayload,
+} from '../../events/platform-webhook.events';
 import type { BillingImplication, Prisma, StudentEnrollmentStatusEnum } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
+import { NotificationEventsService } from '../../notifications/notification-events.service';
 import { SessionEventsService } from '../../sessions/session-events.service';
 import type { StudentWithUserProgram } from '../students.repository';
 
@@ -28,6 +30,8 @@ export class StatusChangeService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly sessions: SessionEventsService,
+    private readonly notify: NotificationEventsService,
+    private readonly events: EventEmitter2,
   ) {}
 
   async changeEnrollmentStatus(args: {
@@ -96,7 +100,11 @@ export class StatusChangeService {
       const inactiveFields =
         to === 'ACTIVE'
           ? { inactiveReason: null, inactiveSince: null }
-          : to === 'INACTIVE' || to === 'SUSPENDED' || to === 'DEFERRED' || to === 'WITHDRAWN' || to === 'GRADUATED'
+          : to === 'INACTIVE' ||
+              to === 'SUSPENDED' ||
+              to === 'DEFERRED' ||
+              to === 'WITHDRAWN' ||
+              to === 'GRADUATED'
             ? {
                 inactiveReason: args.inactiveReason?.trim() || to,
                 inactiveSince: new Date(),
@@ -152,6 +160,37 @@ export class StatusChangeService {
           'STUDENT_INACTIVE',
         );
       }
+    }
+
+    if (auditPayload && auditPayload.fromStatus !== auditPayload.toStatus) {
+      const webhookPayload: PlatformWebhookDispatchPayload = {
+        event: 'student.status_changed',
+        institutionId: args.institutionId,
+        entityId: updated.entityId,
+        data: {
+          studentId: args.studentId,
+          fromStatus: auditPayload.fromStatus,
+          toStatus: auditPayload.toStatus,
+          reason: auditPayload.reason,
+        },
+      };
+      this.events.emit(PLATFORM_WEBHOOK_DISPATCH, webhookPayload);
+    }
+
+    if (auditPayload && auditPayload.billingImplication !== 'NONE') {
+      const profile = (updated.user?.profile ?? {}) as { firstName?: string; lastName?: string };
+      const studentName =
+        [profile.firstName, profile.lastName].filter(Boolean).join(' ') || updated.studentNumber;
+      void this.notify.notifyStatusChangeBillingImpact({
+        institutionId: args.institutionId,
+        entityId: updated.entityId,
+        studentId: args.studentId,
+        studentNumber: updated.studentNumber,
+        studentName,
+        fromStatus: auditPayload.fromStatus,
+        toStatus: auditPayload.toStatus,
+        billingImplication: auditPayload.billingImplication,
+      });
     }
 
     return updated;

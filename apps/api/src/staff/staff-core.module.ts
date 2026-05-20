@@ -4,7 +4,7 @@ import { AppraisalModule } from '../appraisal/appraisal.module';
 import { AppraisalRepository } from '../appraisal/appraisal.repository';
 import { LeaveModule } from '../leave/leave.module';
 import { LeaveRepository } from '../leave/leave.repository';
-import { NotificationsModule } from '../notifications/notifications.module';
+import { NotificationsModule } from '../modules/notifications';
 import { StorageModule } from '../storage/storage.module';
 import { WorkflowEngineModule } from '../workflow-engine/workflow-engine.module';
 import { StaffCalendarIntegrationService } from './staff-calendar-integration.service';
@@ -16,7 +16,7 @@ import { StaffService } from './staff.service';
 /** Shared HR services exported to management, leave, appraisal, and org-chart modules. */
 @Module({
   imports: [
-    NotificationsModule,
+    NotificationsModule.register(),
     StorageModule,
     forwardRef(() => WorkflowEngineModule),
     forwardRef(() => LeaveModule),

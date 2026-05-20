@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { AuthUser } from '../auth/auth.types';
+import { assertUploadMimeMatchesMagicBytes } from '../common/security/upload-magic-bytes.util';
 import { ObjectStorageService } from '../storage/object-storage.service';
 import { ElectionsRepository } from './elections.repository';
 
@@ -21,10 +22,7 @@ export class ElectionDocumentsService {
   ) {
     if (!file?.buffer?.length) throw new BadRequestException('File is required');
     if (file.size > MAX_BYTES) throw new BadRequestException('File must be 5 MB or smaller');
-    const mime = file.mimetype?.toLowerCase() ?? '';
-    if (!ALLOWED_MIME.has(mime)) {
-      throw new BadRequestException('Allowed types: PDF, JPEG, PNG, WebP');
-    }
+    const mime = assertUploadMimeMatchesMagicBytes(file.buffer, file.mimetype, ALLOWED_MIME);
     const election = await this.repo.findElection(actor.institutionId, electionId);
     if (!election) throw new NotFoundException('Election not found');
     const safeName = (file.originalname || 'manifesto').replace(/[^\w.\-]+/g, '_').slice(0, 120);
@@ -32,7 +30,7 @@ export class ElectionDocumentsService {
     const stored = await this.storage.putBuffer(key, file.buffer, mime);
     return {
       manifestoDocKey: stored.key,
-      downloadUrl: this.storage.getDownloadUrl(stored.key),
+      downloadUrl: await this.storage.resolveDownloadUrl(stored.key),
     };
   }
 
@@ -43,10 +41,8 @@ export class ElectionDocumentsService {
   ) {
     if (!file?.buffer?.length) throw new BadRequestException('File is required');
     if (file.size > 2 * 1024 * 1024) throw new BadRequestException('Photo must be 2 MB or smaller');
-    const mime = file.mimetype?.toLowerCase() ?? '';
-    if (!mime.startsWith('image/')) {
-      throw new BadRequestException('Photo must be an image (JPEG, PNG, or WebP)');
-    }
+    const imageMime = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    const mime = assertUploadMimeMatchesMagicBytes(file.buffer, file.mimetype, imageMime);
     const candidate = await this.repo.findCandidateById(candidateId);
     if (!candidate || candidate.institutionId !== actor.institutionId) {
       throw new NotFoundException('Candidate not found');
@@ -57,13 +53,13 @@ export class ElectionDocumentsService {
     await this.repo.updateCandidate(candidateId, { photo: stored.key });
     return {
       photoKey: stored.key,
-      downloadUrl: this.storage.getDownloadUrl(stored.key),
+      downloadUrl: await this.storage.resolveDownloadUrl(stored.key),
     };
   }
 
-  getPhotoUrl(photoKey: string | null | undefined) {
+  async getPhotoUrl(photoKey: string | null | undefined) {
     if (!photoKey) return null;
-    return this.storage.getDownloadUrl(photoKey);
+    return this.storage.resolveDownloadUrl(photoKey);
   }
 
   async getManifestoUrl(actor: AuthUser, candidateId: string) {
@@ -72,6 +68,6 @@ export class ElectionDocumentsService {
       throw new NotFoundException('Candidate not found');
     }
     if (!candidate.manifestoDocKey) throw new NotFoundException('No manifesto uploaded');
-    return { downloadUrl: this.storage.getDownloadUrl(candidate.manifestoDocKey) };
+    return { downloadUrl: await this.storage.resolveDownloadUrl(candidate.manifestoDocKey) };
   }
 }

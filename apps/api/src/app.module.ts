@@ -27,11 +27,14 @@ import { FinanceModule } from './modules/finance';
 import { AppraisalModule } from './modules/appraisal';
 import { AiModule } from './modules/ai';
 import { AlumniModule } from './modules/alumni';
+import { SportsModule } from './modules/sports';
 import { ElectionsModule } from './modules/elections';
 import { LeaveModule } from './modules/leave';
 import { MeetingsModule } from './modules/meetings';
 import { StaffModule } from './modules/staff';
-import { NotificationsModule } from './notifications/notifications.module';
+import { NotificationsModule } from './modules/notifications';
+import { CustomizationModule } from './modules/customization';
+import { IntegrationsModule } from './modules/integrations';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProgressionModule } from './progression/progression.module';
 import { QueuesModule } from './queues/queues.module';
@@ -39,6 +42,7 @@ import { RoomsModule } from './rooms/rooms.module';
 import { StudentsModule } from './students/students.module';
 import { TranscriptsModule } from './transcripts/transcripts.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { FieldsSelectionInterceptor } from './common/interceptors/fields-selection.interceptor';
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
 import { InstitutionScopeGuard } from './common/guards/institution-scope.guard';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -47,6 +51,8 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { TenantModulesModule } from './common/tenant-modules/tenant-modules.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
+import { PortalModule } from './portal/portal.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
 import { RedisThrottlerStorage } from './redis/redis-throttler.storage';
 import { RedisModule } from './redis/redis.module';
@@ -96,6 +102,8 @@ import { SessionsModule } from './sessions/sessions.module';
     RoomsModule,
     TranscriptsModule,
     MonitoringModule,
+    PortalModule,
+    DashboardModule,
     SuperAdminModule,
     LmsFeatureModule,
     LmsAssessmentsModule,
@@ -107,12 +115,16 @@ import { SessionsModule } from './sessions/sessions.module';
     MeetingsModule,
     AiModule.register(),
     AlumniModule,
-    NotificationsModule,
+    SportsModule.register(),
+    NotificationsModule.register(),
+    CustomizationModule,
+    IntegrationsModule.register(),
   ],
   providers: [
     TenantMiddleware,
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: FieldsSelectionInterceptor },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },

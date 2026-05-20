@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Inject, Logger, forwardRef } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -37,6 +37,7 @@ export class SessionGateway implements OnGatewayConnection {
   private readonly log = new Logger(SessionGateway.name);
 
   constructor(
+    @Inject(forwardRef(() => AuthService))
     private readonly auth: AuthService,
     private readonly lmsAssessments: LmsAssessmentsService,
   ) {}
@@ -103,5 +104,12 @@ export class SessionGateway implements OnGatewayConnection {
       return;
     }
     this.server.to(`user:${userId}`).emit('session.terminated', body);
+  }
+
+  emitUserNotification(userId: string, payload: Record<string, unknown>): void {
+    if (!this.server) {
+      return;
+    }
+    this.server.to(`user:${userId}`).emit('notification.new', payload);
   }
 }

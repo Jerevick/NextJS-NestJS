@@ -12,6 +12,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import dynamic from 'next/dynamic';
+import type { ComponentProps } from 'react';
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 
 import type { LMSLesson } from '@/components/lms/course-structure';
@@ -21,8 +23,19 @@ import {
   fetchTeachLessonDetail,
   patchTeachLessonAction,
 } from './actions';
-import { TeachLessonRichTextEditor } from './teach-lesson-tiptap';
 import { TeachFacultyAiPanel } from './teach-faculty-ai-panel';
+import type { TeachLessonRichTextEditor as TeachLessonRichTextEditorComponent } from './teach-lesson-tiptap';
+
+const TeachLessonRichTextEditor = dynamic<
+  ComponentProps<typeof TeachLessonRichTextEditorComponent>
+>(() => import('./teach-lesson-tiptap.js').then((m) => m.TeachLessonRichTextEditor), {
+  ssr: false,
+  loading: () => (
+    <Typography variant="body2" color="text.secondary">
+      Loading editor…
+    </Typography>
+  ),
+});
 
 const LESSON_TYPES = ['TEXT', 'VIDEO', 'DOCUMENT', 'EMBED', 'QUIZ'] as const;
 

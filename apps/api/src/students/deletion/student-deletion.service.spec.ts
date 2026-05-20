@@ -9,12 +9,13 @@ describe('StudentDeletionService', () => {
     $transaction: jest.fn(),
   };
   const audit = { append: jest.fn() };
+  const statusChanges = { changeEnrollmentStatus: jest.fn() };
 
   let service: StudentDeletionService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new StudentDeletionService(prisma as never, audit as never);
+    service = new StudentDeletionService(prisma as never, audit as never, statusChanges as never);
   });
 
   it('rejects ACTIVE students', async () => {

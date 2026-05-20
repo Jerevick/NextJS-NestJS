@@ -526,10 +526,17 @@ export class AuthService {
     const trimmed = entityId.trim();
     const target = await this.prisma.institutionEntity.findFirst({
       where: { id: trimmed, institutionId, deletedAt: null, status: 'ACTIVE' },
-      select: { id: true },
+      select: { id: true, type: true },
     });
     if (!target) {
       throw new BadRequestException('Unknown or inactive campus entity');
+    }
+    if (
+      target.type === 'AFFILIATE' &&
+      !actor.permissions.includes('*') &&
+      !actor.permissions.includes('institutions.write')
+    ) {
+      throw new ForbiddenException('Cannot switch to an affiliate entity');
     }
     if (actor.permissions.includes('*')) {
       return;

@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { FinancePaymentPlanStatus } from '@prisma/client';
-import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationEventsService } from '../notifications/notification-events.service';
+import { FEE_DUE_REMINDER_DAYS, isFeeDueReminderDay } from './finance-fee-due.util';
 import { parsePaymentPlanInstallments } from './finance.util';
 
 @Injectable()
@@ -10,14 +11,14 @@ export class FinancePaymentPlanRemindersService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mail: MailService,
+    private readonly notify: NotificationEventsService,
   ) {}
 
-  /** Notify students of installments due within 3 days (email + audit log). */
+  /** Notify students + guardians at 7, 3, and 1 days before installment due dates. */
   async sendDueReminders(): Promise<{ sent: number }> {
-    const now = new Date();
-    const horizon = new Date(now.getTime() + 3 * 86_400_000);
+    const today = new Date();
     let sent = 0;
+    const sentKeys = new Set<string>();
 
     const plans = await this.prisma.financePaymentPlan.findMany({
       where: { status: FinancePaymentPlanStatus.ACTIVE },
@@ -28,7 +29,9 @@ export class FinancePaymentPlanRemindersService {
               select: {
                 id: true,
                 institutionId: true,
+                entityId: true,
                 userId: true,
+                guardians: true,
                 user: { select: { email: true, profile: true } },
               },
             },
@@ -39,48 +42,42 @@ export class FinancePaymentPlanRemindersService {
     });
 
     for (const plan of plans) {
+      const student = plan.studentAccount.student;
       const installments = parsePaymentPlanInstallments(plan.installments);
       for (const inst of installments) {
         if (inst.status !== 'PENDING') {
           continue;
         }
         const due = new Date(inst.dueDate);
-        if (due < now || due > horizon) {
-          continue;
-        }
-        await this.prisma.auditLog.create({
-          data: {
+        for (const daysBefore of FEE_DUE_REMINDER_DAYS) {
+          if (!isFeeDueReminderDay(due, daysBefore, today)) {
+            continue;
+          }
+          const dedupeKey = `fee-due:${plan.id}:${inst.dueDate}:${daysBefore}`;
+          if (sentKeys.has(dedupeKey)) {
+            continue;
+          }
+          sentKeys.add(dedupeKey);
+
+          await this.notify.notifyFeeDue({
             institutionId: plan.institutionId,
-            actorId: 'system-finance-reminders',
-            action: 'finance.paymentPlan.reminder',
-            entity: 'FinancePaymentPlan',
-            entityId: plan.id,
-            newValues: {
-              studentId: plan.studentAccount.studentId,
-              dueDate: inst.dueDate,
-              amount: inst.amount,
-              installmentDueDate: inst.dueDate,
-            },
-          },
-        });
-        const email = plan.studentAccount.student.user?.email?.trim();
-        if (email) {
-          const profile = plan.studentAccount.student.user?.profile as {
-            firstName?: string;
-          } | null;
-          const name = profile?.firstName ?? 'Student';
-          await this.mail.sendEmail(
-            email,
-            'Payment plan installment due soon',
-            `Hello ${name},\n\nAn installment of ${inst.amount} ${plan.currency} is due on ${inst.dueDate}. Please sign in to pay your balance.`,
-          );
+            entityId: student.entityId,
+            studentId: student.id,
+            studentUserId: student.userId,
+            guardians: student.guardians,
+            amount: `${inst.amount} ${plan.currency}`,
+            dueDate: inst.dueDate,
+            daysBefore,
+            currency: plan.currency,
+          });
+
+          sent += 1;
         }
-        sent += 1;
       }
     }
 
     if (sent > 0) {
-      this.log.log(`Queued ${sent} payment plan reminder audit entries`);
+      this.log.log(`Sent ${sent} fee-due notification(s)`);
     }
     return { sent };
   }

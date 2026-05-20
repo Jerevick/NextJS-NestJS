@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { AuthUser } from '../auth/auth.types';
 import { AuditService } from '../audit/audit.service';
@@ -44,7 +49,9 @@ function assertPlatformSuperAdmin(actor: AuthUser): void {
   if (actor.permissions.includes('*')) {
     return;
   }
-  throw new ForbiddenException('Only platform super administrators may lock or unlock billing snapshots.');
+  throw new ForbiddenException(
+    'Only platform super administrators may lock or unlock billing snapshots.',
+  );
 }
 
 function parseUtcDayOnly(isoDay: string): Date {
@@ -85,8 +92,7 @@ export class BillingService {
     const yesterday = new Date(today);
     yesterday.setUTCDate(yesterday.getUTCDate() - 1);
 
-    const entityFilter =
-      actor.entityScope === 'ENTITY' ? { entityId: actor.entityId } : {};
+    const entityFilter = actor.entityScope === 'ENTITY' ? { entityId: actor.entityId } : {};
 
     const [todaySnaps, yesterdaySnaps, inactiveCount] = await Promise.all([
       this.repo.sumDailySnapshotBillable(actor.institutionId, today, entityFilter),
@@ -283,7 +289,7 @@ export class BillingService {
       lockedAt: row.lockedAt,
       isRetroactive: row.isRetroactive,
       evidenceS3Key: row.evidenceS3Key,
-      evidenceDownloadUrl: this.evidence.getEvidenceDownloadUrl(row.evidenceS3Key),
+      evidenceDownloadUrl: await this.evidence.getEvidenceDownloadUrl(row.evidenceS3Key),
       backfillRequestId: row.backfillRequestId,
       lineItems: row.lineItems,
       createdAt: row.createdAt,
@@ -328,9 +334,15 @@ export class BillingService {
   async runDailySnapshotsNow(actor: AuthUser) {
     assertBillingWrite(actor);
     if (actor.permissions.includes('*')) {
-      return { ok: true as const, ...(await this.snapshots.runAllInstitutionsForUtcDay(new Date())) };
+      return {
+        ok: true as const,
+        ...(await this.snapshots.runAllInstitutionsForUtcDay(new Date())),
+      };
     }
-    return { ok: true as const, ...(await this.snapshots.runForInstitution(actor.institutionId, new Date())) };
+    return {
+      ok: true as const,
+      ...(await this.snapshots.runForInstitution(actor.institutionId, new Date())),
+    };
   }
 
   async listMonthlySummaries(actor: AuthUser, query: ListMonthlySummariesQueryDto) {
@@ -394,7 +406,12 @@ export class BillingService {
 
   async generateDraftInvoice(actor: AuthUser, dto: GenerateDraftInvoiceDto) {
     assertBillingWrite(actor);
-    return this.invoices.generateDraftInvoice(actor, dto.year, dto.month, dto.isRetroactive === true);
+    return this.invoices.generateDraftInvoice(
+      actor,
+      dto.year,
+      dto.month,
+      dto.isRetroactive === true,
+    );
   }
 
   async lockDailySnapshots(actor: AuthUser, dto: LockDailySnapshotsDto, meta?: BillingRequestMeta) {
@@ -440,7 +457,11 @@ export class BillingService {
     return { ok: true as const, updated };
   }
 
-  async unlockDailySnapshots(actor: AuthUser, dto: LockDailySnapshotsDto, meta?: BillingRequestMeta) {
+  async unlockDailySnapshots(
+    actor: AuthUser,
+    dto: LockDailySnapshotsDto,
+    meta?: BillingRequestMeta,
+  ) {
     assertPlatformSuperAdmin(actor);
     const instOk = await this.repo.countInstitutions({ id: dto.institutionId, deletedAt: null });
     if (instOk === 0) {
@@ -483,7 +504,12 @@ export class BillingService {
     return { ok: true as const, updated };
   }
 
-  async finalizeInvoice(actor: AuthUser, id: string, dto: FinalizeInvoiceDto, meta?: BillingRequestMeta) {
+  async finalizeInvoice(
+    actor: AuthUser,
+    id: string,
+    dto: FinalizeInvoiceDto,
+    meta?: BillingRequestMeta,
+  ) {
     assertBillingWrite(actor);
     const row = await this.repo.findInvoice(actor.institutionId, id);
     if (!row) {

@@ -4,7 +4,7 @@ Track progress against [`UNICORE_MASTER_PROMPT.md`](./UNICORE_MASTER_PROMPT.md) 
 
 **Legend:** ✅ Done · 🟡 Partial · ⬜ Not started
 
-**Last updated:** 2026-05-16 (Phase **9** finance — complete.)
+**Last updated:** 2026-05-20 (Phase **15** student & guardian portals.)
 
 ---
 
@@ -416,19 +416,31 @@ Track progress against [`UNICORE_MASTER_PROMPT.md`](./UNICORE_MASTER_PROMPT.md) 
 
 ---
 
-## Phase 12 — Alumni & sports (~0%)
+## Phase 12 — Alumni & sports (100%)
 
 ### Prompt 12.1 — Alumni
 
-| Item                          | Status |
-| ----------------------------- | ------ |
-| Directory, events, mentorship | ⬜     |
+| Item                                                         | Status |
+| ------------------------------------------------------------ | ------ |
+| Directory search (name, industry, location, programme, year) | ✅     |
+| Self-registration + chapter member management                | ✅     |
+| Events with Stripe checkout + job board + fundraising        | ✅     |
+| Branded newsletter + survey analytics                        | ✅     |
+| Mentorship programs/pairs + faculty department gate          | ✅     |
+| AI mentorship matching (pgvector)                            | ✅     |
+| `/alumni` web hub + API                                      | ✅     |
 
 ### Prompt 12.2 — Sports
 
-| Item                         | Status |
-| ---------------------------- | ------ |
-| Teams, fixtures, eligibility | ⬜     |
+| Item                                            | Status |
+| ----------------------------------------------- | ------ |
+| Teams, roster, medical clearance                | ✅     |
+| Facility FullCalendar + conflict detection      | ✅     |
+| Inter-entity fixtures + logistics               | ✅     |
+| Competition registration + eligibility block    | ✅     |
+| Player career stats + awards/records            | ✅     |
+| Institution-wide GPA recalc + AI at-risk alerts | ✅     |
+| `/sports` web hub + API                         | ✅     |
 
 ---
 
@@ -445,58 +457,119 @@ Track progress against [`UNICORE_MASTER_PROMPT.md`](./UNICORE_MASTER_PROMPT.md) 
 
 ---
 
-## Phase 14 — Notifications & customization (~2%)
+## Phase 14 — Notifications & customization (~95%)
 
 ### Prompt 14.1 — Notification engine
 
-| Item                                     | Status |
-| ---------------------------------------- | ------ |
-| Multi-channel (email, SMS, push, in-app) | ⬜     |
-| BullMQ notification processors           | ⬜     |
+| Item                                                                                     | Status |
+| ---------------------------------------------------------------------------------------- | ------ |
+| `NotificationService.send()` + template cascade                                          | ✅     |
+| Channels: email (Handlebars + institution SMTP), inApp (WS + record)                     | ✅     |
+| SMS: Twilio + Africa's Talking (`settings.notifications.sms`)                            | ✅     |
+| Push: Firebase FCM (`FIREBASE_SERVICE_ACCOUNT_JSON` / institution config)                | ✅     |
+| Push → email channel fallback                                                            | ✅     |
+| BullMQ `notification-dispatch` (per-channel jobs)                                        | ✅     |
+| Quiet hours (user timezone + `preferences.quietHours`)                                   | ✅     |
+| Digest mode (LOW + `digestMode` → hourly email/SMS summary)                              | ✅     |
+| Admin templates API + platform defaults                                                  | ✅     |
+| Read receipts (`readAt`, GET by id, Open link)                                           | ✅     |
+| Bulk broadcast (`POST /notifications/admin/bulk`)                                        | ✅     |
+| Targets: ALL_INSTITUTION, SPECIFIC_ENTITY, ALL_EXCEPT_ENTITY, BY_PROGRAMME               | ✅     |
+| Entity admin scope (own entity / programme only)                                         | ✅     |
+| Scheduled send (`scheduledAt` + BullMQ `notification-scheduled`)                         | ✅     |
+| List/cancel pending scheduled (`GET/POST …/scheduled`)                                   | ✅     |
+| Key event hooks (`NotificationEventsService`)                                            | ✅     |
+| Status GAIN/LOSS → Registrar + Finance                                                   | ✅     |
+| Grade released, fee due 7/3/1d, workflow assign/SLA, document ready                      | ✅     |
+| Election voting open, backfill approved                                                  | ✅     |
+| `sendSystem()` for internal callers; legacy `create()` delegates to engine               | ✅     |
+| Finance / meetings / staff migrated to `sendSystem()` + events                           | ✅     |
+| Web client `notification.new` on `/realtime` (app-wide provider + `/notifications` page) | ✅     |
+| Finance PDF receipts via `sendSystem()` (`FINANCE_PAYMENT_RECEIPT` + storage attachment) | ✅     |
 
 ### Prompt 14.2 — Customization engine
 
-| Item                           | Status |
-| ------------------------------ | ------ |
-| Institution/entity branding UI | 🟡     |
-| Custom forms builder           | ⬜     |
+| Item                                                                                     | Status |
+| ---------------------------------------------------------------------------------------- | ------ |
+| `CustomizationModule` + `getEffectiveSetting` cascade (entity → institution → platform)  | ✅     |
+| Entity-overridable vs institution-only keys enforced on entity patch                     | ✅     |
+| Settings API: list/get effective, institution/entity patch, branding + logo upload       | ✅     |
+| `CustomForm` + `FormSubmission` models, CRUD, publish, submit, analytics                 | ✅     |
+| Field types: text…radio, `file`, `section_header`, `conditional_logic` (`showWhen`)      | ✅     |
+| `POST /forms/:id/submit` + `GET /forms/:id` (published schema)                           | ✅     |
+| Analytics: field completion, response rate, 30-day `submissionTrend`                     | ✅     |
+| Admission `ApplicationForm` (cycle-bound) coexists with campus `CustomForm`              | ✅     |
+| `/settings` hub + branding, academic, custom-forms, notifications, integrations, payment | ✅     |
+| Branding: logo file upload + colour picker + domain                                      | ✅     |
+| Academic: grading system, semesters, calendar offset, link to grading weights            | ✅     |
+| Custom forms: drag-and-drop field builder + conditional showWhen                         | ✅     |
+| Notifications: per-event sidebar template editor                                         | ✅     |
+| Payment: gateway + masked API key inputs (institution scope)                             | ✅     |
 
 ---
 
-## Phase 15 — Student & guardian portals (~5%)
+## Phase 15 — Student & guardian portals (100%)
 
 ### Prompt 15.1 — Student portal
 
-| Item                                         | Status |
-| -------------------------------------------- | ------ |
-| Dedicated student shell + routes             | ⬜     |
-| Self-service registration, grades, LMS, fees | ⬜     |
+| Item                                                                                     | Status |
+| ---------------------------------------------------------------------------------------- | ------ |
+| Dedicated student shell + routes                                                         | ✅     |
+| Self-service registration, grades, LMS, fees                                             | ✅     |
+| `/dashboard` home (CGPA ring, credit progress, timetable, due assessments, academic tip) | ✅     |
+| `/my-courses` via `GET /portal/student/lms/courses` (no `lms.read` required)             | ✅     |
+| `/my-grades`, `/my-finance`, `/my-documents`, `/my-attendance`                           | ✅     |
+| Document request wizard + `POST /portal/student/documents/request`                       | ✅     |
+| Excess credit via `GET /portal/student/finance/excess-credit`                            | ✅     |
+| `/register-courses` self-enrollment via `POST /portal/student/enrollments`               | ✅     |
+| INACTIVE read-only banner + blocked pay/enroll                                           | ✅     |
+| `PortalModule` API (`/portal/student/*`)                                                 | ✅     |
+| GPA trend chart + AI academic tips (BYOK fallback)                                       | ✅     |
 
 ### Prompt 15.2 — Guardian portal
 
-| Item                                 | Status |
-| ------------------------------------ | ------ |
-| Guardian auth + linked students view | ⬜     |
+| Item                                                           | Status |
+| -------------------------------------------------------------- | ------ |
+| Guardian auth + linked students view                           | ✅     |
+| `/guardian/dashboard` summary KPIs + polished student cards    | ✅     |
+| Academic / finance / attendance per linked student             | ✅     |
+| Entity settings `guardianPortal.{academic,finance,attendance}` | ✅     |
+| `GET /portal/guardian/students` + child routes                 | ✅     |
 
 ---
 
-## Phase 16 — Security audit & performance (~8%)
+## Phase 16 — Security audit & performance (~100%)
 
 ### Prompt 16.1 — Security audit
 
 | Item                                   | Status |
 | -------------------------------------- | ------ |
-| Cross-tenant / cross-entity leak tests | 🟡     |
-| Guard coverage audit                   | 🟡     |
-| Pen-test checklist / ADRs              | ⬜     |
+| Cross-tenant / cross-entity leak tests | ✅     |
+| Testcontainers entity-isolation E2E    | ✅     |
+| `getById` entity scope enforcement     | ✅     |
+| Guard coverage audit                   | ✅     |
+| Pen-test checklist / ADRs              | ✅     |
+| Helmet + login throttle (5 / 15 min)   | ✅     |
+| Upload magic-byte validation           | ✅     |
+| Webhook signature verify util          | ✅     |
+| Affiliate entity switch blocked        | ✅     |
+| Finance transaction immutability       | ✅     |
+| `security-findings-report.md`          | ✅     |
 
 ### Prompt 16.2 — Performance
 
-| Item                         | Status |
-| ---------------------------- | ------ |
-| Cursor pagination everywhere | 🟡     |
-| Query indexes / N+1 review   | ⬜     |
-| Load testing                 | ⬜     |
+| Item                                                | Status |
+| --------------------------------------------------- | ------ |
+| Cursor pagination (core lists)                      | ✅     |
+| Query indexes / N+1 review                          | ✅     |
+| Load testing                                        | ✅     |
+| Redis tenant settings cache                         | ✅     |
+| Response compression (gzip)                         | ✅     |
+| Global `?fields=` selection                         | ✅     |
+| Presigned download URLs wired                       | ✅     |
+| Frontend dynamic imports (PDF, HLS, TipTap, charts) | ✅     |
+| `pnpm analyze` bundle report (`apps/web`)           | ✅     |
+| Field encryption audit spec                         | ✅     |
 
 ---
 
@@ -516,16 +589,22 @@ Track progress against [`UNICORE_MASTER_PROMPT.md`](./UNICORE_MASTER_PROMPT.md) 
 
 ---
 
-## Phase 18 — Integrations & public API (~5%)
+## Phase 18 — Integrations & public API (~95%)
 
 ### Prompt 18.1
 
-| Item                                      | Status |
-| ----------------------------------------- | ------ |
-| Affiliate verify API (student/transcript) | 🟡     |
-| Zoom / WhatsApp / calendar integrations   | ⬜     |
-| Public API + marketplace                  | ⬜     |
-| Webhook framework                         | ⬜     |
+| Item                                                               | Status |
+| ------------------------------------------------------------------ | ------ |
+| Affiliate verify API (student/transcript)                          | ✅     |
+| Integration marketplace (strategy pattern, configure/test/disable) | ✅     |
+| Zoom / WhatsApp / calendar + payment catalog providers             | ✅     |
+| Public API keys (`uc_live_…`, scopes, rate limit, entity routing)  | ✅     |
+| Webhook framework (BullMQ, HMAC signatures, delivery logs, test)   | ✅     |
+| Platform events: enrollment, status, grade, payment, workflow      | ✅     |
+| Mobile: FCM token, attendance sync, `?fields=` selection           | ✅     |
+| Developer docs + Postman starter + OpenAPI `/api/docs-json`        | ✅     |
+| iCal public subscribe feed                                         | ✅     |
+| GraphQL API (institution plan feature)                             | ⬜     |
 
 ---
 

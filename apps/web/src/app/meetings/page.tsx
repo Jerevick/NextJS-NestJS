@@ -50,26 +50,11 @@ export default async function MeetingsPage() {
     meetingLink?: string | null;
     orgUnit?: { name: string };
   }> = [];
-  let resolutions: Array<{
-    id: string;
-    resolutionNumber: string;
-    title: string;
-    outcome: string;
-    meeting?: { title: string; scheduledAt: string };
-  }> = [];
-
-  const [meetingsRes, resolutionsRes] = await Promise.all([
-    fetch(`${apiBase}/meetings`, { headers, cache: 'no-store' }),
-    fetch(`${apiBase}/meetings/resolutions/register`, { headers, cache: 'no-store' }),
-  ]);
+  const meetingsRes = await fetch(`${apiBase}/meetings`, { headers, cache: 'no-store' });
 
   if (meetingsRes.ok) {
     const body = (await meetingsRes.json()) as { data?: typeof meetings };
     meetings = body.data ?? [];
-  }
-  if (resolutionsRes.ok) {
-    const body = (await resolutionsRes.json()) as { data?: typeof resolutions };
-    resolutions = body.data ?? [];
   }
 
   let positions: Array<{ id: string; title: string }> = [];

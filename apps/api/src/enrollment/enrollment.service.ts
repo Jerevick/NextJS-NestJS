@@ -6,7 +6,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TenantModule } from '@prisma/client';
 import type { AuthUser } from '../auth/auth.types';
+import { TenantModulesService } from '../common/tenant-modules/tenant-modules.service';
 import { AuditService } from '../audit/audit.service';
 import { ENROLLMENT_CREATED } from '../events/enrollment.events';
 import type { CreateEnrollmentDto } from './dto/create-enrollment.dto';
@@ -61,6 +63,7 @@ export class EnrollmentService {
     private readonly audit: AuditService,
     private readonly repeatEnrollment: RepeatEnrollmentGuard,
     private readonly events: EventEmitter2,
+    private readonly tenantModules: TenantModulesService,
   ) {}
 
   private readEnrollmentSettings(settings: unknown): {
@@ -108,6 +111,7 @@ export class EnrollmentService {
   }
 
   async create(actor: AuthUser, dto: CreateEnrollmentDto) {
+    await this.tenantModules.assertEnabled(actor.institutionId, TenantModule.SIS);
     const student = await this.repo.findStudent(actor.institutionId, dto.studentId);
     if (!student) {
       throw new NotFoundException('Student not found');

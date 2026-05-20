@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { StaffUserPicker } from '@/components/staff/staff-user-picker';
 import { ElectionBoothEntryButton } from '@/components/elections/election-booth-entry';
@@ -80,7 +79,6 @@ export function ElectionsHub({
   elections: ElectionRow[];
   canManage: boolean;
 }) {
-  const router = useRouter();
   const [selectedId, setSelectedId] = useState(elections[0]?.id ?? '');
   const [candidates, setCandidates] = useState<CandidateRow[]>([]);
   const [ballot, setBallot] = useState<{

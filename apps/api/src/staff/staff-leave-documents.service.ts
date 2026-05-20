@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { AuthUser } from '../auth/auth.types';
+import { assertUploadMimeMatchesMagicBytes } from '../common/security/upload-magic-bytes.util';
 import { ObjectStorageService } from '../storage/object-storage.service';
 import { LeaveRepository } from '../leave/leave.repository';
 import { StaffRepository } from './staff.repository';
@@ -46,17 +47,14 @@ export class StaffLeaveDocumentsService {
     if (file.size > MAX_BYTES) {
       throw new BadRequestException('File must be 5 MB or smaller');
     }
-    const mime = file.mimetype?.toLowerCase() ?? '';
-    if (!ALLOWED_MIME.has(mime)) {
-      throw new BadRequestException('Allowed types: PDF, JPEG, PNG, WebP');
-    }
+    const mime = assertUploadMimeMatchesMagicBytes(file.buffer, file.mimetype, ALLOWED_MIME);
     const profile = await this.assertLeaveDocAccess(actor, staffId);
     const safeName = (file.originalname || 'document').replace(/[^\w.\-]+/g, '_').slice(0, 120);
     const key = `hr/leave/${actor.institutionId}/${profile.entityId}/${staffId}/${randomUUID()}-${safeName}`;
     const stored = await this.storage.putBuffer(key, file.buffer, mime);
     return {
       supportingDocKey: stored.key,
-      downloadUrl: this.storage.getDownloadUrl(stored.key),
+      downloadUrl: await this.storage.resolveDownloadUrl(stored.key),
     };
   }
 
@@ -76,7 +74,7 @@ export class StaffLeaveDocumentsService {
     }
     return {
       supportingDocKey: req.supportingDocKey,
-      downloadUrl: this.storage.getDownloadUrl(req.supportingDocKey),
+      downloadUrl: await this.storage.resolveDownloadUrl(req.supportingDocKey),
     };
   }
 }

@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MeetingActionStatus } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
-import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -11,40 +10,33 @@ export class MeetingsNotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
-    private readonly mail: MailService,
   ) {}
 
   async notifyActionItemDue(item: {
     id: string;
     institutionId: string;
+    entityId?: string | null;
     description: string;
     dueDate: Date | null;
     assignedToId: string | null;
     meeting: { title: string };
   }) {
     if (!item.assignedToId || !item.dueDate) return;
-    const title = `Action item due: ${item.meeting.title}`;
-    const body = `${item.description} is due ${item.dueDate.toLocaleDateString()}.`;
-    await this.notifications.create({
+
+    const dueDate = item.dueDate.toLocaleDateString();
+    await this.notifications.sendSystem({
       institutionId: item.institutionId,
-      userId: item.assignedToId,
-      category: 'MEETINGS',
-      title,
-      body,
+      entityId: item.entityId,
+      recipientId: item.assignedToId,
+      event: 'MEETING_ACTION_DUE',
+      data: {
+        meetingTitle: item.meeting.title,
+        description: item.description,
+        dueDate,
+      },
       actionUrl: '/meetings',
-      metadata: { actionItemId: item.id },
+      channels: ['inApp', 'email'],
     });
-    const user = await this.prisma.user.findFirst({
-      where: { id: item.assignedToId },
-      select: { email: true },
-    });
-    if (user?.email) {
-      try {
-        await this.mail.sendEmail(user.email, title, body, `<p>${body}</p>`);
-      } catch (e) {
-        this.log.warn(`Action item email failed: ${String(e)}`);
-      }
-    }
   }
 
   async remindDueActionItems(): Promise<number> {
@@ -55,11 +47,21 @@ export class MeetingsNotificationsService {
         dueDate: { lte: soon, gte: new Date() },
         assignedToId: { not: null },
       },
-      include: { meeting: { select: { title: true } } },
+      include: {
+        meeting: { select: { title: true, entityId: true } },
+      },
       take: 100,
     });
     for (const item of items) {
-      await this.notifyActionItemDue(item);
+      await this.notifyActionItemDue({
+        id: item.id,
+        institutionId: item.institutionId,
+        entityId: item.entityId,
+        description: item.description,
+        dueDate: item.dueDate,
+        assignedToId: item.assignedToId,
+        meeting: item.meeting,
+      });
     }
     return items.length;
   }

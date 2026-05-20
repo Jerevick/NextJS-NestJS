@@ -31,15 +31,16 @@ describe('parseDynamicFormSchema', () => {
     expect(schema?.fields[0].required).toBe(true);
   });
 
-  it('filters unknown field types', () => {
+  it('parses file and conditional_logic field types', () => {
     const schema = parseDynamicFormSchema({
       fields: [
-        { id: 'ok', type: 'text', label: 'Name' },
-        { id: 'bad', type: 'file_upload', label: 'File' },
+        { id: 'cv', type: 'file', label: 'Upload CV', accept: 'application/pdf' },
+        { id: 'rule', type: 'conditional_logic', label: 'Rules' },
+        { id: 'bad', type: 'file_upload', label: 'Legacy' },
       ],
     });
-    expect(schema?.fields).toHaveLength(1);
-    expect(schema?.fields[0].id).toBe('ok');
+    expect(schema?.fields.map((f) => f.type)).toEqual(['file', 'conditional_logic']);
+    expect(schema?.fields[0].accept).toBe('application/pdf');
   });
 });
 
@@ -110,5 +111,41 @@ describe('validateDynamicFormResponses', () => {
       track: 'Arts',
     });
     expect(result.valid).toBe(true);
+  });
+
+  it('skips required checks when showWhen hides the field', () => {
+    const conditional: DynamicFormSchema = {
+      fields: [
+        {
+          id: 'employed',
+          type: 'radio',
+          label: 'Employed?',
+          options: ['yes', 'no'],
+          required: true,
+        },
+        {
+          id: 'employer',
+          type: 'text',
+          label: 'Employer',
+          required: true,
+          showWhen: { fieldId: 'employed', equals: 'yes' },
+        },
+      ],
+    };
+    const result = validateDynamicFormResponses(conditional, {
+      employed: 'no',
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it('validates file references', () => {
+    const fileSchema: DynamicFormSchema = {
+      fields: [{ id: 'doc', type: 'file', label: 'Document', required: true }],
+    };
+    expect(validateDynamicFormResponses(fileSchema, { doc: 'local://x' }).valid).toBe(true);
+    expect(validateDynamicFormResponses(fileSchema, { doc: { storageKey: 'k1' } }).valid).toBe(
+      true,
+    );
+    expect(validateDynamicFormResponses(fileSchema, {}).valid).toBe(false);
   });
 });

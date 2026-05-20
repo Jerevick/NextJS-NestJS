@@ -91,7 +91,7 @@ export function MeetingsDetailPanel({
   const [minutesPreview, setMinutesPreview] = useState<string | null>(null);
   const [actionDesc, setActionDesc] = useState('');
   const [inviteUserId, setInviteUserId] = useState('');
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const reload = useCallback(() => {
     startTransition(async () => {

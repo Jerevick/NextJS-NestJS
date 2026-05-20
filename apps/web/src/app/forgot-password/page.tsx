@@ -1,16 +1,25 @@
-import Link from 'next/link';
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import { ForgotPasswordPage } from '@/components/auth/forgot-password-page';
+import styles from '@/components/auth/auth.module.css';
 
-export default function ForgotPasswordPage() {
+export const metadata: Metadata = {
+  title: 'Forgot password — UniCore',
+  description: 'Reset your UniCore account password.',
+};
+
+export default function ForgotPasswordRoute() {
   return (
-    <main style={{ maxWidth: 480, margin: '4rem auto', fontFamily: 'system-ui', padding: '0 1rem' }}>
-      <h1 style={{ fontSize: '1.5rem' }}>Forgot password</h1>
-      <p style={{ color: '#64748b' }}>
-        Password reset via email is not wired yet (requires mail provider + BullMQ per Phase 1 spec).
-        Contact your institution administrator for access.
-      </p>
-      <p>
-        <Link href="/login">Back to sign in</Link>
-      </p>
+    <Suspense fallback={<AuthFallback label="Loading…" />}>
+      <ForgotPasswordPage />
+    </Suspense>
+  );
+}
+
+function AuthFallback({ label }: { label: string }) {
+  return (
+    <main className={styles.shell} style={{ placeItems: 'center', display: 'grid' }}>
+      <p style={{ color: '#64748b' }}>{label}</p>
     </main>
   );
 }

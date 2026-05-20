@@ -6,7 +6,8 @@ import {
   FINANCE_BULK_CHARGE_QUEUE,
   FINANCE_PAYMENT_REMINDER_QUEUE,
 } from '../queues/queue.constants';
-import { NotificationsModule } from '../notifications/notifications.module';
+import { CustomizationModule } from '../modules/customization';
+import { NotificationsModule } from '../modules/notifications';
 import { WorkflowEngineModule } from '../workflow-engine/workflow-engine.module';
 import { FinanceBalanceCacheService } from './finance-balance-cache.service';
 import { FinanceBankIntegrationsController } from './finance-bank-integrations.controller';
@@ -59,7 +60,8 @@ if (!useBull) {
 
 @Module({
   imports: [
-    NotificationsModule,
+    CustomizationModule,
+    NotificationsModule.register(),
     forwardRef(() => WorkflowEngineModule),
     ...(useBull
       ? [

@@ -12,7 +12,7 @@ const profileInclude = {
 export class StaffRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  listProfiles(institutionId: string, entityId?: string) {
+  listProfiles(institutionId: string, entityId: string | undefined, take: number, cursor?: string) {
     return this.prisma.staffProfile.findMany({
       where: {
         institutionId,
@@ -20,7 +20,9 @@ export class StaffRepository {
         ...(entityId ? { entityId } : {}),
       },
       include: profileInclude,
-      orderBy: { staffNumber: 'asc' },
+      orderBy: [{ staffNumber: 'asc' }, { id: 'asc' }],
+      take: take + 1,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });
   }
 

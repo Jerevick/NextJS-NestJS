@@ -73,7 +73,13 @@ export class AttendanceService {
     throw new ForbiddenException('Not allowed to mark attendance for this section');
   }
 
-  assertCanViewStudentSummary(user: AuthUser) {
+  assertCanViewStudentSummary(user: AuthUser, studentId?: string) {
+    if (studentId && user.studentId === studentId) {
+      return;
+    }
+    if (user.role === 'GUARDIAN') {
+      return;
+    }
     if (user.permissions.includes('*')) {
       return;
     }
@@ -466,7 +472,7 @@ export class AttendanceService {
   }
 
   async studentSummary(actor: AuthUser, studentId: string) {
-    this.assertCanViewStudentSummary(actor);
+    this.assertCanViewStudentSummary(actor, studentId);
     const student = await this.repo.findStudent(actor.institutionId, studentId);
     if (!student) {
       throw new NotFoundException('Student not found');

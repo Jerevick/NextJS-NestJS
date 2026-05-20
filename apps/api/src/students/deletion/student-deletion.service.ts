@@ -1,11 +1,8 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { StudentEnrollmentStatusEnum } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
+import { StatusChangeService } from '../status/status-change.service';
 
 const ANON_PROFILE = {
   firstName: 'REDACTED',
@@ -20,6 +17,7 @@ export class StudentDeletionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly statusChanges: StatusChangeService,
   ) {}
 
   /**
@@ -47,10 +45,7 @@ export class StudentDeletionService {
     if (student.enrollmentStatus === StudentEnrollmentStatusEnum.PERMANENTLY_DELETED) {
       return { studentId: student.id, studentNumber: student.studentNumber };
     }
-    if (
-      params.typedStudentNumber &&
-      params.typedStudentNumber.trim() !== student.studentNumber
-    ) {
+    if (params.typedStudentNumber && params.typedStudentNumber.trim() !== student.studentNumber) {
       throw new BadRequestException('Typed student number confirmation does not match');
     }
 
@@ -65,6 +60,14 @@ export class StudentDeletionService {
     if (activeWorkflows > 0) {
       throw new BadRequestException('Student has active workflow instances');
     }
+
+    await this.statusChanges.changeEnrollmentStatus({
+      institutionId: params.institutionId,
+      actorUserId: params.actorUserId,
+      studentId: student.id,
+      toStatus: StudentEnrollmentStatusEnum.PERMANENTLY_DELETED,
+      reason: 'Permanent deletion executed after workflow approval',
+    });
 
     const userId = student.userId;
     await this.prisma.$transaction(async (tx) => {
@@ -83,7 +86,6 @@ export class StudentDeletionService {
       await tx.student.update({
         where: { id: student.id },
         data: {
-          enrollmentStatus: StudentEnrollmentStatusEnum.PERMANENTLY_DELETED,
           userId: null,
           guardians: [],
           emergencyContacts: [],
@@ -91,19 +93,6 @@ export class StudentDeletionService {
           photo: null,
           inactiveReason: null,
           inactiveSince: null,
-        },
-      });
-
-      await tx.statusChangeLog.create({
-        data: {
-          institutionId: params.institutionId,
-          entityId: student.entityId,
-          studentId: student.id,
-          fromStatus: student.enrollmentStatus,
-          toStatus: StudentEnrollmentStatusEnum.PERMANENTLY_DELETED,
-          reason: 'Permanent deletion executed after workflow approval',
-          changedBy: params.actorUserId,
-          billingImplication: 'NONE',
         },
       });
     });

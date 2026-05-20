@@ -41,6 +41,7 @@ import {
 } from './progression-batch-eval';
 import { workflowDefinitionForRecommendation } from './progression-review-workflow.util';
 import { ResitGradeService } from './resit-grade.service';
+import { normalizePageLimit, sliceCursorPage } from '../common/pagination/cursor-page.util';
 
 function decToNumber(d: Decimal | null | undefined): number | null | undefined {
   if (d === null || d === undefined) {
@@ -72,6 +73,9 @@ export class ProgressionService {
     if (!student) {
       throw new NotFoundException('Student not found');
     }
+    if (actor.studentId === studentId || actor.role === 'GUARDIAN') {
+      return student;
+    }
     if (actor.entityScope === 'ENTITY' && student.entityId !== actor.entityId) {
       throw new ForbiddenException('Student is outside your campus entity scope');
     }
@@ -89,11 +93,15 @@ export class ProgressionService {
     if (query.programId?.trim()) {
       where.programId = query.programId.trim();
     }
+    const limit = normalizePageLimit(query.limit, 50, 100);
     const rows = await this.prisma.progressionRule.findMany({
       where,
-      orderBy: [{ ruleScope: 'asc' }, { programId: 'asc' }],
+      orderBy: [{ ruleScope: 'asc' }, { programId: 'asc' }, { id: 'asc' }],
+      take: limit + 1,
+      ...(query.cursor ? { skip: 1, cursor: { id: query.cursor } } : {}),
     });
-    return { data: rows.map((r) => this.serializeRule(r)) };
+    const { data, nextCursor } = sliceCursorPage(rows, limit);
+    return { data: data.map((r) => this.serializeRule(r)), nextCursor };
   }
 
   async createRule(actor: AuthUser, dto: CreateProgressionRuleDto) {

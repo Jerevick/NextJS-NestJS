@@ -1,180 +1,235 @@
 'use client';
 
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import {
+  IconBook,
+  IconBuilding,
+  IconChart,
+  IconFlask,
+  IconGlobe,
+  IconGraduation,
+  IconSchool,
+  IconUsers,
+  IconWallet,
+  IconWorkflow,
+} from './landing-icons';
 import styles from './landing.module.css';
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 28 },
+  hidden: { opacity: 0, y: 20 },
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.08, duration: 0.55, ease: [0.22, 1, 0.36, 1] },
+    transition: { delay: i * 0.07, duration: 0.5, ease: [0.22, 1, 0.36, 1] as const },
   }),
 };
 
 const FEATURES = [
   {
-    icon: '🎓',
-    iconBg: 'linear-gradient(135deg, #dbeafe, #93c5fd)',
+    Icon: IconGraduation,
+    tone: 'blue',
     title: 'Student Information System',
-    text: 'Admissions pipelines, enrollment, progression, transcripts, and document vault — every learner journey in one record.',
-    tags: ['Admissions', 'Enrollment', 'Grades', 'Documents'],
-    className: styles.bentoWide,
+    text: 'Admissions, enrollment, progression, transcripts, and document vault — one auditable record per learner.',
+    tags: ['Admissions', 'Enrollment', 'Transcripts'],
+    wide: true,
   },
   {
-    icon: '📚',
-    iconBg: 'linear-gradient(135deg, #fef3c7, #fcd34d)',
+    Icon: IconBook,
+    tone: 'amber',
     title: 'Learning Management',
-    text: 'Course outlines, assessments, HLS video, quizzes, and an AI tutor that knows your syllabus.',
-    tags: ['Courses', 'Assessments', 'AI Tutor'],
-    className: styles.bentoCard,
+    text: 'Course delivery, assessments, video lessons, and syllabus-aware AI tutoring.',
+    tags: ['Courses', 'Assessments', 'AI tutor'],
+    wide: false,
   },
   {
-    icon: '💳',
-    iconBg: 'linear-gradient(135deg, #dcfce7, #86efac)',
+    Icon: IconWallet,
+    tone: 'green',
     title: 'Finance & Billing',
-    text: 'Fee structures, online payments, scholarships, guardian portals, and SaaS billing aligned to active students.',
-    tags: ['Fees', 'Payments', 'Scholarships'],
-    className: styles.bentoCard,
+    text: 'Fee structures, gateways, scholarships, and SaaS billing tied to active students.',
+    tags: ['Fees', 'Payments', 'GL'],
+    wide: false,
   },
   {
-    icon: '👥',
-    iconBg: 'linear-gradient(135deg, #fce7f3, #f9a8d4)',
-    title: 'HR & Staff Hub',
-    text: 'Staff registry, leave workflows, appraisals with immediate-head review, workload heatmaps, and live org charts.',
-    tags: ['Leave', 'Appraisals', 'Org chart'],
-    className: styles.bentoCard,
+    Icon: IconUsers,
+    tone: 'rose',
+    title: 'HR & Staff',
+    text: 'Staff registry, leave workflows, appraisals, workload planning, and live org charts.',
+    tags: ['Leave', 'Appraisal', 'Org chart'],
+    wide: false,
   },
   {
-    icon: '⚡',
-    iconBg: 'linear-gradient(135deg, #e0e7ff, #a5b4fc)',
+    Icon: IconWorkflow,
+    tone: 'indigo',
     title: 'Workflow Engine',
-    text: 'Configurable approvals for leave, finance, admissions, and HR — route to HoD, Dean, or custom roles automatically.',
-    tags: ['Approvals', 'Inbox', 'Audit trail'],
-    className: styles.bentoCard,
+    text: 'Configurable approvals routed to HoD, Dean, Registrar, or custom roles — with full audit trails.',
+    tags: ['Approvals', 'Inbox', 'Audit'],
+    wide: false,
   },
   {
-    icon: '📊',
-    iconBg: 'linear-gradient(135deg, #f3e8ff, #c4b5fd)',
-    title: 'Analytics & Operations',
-    text: 'Attendance QR, registrar progression, billing snapshots, and institution health — insight without spreadsheet chaos.',
-    tags: ['Attendance', 'Progression', 'Reporting'],
-    className: styles.bentoWide,
+    Icon: IconChart,
+    tone: 'violet',
+    title: 'Operations & Analytics',
+    text: 'Attendance, registrar progression, billing snapshots, and institution health dashboards.',
+    tags: ['Attendance', 'Progression', 'Reports'],
+    wide: true,
   },
 ] as const;
 
 const ARCHETYPES = [
   {
-    emoji: '🏛️',
+    Icon: IconBuilding,
     title: 'Multi-campus universities',
-    text: 'Main campus, extramural centres, and affiliate colleges — each as an entity with shared governance and isolated data where needed.',
+    text: 'Main campus, extramural centres, and affiliates — shared governance with entity-level isolation.',
   },
   {
-    emoji: '🌍',
+    Icon: IconGlobe,
     title: 'Distance & open learning',
-    text: 'Scale enrolment across regions while keeping programme structures, fees, and academic rules consistent institution-wide.',
+    text: 'Scale enrolment across regions while keeping programmes, fees, and rules consistent.',
   },
   {
-    emoji: '🔬',
+    Icon: IconFlask,
     title: 'Research-intensive faculties',
-    text: 'Org units from faculty to department, workload planning for lecturers, and appraisal cycles tied to real reporting lines.',
+    text: 'Faculty-to-department org structure, lecturer workload, and appraisal tied to reporting lines.',
   },
   {
-    emoji: '🏫',
+    Icon: IconSchool,
     title: 'Polytechnics & colleges',
-    text: 'Fast admissions, skills-based programmes, and finance that matches semester intakes and national qualification frameworks.',
+    text: 'Fast admissions, skills-based programmes, and finance aligned to semester intakes.',
   },
 ] as const;
 
-function PreviewMockup() {
-  const rows = [
-    { label: 'Admissions', pct: 78, color: '#3b82f6' },
-    { label: 'Enrollment', pct: 92, color: '#22c55e' },
-    { label: 'Finance', pct: 64, color: '#f59e0b' },
-    { label: 'LMS active', pct: 88, color: '#a855f7' },
-  ];
+const TRUST_ITEMS = [
+  'Multi-tenant by design',
+  'Entity-scoped RBAC',
+  'Append-only audit logs',
+  'Workflow-driven approvals',
+  'OpenAPI & webhooks',
+] as const;
+
+function DashboardPreview() {
   return (
-    <motion.div
-      className={styles.previewCard}
-      initial={{ opacity: 0, x: 40, rotateY: -8 }}
-      animate={{ opacity: 1, x: 0, rotateY: 0 }}
-      transition={{ delay: 0.5, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <div className={styles.previewHeader}>
-        <span className={styles.previewDot} style={{ background: '#ef4444' }} />
-        <span className={styles.previewDot} style={{ background: '#eab308' }} />
-        <span className={styles.previewDot} style={{ background: '#22c55e' }} />
+    <div className={styles.dashboard} aria-hidden>
+      <div className={styles.dashboardChrome}>
+        <span className={styles.chromeDot} data-c="r" />
+        <span className={styles.chromeDot} data-c="y" />
+        <span className={styles.chromeDot} data-c="g" />
+        <span className={styles.chromeTitle}>UniCore · Registrar dashboard</span>
       </div>
-      <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: 12 }}>
-        Demo University · Main Campus
-      </div>
-      {rows.map((r, i) => (
-        <div key={r.label} className={styles.previewRow}>
-          <span style={{ width: 72 }}>{r.label}</span>
-          <div
-            style={{
-              flex: 1,
-              height: 6,
-              borderRadius: 99,
-              background: 'rgba(255,255,255,0.08)',
-              overflow: 'hidden',
-            }}
-          >
-            <motion.div
-              style={{
-                height: '100%',
-                borderRadius: 99,
-                background: r.color,
-              }}
-              initial={{ width: 0 }}
-              animate={{ width: `${r.pct}%` }}
-              transition={{ delay: 0.8 + i * 0.12, duration: 0.7, ease: 'easeOut' }}
-            />
+      <div className={styles.dashboardBody}>
+        <aside className={styles.dashboardSidebar}>
+          {['Dashboard', 'Students', 'Finance', 'Workflow', 'Settings'].map((item, i) => (
+            <span
+              key={item}
+              className={styles.sidebarItem}
+              data-active={i === 0 ? 'true' : undefined}
+            >
+              {item}
+            </span>
+          ))}
+        </aside>
+        <div className={styles.dashboardMain}>
+          <div className={styles.dashHeader}>
+            <span>Active students</span>
+            <strong>12,847</strong>
           </div>
-          <span style={{ width: 28, textAlign: 'right' }}>{r.pct}%</span>
+          <div className={styles.dashGrid}>
+            {[
+              { label: 'Enrolments this term', value: '3,204', pct: 84 },
+              { label: 'Fee collection', value: '78%', pct: 78 },
+              { label: 'Pending approvals', value: '42', pct: 42 },
+            ].map((card) => (
+              <div key={card.label} className={styles.dashCard}>
+                <span className={styles.dashCardLabel}>{card.label}</span>
+                <span className={styles.dashCardValue}>{card.value}</span>
+                <div className={styles.dashBarTrack}>
+                  <motion.div
+                    className={styles.dashBarFill}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${card.pct}%` }}
+                    transition={{ duration: 0.9, ease: 'easeOut', delay: 0.3 }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className={styles.dashTable}>
+            <div className={styles.dashTableHead}>
+              <span>Student</span>
+              <span>Programme</span>
+              <span>Status</span>
+            </div>
+            {[
+              ['Ada Okafor', 'BSc Computer Science', 'Active'],
+              ['James Mwangi', 'MBA Executive', 'Active'],
+              ['Sarah Chen', 'LLB Year 2', 'Deferred'],
+            ].map(([name, prog, status]) => (
+              <div key={name} className={styles.dashTableRow}>
+                <span>{name}</span>
+                <span>{prog}</span>
+                <span className={styles.statusPill}>{status}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      ))}
-    </motion.div>
+      </div>
+    </div>
   );
 }
 
 export function LandingPage() {
   const [navScrolled, setNavScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
   const heroRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ['start start', 'end start'],
   });
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
-  const heroY = useTransform(scrollYProgress, [0, 0.5], [0, 80]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.45], [1, 0]);
+  const heroY = useTransform(scrollYProgress, [0, 0.45], [0, reduceMotion ? 0 : 48]);
 
   useEffect(() => {
-    const onScroll = () => setNavScrolled(window.scrollY > 24);
+    const onScroll = () => setNavScrolled(window.scrollY > 16);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [menuOpen]);
+
+  const motionProps = reduceMotion
+    ? { initial: false as const, animate: { opacity: 1, y: 0 } }
+    : {};
+
   return (
-    <motion.div className={styles.page} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+    <div className={styles.page}>
       <header className={`${styles.nav} ${navScrolled ? styles.navScrolled : ''}`}>
-        <Link href="/" className={styles.navBrand}>
-          <span className={styles.logoMark}>U</span>
+        <Link href="/" className={styles.navBrand} onClick={() => setMenuOpen(false)}>
+          <span className={styles.logoMark} aria-hidden>
+            U
+          </span>
           <span className={styles.logoText}>UniCore</span>
         </Link>
+
         <nav className={styles.navLinks} aria-label="Primary">
           <a href="#platform" className={styles.navLink}>
             Platform
           </a>
           <a href="#features" className={styles.navLink}>
-            Features
+            Modules
           </a>
           <a href="#institutions" className={styles.navLink}>
             Institutions
           </a>
         </nav>
+
         <div className={styles.navCtas}>
           <Link href="/login" className={styles.btnGhost}>
             Sign in
@@ -183,250 +238,297 @@ export function LandingPage() {
             Get started
           </Link>
         </div>
+
+        <button
+          type="button"
+          className={styles.menuBtn}
+          aria-expanded={menuOpen}
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          onClick={() => setMenuOpen((o) => !o)}
+        >
+          <span className={styles.menuBar} />
+          <span className={styles.menuBar} />
+        </button>
       </header>
+
+      {menuOpen ? (
+        <div className={styles.mobileMenu} role="dialog" aria-modal="true">
+          <a href="#platform" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
+            Platform
+          </a>
+          <a href="#features" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
+            Modules
+          </a>
+          <a href="#institutions" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
+            Institutions
+          </a>
+          <hr className={styles.mobileDivider} />
+          <Link href="/login" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
+            Sign in
+          </Link>
+          <Link href="/register" className={styles.btnPrimary} onClick={() => setMenuOpen(false)}>
+            Get started
+          </Link>
+        </div>
+      ) : null}
 
       <motion.section
         ref={heroRef}
         className={styles.hero}
-        style={{ opacity: heroOpacity, y: heroY }}
+        style={reduceMotion ? undefined : { opacity: heroOpacity, y: heroY }}
       >
-        <div className={styles.heroMesh} aria-hidden />
-        <div className={`${styles.orb} ${styles.orbA}`} aria-hidden />
-        <motion.div className={`${styles.orb} ${styles.orbB}`} aria-hidden />
-        <div className={styles.gridOverlay} aria-hidden />
+        <div className={styles.heroBg} aria-hidden />
+        <div className={styles.heroGrid}>
+          <div className={styles.heroContent}>
+            <motion.div
+              className={styles.eyebrow}
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              custom={0}
+              {...motionProps}
+            >
+              <span className={styles.eyebrowDot} />
+              Enterprise SIS + LMS · Multi-tenant SaaS
+            </motion.div>
 
-        <div className={styles.heroInner}>
+            <motion.h1
+              className={styles.heroTitle}
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              custom={1}
+              {...motionProps}
+            >
+              The operating system for{' '}
+              <span className={styles.heroTitleAccent}>modern universities</span>
+            </motion.h1>
+
+            <motion.p
+              className={styles.heroLead}
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              custom={2}
+              {...motionProps}
+            >
+              UniCore unifies admissions, academics, finance, and HR across campuses and programmes
+              — with workflows your senate can audit and staff will actually use.
+            </motion.p>
+
+            <motion.div
+              className={styles.heroActions}
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              custom={3}
+              {...motionProps}
+            >
+              <Link href="/register" className={styles.btnHeroPrimary}>
+                Start free trial
+              </Link>
+              <a href="#features" className={styles.btnHeroSecondary}>
+                View modules
+              </a>
+            </motion.div>
+
+            <motion.div
+              className={styles.heroStats}
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              custom={4}
+              {...motionProps}
+            >
+              {[
+                { value: '3-tier', label: 'Institution → Entity → Org' },
+                { value: '12+', label: 'Integrated modules' },
+                { value: '100%', label: 'Audit-ready workflows' },
+              ].map((s) => (
+                <div key={s.label} className={styles.statItem}>
+                  <div className={styles.statValue}>{s.value}</div>
+                  <div className={styles.statLabel}>{s.label}</div>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+
           <motion.div
-            className={styles.eyebrow}
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            custom={0}
+            className={styles.heroVisual}
+            initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           >
-            <span className={styles.eyebrowDot} />
-            Enterprise SIS + LMS · Multi-tenant SaaS
+            <DashboardPreview />
           </motion.div>
-
-          <motion.h1
-            className={styles.heroTitle}
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            custom={1}
-          >
-            One platform for every{' '}
-            <span className={styles.heroTitleAccent}>institution&apos;s</span> ambition
-          </motion.h1>
-
-          <motion.p
-            className={styles.heroLead}
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            custom={2}
-          >
-            UniCore unifies admissions, academics, finance, and HR across campuses, faculties, and
-            programmes — with workflows your senate actually trusts.
-          </motion.p>
-
-          <motion.div
-            className={styles.heroActions}
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            custom={3}
-          >
-            <Link href="/login" className={styles.btnHeroPrimary}>
-              Open your portal
-            </Link>
-            <a href="#features" className={styles.btnHeroSecondary}>
-              Explore capabilities
-            </a>
-          </motion.div>
-
-          <motion.div
-            className={styles.heroStats}
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            custom={4}
-          >
-            {[
-              { value: '3-tier', label: 'Institution → Entity → Org unit' },
-              { value: '12+', label: 'Integrated modules' },
-              { value: '100%', label: 'Workflow-driven approvals' },
-            ].map((s) => (
-              <div key={s.label}>
-                <div className={styles.statValue}>{s.value}</div>
-                <div className={styles.statLabel}>{s.label}</div>
-              </div>
-            ))}
-          </motion.div>
-        </div>
-
-        <div className={styles.heroPreview} aria-hidden>
-          <PreviewMockup />
         </div>
       </motion.section>
 
-      <section id="platform" className={`${styles.section} ${styles.sectionDark}`}>
-        <div className={styles.sectionDarkInner}>
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.6 }}
-          >
+      <section className={styles.trustStrip} aria-label="Platform highlights">
+        <div className={styles.trustInner}>
+          {TRUST_ITEMS.map((item) => (
+            <span key={item} className={styles.trustPill}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M20 6L9 17l-5-5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {item}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section id="platform" className={styles.sectionPlatform}>
+        <div className={styles.sectionInner}>
+          <div className={styles.sectionIntro}>
             <p className={styles.sectionLabel}>Architecture</p>
-            <h2 className={styles.sectionTitle}>
-              Built for how universities are actually organized
+            <h2 className={styles.sectionTitleLight}>
+              Modelled on how universities are actually governed
             </h2>
-            <p className={styles.sectionLead}>
-              Not a flat tenant ID — a faithful model of your senate structure. Configure once,
-              scale across main campus, distance learning, affiliates, and professional schools.
+            <p className={styles.sectionLeadLight}>
+              Not a flat tenant ID — a faithful hierarchy from institution to campus to faculty.
+              Configure once, scale across main campus, distance learning, and affiliate colleges.
             </p>
-          </motion.div>
+          </div>
 
           <div className={styles.tierDiagram}>
             {[
               {
-                level: 'Tier 1',
+                level: '01',
                 name: 'Institution',
-                desc: 'Your university brand, subscription, feature flags, and cross-campus policies.',
+                desc: 'Brand, subscription, cross-campus policies, and platform-wide feature flags.',
               },
               {
-                level: 'Tier 2',
-                name: 'Entity (Campus)',
-                desc: 'Main campus, extramural, affiliate college — each with fees, calendars, and staff scope.',
+                level: '02',
+                name: 'Entity · Campus',
+                desc: 'Fees, academic calendars, and staff scope per main or extramural campus.',
               },
               {
-                level: 'Tier 3',
+                level: '03',
                 name: 'Org unit',
-                desc: 'Faculties, departments, programmes, and committees with positions and holders.',
+                desc: 'Faculties, departments, programmes, committees, positions, and holders.',
               },
             ].map((tier, i) => (
-              <motion.div
+              <motion.article
                 key={tier.name}
                 className={styles.tierCard}
-                initial={{ opacity: 0, y: 20 }}
+                initial={reduceMotion ? false : { opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1, duration: 0.5 }}
+                viewport={{ once: true, margin: '-40px' }}
+                transition={{ delay: i * 0.08, duration: 0.45 }}
               >
-                <div className={styles.tierLevel}>{tier.level}</div>
-                <div className={styles.tierName}>{tier.name}</div>
+                <span className={styles.tierLevel}>{tier.level}</span>
+                <h3 className={styles.tierName}>{tier.name}</h3>
                 <p className={styles.tierDesc}>{tier.desc}</p>
-              </motion.div>
+              </motion.article>
             ))}
           </div>
 
-          <motion.div
-            className={styles.workflowStrip}
-            style={{ marginTop: '2.5rem' }}
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-          >
-            <span className={styles.workflowStep}>Staff submits leave</span>
-            <span className={styles.workflowArrow}>→</span>
-            <span className={styles.workflowStep}>Immediate head reviews</span>
-            <span className={styles.workflowArrow}>→</span>
-            <span className={styles.workflowStep}>HoD endorses</span>
-            <span className={styles.workflowArrow}>→</span>
-            <span className={styles.workflowStep}>Calendar blocked</span>
-          </motion.div>
+          <div className={styles.workflowStrip}>
+            <span className={styles.workflowLabel}>Example workflow</span>
+            <div className={styles.workflowSteps}>
+              {['Submit leave', 'Head reviews', 'HoD endorses', 'Calendar updated'].map(
+                (step, i, arr) => (
+                  <span key={step} className={styles.workflowGroup}>
+                    <span className={styles.workflowStep}>{step}</span>
+                    {i < arr.length - 1 ? (
+                      <span className={styles.workflowArrow} aria-hidden>
+                        →
+                      </span>
+                    ) : null}
+                  </span>
+                ),
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
       <section id="features" className={styles.section}>
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-60px' }}
-        >
-          <p className={styles.sectionLabel}>Capabilities</p>
-          <h2 className={styles.sectionTitle}>
-            Everything your registrar wished lived in one place
-          </h2>
-          <p className={styles.sectionLead}>
-            From first inquiry to graduation certificate — plus the LMS, finance desk, and HR office
-            that students and staff touch every day.
-          </p>
-        </motion.div>
+        <div className={styles.sectionInner}>
+          <div className={styles.sectionIntro}>
+            <p className={styles.sectionLabel}>Modules</p>
+            <h2 className={styles.sectionTitle}>Everything your registrar needs in one place</h2>
+            <p className={styles.sectionLead}>
+              From first inquiry to graduation — plus the LMS, finance desk, and HR office your
+              community touches every day.
+            </p>
+          </div>
 
-        <div className={styles.bento}>
-          {FEATURES.map((f, i) => (
-            <motion.article
-              key={f.title}
-              className={`${styles.bentoCard} ${f.className}`}
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-40px' }}
-              transition={{ delay: (i % 3) * 0.06, duration: 0.5 }}
-            >
-              <div className={styles.bentoIcon} style={{ background: f.iconBg }}>
-                {f.icon}
-              </div>
-              <h3 className={styles.bentoTitle}>{f.title}</h3>
-              <p className={styles.bentoText}>{f.text}</p>
-              <div className={styles.bentoTags}>
-                {f.tags.map((t) => (
-                  <span key={t} className={styles.tag}>
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </motion.article>
-          ))}
+          <div className={styles.featureGrid}>
+            {FEATURES.map((f, i) => (
+              <motion.article
+                key={f.title}
+                className={`${styles.featureCard} ${f.wide ? styles.featureWide : ''}`}
+                data-tone={f.tone}
+                initial={reduceMotion ? false : { opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-30px' }}
+                transition={{ delay: (i % 3) * 0.05, duration: 0.45 }}
+              >
+                <div className={styles.featureIcon}>
+                  <f.Icon />
+                </div>
+                <h3 className={styles.featureTitle}>{f.title}</h3>
+                <p className={styles.featureText}>{f.text}</p>
+                <div className={styles.featureTags}>
+                  {f.tags.map((t) => (
+                    <span key={t} className={styles.tag}>
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </motion.article>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section id="institutions" className={styles.section}>
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          <p className={styles.sectionLabel}>For every institution</p>
-          <h2 className={styles.sectionTitle}>Configured for your mission, not ours</h2>
-          <p className={styles.sectionLead}>
-            Whether you run one college or a federal university system, UniCore adapts to your
-            governance, grading scales, and approval chains — without custom code for every campus.
-          </p>
-        </motion.div>
+      <section id="institutions" className={styles.sectionMuted}>
+        <div className={styles.sectionInner}>
+          <div className={styles.sectionIntro}>
+            <p className={styles.sectionLabel}>Institutions</p>
+            <h2 className={styles.sectionTitle}>Configured for your mission</h2>
+            <p className={styles.sectionLead}>
+              Whether you run one college or a federal university system, UniCore adapts to your
+              governance, grading scales, and approval chains — without bespoke code per campus.
+            </p>
+          </div>
 
-        <div className={styles.archetypes}>
-          {ARCHETYPES.map((a, i) => (
-            <motion.div
-              key={a.title}
-              className={styles.archetypeCard}
-              initial={{ opacity: 0, scale: 0.96 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.08, duration: 0.45 }}
-              whileHover={{ y: -6, transition: { duration: 0.25 } }}
-            >
-              <div className={styles.archetypeEmoji}>{a.emoji}</div>
-              <h3 className={styles.archetypeTitle}>{a.title}</h3>
-              <p className={styles.archetypeText}>{a.text}</p>
-            </motion.div>
-          ))}
+          <div className={styles.archetypeGrid}>
+            {ARCHETYPES.map((a, i) => (
+              <motion.article
+                key={a.title}
+                className={styles.archetypeCard}
+                initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.06, duration: 0.4 }}
+              >
+                <div className={styles.archetypeIcon}>
+                  <a.Icon />
+                </div>
+                <h3 className={styles.archetypeTitle}>{a.title}</h3>
+                <p className={styles.archetypeText}>{a.text}</p>
+              </motion.article>
+            ))}
+          </div>
         </div>
       </section>
 
       <section className={styles.cta}>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
+        <div className={styles.ctaCard}>
           <h2 className={styles.ctaTitle}>Ready to modernize your institution?</h2>
           <p className={styles.ctaLead}>
-            Join universities replacing fragmented spreadsheets with a single, auditable source of
-            truth — for students, staff, and leadership.
+            Replace fragmented spreadsheets with a single, auditable source of truth — for students,
+            staff, and leadership.
           </p>
-          <div className={styles.heroActions} style={{ justifyContent: 'center', marginBottom: 0 }}>
+          <div className={styles.ctaActions}>
             <Link href="/register" className={styles.btnHeroPrimary}>
               Request access
             </Link>
@@ -434,17 +536,34 @@ export function LandingPage() {
               Sign in to portal
             </Link>
           </div>
-        </motion.div>
+        </div>
       </section>
 
       <footer className={styles.footer}>
-        <span>© {new Date().getFullYear()} UniCore · University SIS + LMS</span>
-        <div className={styles.footerLinks}>
-          <Link href="/login">Sign in</Link>
-          <Link href="/dashboard">Dashboard</Link>
-          <a href="#features">Features</a>
+        <div className={styles.footerBrand}>
+          <span className={styles.logoMark}>U</span>
+          <div>
+            <strong className={styles.footerName}>UniCore</strong>
+            <p className={styles.footerTagline}>University SIS + LMS platform</p>
+          </div>
         </div>
+        <div className={styles.footerCols}>
+          <div>
+            <h4 className={styles.footerHeading}>Product</h4>
+            <a href="#features">Modules</a>
+            <a href="#platform">Architecture</a>
+          </div>
+          <div>
+            <h4 className={styles.footerHeading}>Access</h4>
+            <Link href="/login">Sign in</Link>
+            <Link href="/register">Register</Link>
+            <Link href="/dashboard">Dashboard</Link>
+          </div>
+        </div>
+        <p className={styles.footerCopy}>
+          © {new Date().getFullYear()} UniCore. All rights reserved.
+        </p>
       </footer>
-    </motion.div>
+    </div>
   );
 }

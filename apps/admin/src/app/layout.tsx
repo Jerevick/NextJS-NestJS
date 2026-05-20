@@ -43,6 +43,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <Link href="/billing" style={{ color: '#94a3b8' }}>
               Billing
             </Link>
+            <Link href="/registration-requests" style={{ color: '#94a3b8' }}>
+              Requests
+            </Link>
             <Link href="/institutions/new" style={{ color: '#94a3b8' }}>
               Onboard
             </Link>

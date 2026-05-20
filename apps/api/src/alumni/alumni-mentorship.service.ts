@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { AuthUser } from '../auth/auth.types';
 import { EmbeddingsService } from '../ai/embeddings.service';
 import { AiService } from '../ai/ai.service';
 import { buildAnonymizedAliasMap, scrubMessagesForExternalAi } from '../ai/ai-pii.util';
+import { PrismaService } from '../prisma/prisma.service';
 import { AlumniRepository } from './alumni.repository';
 
 const MENTOR_SOURCE = 'alumni_mentor';
@@ -14,7 +15,41 @@ export class AlumniMentorshipService {
     private readonly repo: AlumniRepository,
     private readonly embeddings: EmbeddingsService,
     private readonly ai: AiService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  private async assertCanViewMentorshipMatches(user: AuthUser, studentId: string) {
+    if (user.permissions?.includes('*') || user.permissions?.includes('alumni.write')) {
+      return;
+    }
+    const student = await this.prisma.student.findFirst({
+      where: { id: studentId, institutionId: user.institutionId, deletedAt: null },
+      select: {
+        program: {
+          select: { departmentId: true, department: { select: { name: true, headId: true } } },
+        },
+      },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+
+    if (student.program.department.headId === user.userId) return;
+
+    if (user.permissions?.includes('students.read')) {
+      const staff = await this.prisma.staffProfile.findFirst({
+        where: { userId: user.userId, institutionId: user.institutionId, deletedAt: null },
+        include: { orgUnit: { select: { name: true, type: true } } },
+      });
+      if (staff?.orgUnit) {
+        const deptName = student.program.department.name.toLowerCase();
+        const unitName = staff.orgUnit.name.toLowerCase();
+        if (unitName.includes(deptName) || deptName.includes(unitName)) return;
+      }
+    }
+
+    throw new ForbiddenException(
+      'Mentorship matches are visible to department faculty, department heads, or alumni administrators',
+    );
+  }
 
   async syncMentorEmbedding(institutionId: string, profileId: string) {
     const profile = await this.repo.findProfileById(institutionId, profileId);
@@ -40,6 +75,7 @@ export class AlumniMentorshipService {
     studentId: string,
     opts?: { topK?: number; includeNarrative?: boolean },
   ) {
+    await this.assertCanViewMentorshipMatches(user, studentId);
     const student = await this.repo.findStudentForMentorship(user.institutionId, studentId);
     if (!student) throw new NotFoundException('Student not found');
 

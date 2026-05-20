@@ -1,9 +1,21 @@
-import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UploadedFiles,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import * as jwt from 'jsonwebtoken';
 import type { Request, Response } from 'express';
+import { memoryStorage } from 'multer';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { AuthRegistrationService } from './auth-registration.service';
 import { AuthService } from './auth.service';
 import type { AuthUser } from './auth.types';
 import { DisableTotpDto } from './dto/disable-totp.dto';
@@ -11,7 +23,10 @@ import { EnableTotpDto } from './dto/enable-totp.dto';
 import { LoginDto } from './dto/login.dto';
 import { MagicLinkConsumeDto } from './dto/magic-link-consume.dto';
 import { MagicLinkRequestDto } from './dto/magic-link-request.dto';
+import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
+import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { SwitchEntityDto } from './dto/switch-entity.dto';
+import { parseRegisterInstitutionBody } from './register-institution-body.util';
 
 function refreshCookieMaxAgeMs(refreshToken: string): number {
   const decoded = jwt.decode(refreshToken) as { exp?: number } | null;
@@ -21,10 +36,12 @@ function refreshCookieMaxAgeMs(refreshToken: string): number {
   return 7 * 24 * 60 * 60 * 1000;
 }
 
-@Throttle({ default: { limit: 30, ttl: 60_000 } })
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly registration: AuthRegistrationService,
+  ) {}
 
   @Post('mfa/setup')
   mfaSetup(@CurrentUser() user: AuthUser) {
@@ -42,6 +59,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
   @Post('magic-link/request')
   requestMagicLink(@Req() req: Request, @Body() dto: MagicLinkRequestDto) {
     return this.auth.requestMagicLink(req, dto);
@@ -65,6 +83,52 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
+  @Post('register/institution')
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'logo', maxCount: 1 },
+        { name: 'accreditationEvidence', maxCount: 1 },
+      ],
+      {
+        storage: memoryStorage(),
+        limits: { fileSize: 10 * 1024 * 1024 },
+      },
+    ),
+  )
+  registerInstitution(
+    @Req() req: Request,
+    @Body() body: Record<string, string>,
+    @UploadedFiles()
+    files: {
+      logo?: Express.Multer.File[];
+      accreditationEvidence?: Express.Multer.File[];
+    },
+  ) {
+    const dto = parseRegisterInstitutionBody(body);
+    return this.registration.submitInstitution(req, dto, {
+      logo: files.logo?.[0],
+      accreditationEvidence: files.accreditationEvidence?.[0],
+    });
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
+  @Post('password-reset/request')
+  requestPasswordReset(@Req() req: Request, @Body() dto: PasswordResetRequestDto) {
+    return this.registration.requestPasswordReset(req, dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 900_000 } })
+  @Post('password-reset/confirm')
+  confirmPasswordReset(@Body() dto: PasswordResetConfirmDto) {
+    return this.registration.confirmPasswordReset(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
   @Post('login')
   async login(
     @Req() req: Request,

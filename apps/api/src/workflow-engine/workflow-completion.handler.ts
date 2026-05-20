@@ -19,6 +19,8 @@ import { AppraisalService } from '../appraisal/appraisal.service';
 import { ElectionsService } from '../elections/elections.service';
 import { LeaveService } from '../leave/leave.service';
 import { MeetingsService } from '../meetings/meetings.service';
+import { SportsEligibilityJobsService } from '../sports/jobs/sports-eligibility-jobs.service';
+import { NotificationEventsService } from '../notifications/notification-events.service';
 import { StaffService } from '../staff/staff.service';
 
 @Injectable()
@@ -46,6 +48,8 @@ export class WorkflowCompletionHandler {
     private readonly elections: ElectionsService,
     @Inject(forwardRef(() => MeetingsService))
     private readonly meetings: MeetingsService,
+    private readonly sportsEligibilityJobs: SportsEligibilityJobsService,
+    private readonly notify: NotificationEventsService,
   ) {}
 
   async handleCompleted(
@@ -407,6 +411,14 @@ export class WorkflowCompletionHandler {
         retroactiveAmount: retroInvoice?.amount ?? null,
       },
     });
+
+    void this.notify.notifyBackfillApproved({
+      institutionId,
+      entityId: request.entityId,
+      requestId: request.id,
+      studentNumber: student?.studentNumber,
+      retroactiveAmount: retroInvoice?.amount ?? null,
+    });
   }
 
   private async completeGradeOverride(
@@ -471,6 +483,52 @@ export class WorkflowCompletionHandler {
       entityId: enrollmentId,
       newValues: { acknowledged: true },
     });
+
+    const enrollment = await this.prisma.studentEnrollment.findFirst({
+      where: { id: enrollmentId, institutionId, deletedAt: null },
+      select: {
+        student: {
+          select: {
+            userId: true,
+            entityId: true,
+            studentNumber: true,
+            user: { select: { profile: true } },
+          },
+        },
+        section: {
+          select: {
+            course: { select: { title: true, code: true } },
+          },
+        },
+      },
+    });
+    if (enrollment?.student?.userId) {
+      const profile = (enrollment.student.user?.profile ?? {}) as {
+        firstName?: string;
+        lastName?: string;
+      };
+      const studentName =
+        [profile.firstName, profile.lastName].filter(Boolean).join(' ') ||
+        enrollment.student.studentNumber;
+      const course = enrollment.section.course;
+      const courseName = course.title ?? course.code ?? 'your course';
+      void this.notify.notifyGradeReleased({
+        institutionId,
+        entityId: enrollment.student.entityId,
+        enrollmentId,
+        studentUserId: enrollment.student.userId,
+        studentName,
+        courseName,
+      });
+    }
+
+    await this.sportsEligibilityJobs
+      .enqueueInstitutionRecalc(institutionId)
+      .catch((err) =>
+        this.log.warn(
+          `Sports eligibility recalc after grade release failed: ${(err as Error).message}`,
+        ),
+      );
   }
 
   private async downgradeEnrollmentGradeSubmission(institutionId: string, enrollmentId: string) {

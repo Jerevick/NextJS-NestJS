@@ -1,8 +1,13 @@
 import Link from 'next/link';
-import { getPlatformOverview } from '@/lib/platform-api';
+import { getPlatformOverview, getRegistrationRequests } from '@/lib/platform-api';
 
 export default async function SuperAdminDashboardPage() {
   const overview = await getPlatformOverview();
+  const pendingRequests = await getRegistrationRequests({ status: 'PENDING', limit: 5 });
+  const pendingCount =
+    pendingRequests.mode === 'live' && Array.isArray(pendingRequests.data)
+      ? pendingRequests.data.length
+      : 0;
   const mono = { fontFamily: 'ui-monospace, monospace' } as const;
 
   const kpis =
@@ -38,14 +43,38 @@ export default async function SuperAdminDashboardPage() {
         {overview.mode === 'mock'
           ? ' — set ADMIN_API_BEARER to a super-admin JWT (permission *).'
           : null}
-        {overview.mode === 'error' && 'message' in overview ? ` — ${String(overview.message)}` : null}
+        {overview.mode === 'error' && 'message' in overview
+          ? ` — ${String(overview.message)}`
+          : null}
       </p>
 
       <KpiGrid kpis={kpis} mono={mono} />
 
+      {pendingCount > 0 ? (
+        <section
+          style={{
+            marginTop: '1.5rem',
+            padding: '1rem 1.25rem',
+            borderRadius: 8,
+            border: '1px solid #334155',
+            background: '#111827',
+          }}
+        >
+          <p style={{ margin: 0, fontSize: '0.9rem' }}>
+            <strong style={{ color: '#fbbf24' }}>{pendingCount}</strong>
+            <span style={{ color: '#94a3b8' }}> pending registration request(s). </span>
+            <Link href="/registration-requests" style={{ color: '#60a5fa' }}>
+              Review queue →
+            </Link>
+          </p>
+        </section>
+      ) : null}
+
       {anomalies.length > 0 ? (
         <section style={{ marginTop: '2rem' }}>
-          <h2 style={{ fontSize: '1rem', color: '#fbbf24' }}>Headcount anomalies (&gt;10% drop, 7d)</h2>
+          <h2 style={{ fontSize: '1rem', color: '#fbbf24' }}>
+            Headcount anomalies (&gt;10% drop, 7d)
+          </h2>
           <ul style={{ padding: 0, listStyle: 'none', margin: '0.75rem 0 0' }}>
             {anomalies.map((a) => (
               <li
@@ -59,9 +88,7 @@ export default async function SuperAdminDashboardPage() {
                 <Link href={`/institutions/${a.institutionId}`} style={{ color: '#60a5fa' }}>
                   {a.name}
                 </Link>
-                <span style={{ color: '#f87171', marginLeft: 8, ...mono }}>
-                  ↓ {a.dropPct}%
-                </span>
+                <span style={{ color: '#f87171', marginLeft: 8, ...mono }}>↓ {a.dropPct}%</span>
               </li>
             ))}
           </ul>
@@ -74,6 +101,9 @@ export default async function SuperAdminDashboardPage() {
         </Link>
         <Link href="/billing" style={{ color: '#2563eb' }}>
           Billing disputes →
+        </Link>
+        <Link href="/registration-requests" style={{ color: '#2563eb' }}>
+          Registration requests →
         </Link>
         <Link href="/institutions/new" style={{ color: '#2563eb' }}>
           Onboard institution →
@@ -110,7 +140,9 @@ function KpiGrid({
           }}
         >
           <div style={{ color: '#64748b', fontSize: '0.75rem' }}>{k.label}</div>
-          <div style={{ fontSize: '1.35rem', color: '#f8fafc', marginTop: 4, ...mono }}>{k.value}</div>
+          <div style={{ fontSize: '1.35rem', color: '#f8fafc', marginTop: 4, ...mono }}>
+            {k.value}
+          </div>
         </div>
       ))}
     </div>

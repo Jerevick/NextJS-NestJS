@@ -2,7 +2,7 @@ import { forwardRef, Module } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { MailService } from '../mail/mail.service';
-import { NotificationsModule } from '../notifications/notifications.module';
+import { NotificationsModule } from '../modules/notifications';
 import { StorageModule } from '../storage/storage.module';
 import { WorkflowEngineModule } from '../workflow-engine/workflow-engine.module';
 import { StaffCalendarIntegrationService } from '../staff/staff-calendar-integration.service';
@@ -17,7 +17,7 @@ import { LeaveService } from './leave.service';
 @Module({
   imports: [
     AuditModule,
-    NotificationsModule,
+    NotificationsModule.register(),
     StorageModule,
     forwardRef(() => WorkflowEngineModule),
   ],

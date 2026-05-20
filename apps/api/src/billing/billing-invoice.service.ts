@@ -73,7 +73,9 @@ export class BillingInvoiceService {
     return new Prisma.Decimal(raw);
   }
 
-  private async resolvePricing(institutionId: string): Promise<{ unit: Prisma.Decimal; currency: string }> {
+  private async resolvePricing(
+    institutionId: string,
+  ): Promise<{ unit: Prisma.Decimal; currency: string }> {
     const sub = await this.prisma.subscription.findFirst({
       where: { institutionId, deletedAt: null },
       orderBy: { createdAt: 'asc' },
@@ -290,10 +292,7 @@ export class BillingInvoiceService {
         invoiceId,
         deletedAt: null,
         status: {
-          in: [
-            BillingDisputeStatus.OPEN,
-            BillingDisputeStatus.MANUAL_REVIEW,
-          ],
+          in: [BillingDisputeStatus.OPEN, BillingDisputeStatus.MANUAL_REVIEW],
         },
       },
       select: { id: true },
@@ -400,8 +399,16 @@ export class BillingInvoiceService {
       if (isEntityBillingExempt(ent.settings)) {
         continue;
       }
-      const summary = await this.snapshots.computeMonthlyBillable(actor.institutionId, ent.id, year, month);
-      const billedCount = this.applyBillableFloor(summary.watermarkCount, inst.minimumBillableCount);
+      const summary = await this.snapshots.computeMonthlyBillable(
+        actor.institutionId,
+        ent.id,
+        year,
+        month,
+      );
+      const billedCount = this.applyBillableFloor(
+        summary.watermarkCount,
+        inst.minimumBillableCount,
+      );
       const lineAmount = new Prisma.Decimal(billedCount).mul(unit);
       total = total.add(lineAmount);
       summariesForEvidence.push({
@@ -463,7 +470,7 @@ export class BillingInvoiceService {
       currency,
       lineItems,
       evidenceS3Key,
-      evidenceDownloadUrl: this.evidence.getEvidenceDownloadUrl(evidenceS3Key),
+      evidenceDownloadUrl: await this.evidence.getEvidenceDownloadUrl(evidenceS3Key),
     };
   }
 

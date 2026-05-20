@@ -9,6 +9,7 @@ import type { ListDocumentsQueryDto } from './dto/list-documents-query.dto';
 import type { UpdateDocumentDto } from './dto/update-document.dto';
 import type { UpdateDocumentTemplateDto } from './dto/update-document-template.dto';
 import type { UpsertDocumentTemplateDto } from './dto/upsert-document-template.dto';
+import { NotificationEventsService } from '../notifications/notification-events.service';
 import { DocumentsRepository } from './documents.repository';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class DocumentsService {
   constructor(
     private readonly repo: DocumentsRepository,
     private readonly audit: AuditService,
+    private readonly notify: NotificationEventsService,
   ) {}
 
   private async assertOwnerInInstitution(institutionId: string, ownerId: string) {
@@ -136,6 +138,17 @@ export class DocumentsService {
       throw new BadRequestException('No fields to update');
     }
     const updated = await this.repo.updateDocument(existing.id, data as Prisma.DocumentUpdateInput);
+
+    if (dto.status === 'READY' && existing.status !== 'READY') {
+      void this.notify.notifyDocumentReady({
+        institutionId: actor.institutionId,
+        entityId: null,
+        ownerUserId: existing.ownerId,
+        documentName: updated.title,
+        documentId: updated.id,
+      });
+    }
+
     this.audit.append({
       institutionId: actor.institutionId,
       actorId: actor.userId,

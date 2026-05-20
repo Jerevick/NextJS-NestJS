@@ -5,6 +5,11 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  PLATFORM_WEBHOOK_DISPATCH,
+  type PlatformWebhookDispatchPayload,
+} from '../events/platform-webhook.events';
 import { FinanceTransactionStatus, FinanceTransactionType, Prisma } from '@prisma/client';
 import type { AuthUser } from '../auth/auth.types';
 import { AuditService } from '../audit/audit.service';
@@ -28,6 +33,7 @@ export class FinancePaymentsService {
     private readonly balanceCache: FinanceBalanceCacheService,
     private readonly gateways: PaymentGatewayService,
     private readonly notifications: FinanceNotificationsService,
+    private readonly events: EventEmitter2,
   ) {}
 
   async initiateStudentPayment(actor: AuthUser, studentId: string, dto: InitiateStudentPaymentDto) {
@@ -128,6 +134,21 @@ export class FinancePaymentsService {
       entityId: pending.id,
       newValues: { reference } as Prisma.InputJsonValue,
     });
+
+    const student = await this.repo.findStudentForFinance(pending.institutionId, account.studentId);
+    const webhookPayload: PlatformWebhookDispatchPayload = {
+      event: 'payment.received',
+      institutionId: pending.institutionId,
+      entityId: student?.entityId ?? pending.entityId,
+      data: {
+        transactionId: pending.id,
+        studentId: account.studentId,
+        amount: paymentAmount,
+        reference,
+        currency: pending.currency,
+      },
+    };
+    this.events.emit(PLATFORM_WEBHOOK_DISPATCH, webhookPayload);
 
     return { ok: true, reason: 'completed' as const, transactionId: pending.id };
   }

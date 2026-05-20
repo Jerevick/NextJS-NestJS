@@ -9,5 +9,6 @@ import { LmsSharedModule } from './lms-shared.module';
   imports: [LmsSharedModule],
   controllers: [LmsController],
   providers: [LmsService, LmsRepository, PermissionsGuard],
+  exports: [LmsService],
 })
 export class LmsFeatureModule {}

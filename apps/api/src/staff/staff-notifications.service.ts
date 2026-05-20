@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
-import { MailService } from '../mail/mail.service';
 import { LeaveRepository } from '../leave/leave.repository';
 
 @Injectable()
@@ -9,7 +8,6 @@ export class StaffNotificationsService {
 
   constructor(
     private readonly notifications: NotificationsService,
-    private readonly mail: MailService,
     private readonly leaveRepo: LeaveRepository,
   ) {}
 
@@ -20,26 +18,20 @@ export class StaffNotificationsService {
   ): Promise<void> {
     const req = await this.leaveRepo.findLeaveRequest(institutionId, leaveRequestId);
     if (!req?.staff?.user) return;
-    const title = approved ? 'Leave request approved' : 'Leave request rejected';
+
+    const decision = approved ? 'approved' : 'rejected';
     const body = approved
       ? `Your ${req.leaveType.name} leave (${req.durationDays} days) was approved.`
       : `Your ${req.leaveType.name} leave request was not approved.`;
-    await this.notifications.create({
+
+    await this.notifications.sendSystem({
       institutionId,
-      userId: req.staff.user.id,
-      category: 'HR_LEAVE',
-      title,
-      body,
+      entityId: req.entityId,
+      recipientId: req.staff.user.id,
+      event: 'LEAVE_DECISION',
+      data: { decision, body },
       actionUrl: '/staff',
-      metadata: { leaveRequestId, approved },
+      channels: ['inApp', 'email'],
     });
-    const email = req.staff.user.email;
-    if (email) {
-      try {
-        await this.mail.sendEmail(email, title, body, `<p>${body}</p>`);
-      } catch (e) {
-        this.log.warn(`Leave email failed for ${leaveRequestId}: ${String(e)}`);
-      }
-    }
   }
 }

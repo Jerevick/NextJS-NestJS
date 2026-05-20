@@ -35,12 +35,15 @@ type ListResponse = {
 type Props = {
   /** Canonical LMS route prefix (`/lms`) or legacy (`/courses`). */
   coursesBasePath: `/lms` | `/courses`;
+  /** Hide built-in sidebar when rendered inside student portal shell. */
+  embedded?: boolean;
 };
 
 /** Prompt 8.2 — `/lms/page.tsx`: student LMS dashboard shell. */
-export async function LmsStudentCoursesDashboard({ coursesBasePath }: Props) {
+export async function LmsStudentCoursesDashboard({ coursesBasePath, embedded = false }: Props) {
   const session = await auth();
   const token = session?.accessToken;
+  const isStudent = Boolean(session?.user?.studentId);
   const canRead = hasPermission(session?.user?.permissions, 'lms.read');
   const canWrite = hasPermission(session?.user?.permissions, 'lms.write');
 
@@ -64,7 +67,7 @@ export async function LmsStudentCoursesDashboard({ coursesBasePath }: Props) {
     );
   }
 
-  if (!canRead) {
+  if (!canRead && !isStudent) {
     return (
       <main style={{ padding: '2rem', maxWidth: 640, margin: '0 auto' }}>
         <nav style={{ marginBottom: '1rem' }}>
@@ -81,9 +84,11 @@ export async function LmsStudentCoursesDashboard({ coursesBasePath }: Props) {
     );
   }
 
-  const snapshotParam = session?.user?.studentId ? '&includeStudentSnapshot=true' : '';
+  const coursesUrl = isStudent
+    ? `${apiBase}/portal/student/lms/courses?limit=48&includeStudentSnapshot=true`
+    : `${apiBase}/lms/course-instances?limit=48${session?.user?.studentId ? '&includeStudentSnapshot=true' : ''}`;
 
-  const res = await fetch(`${apiBase}/lms/course-instances?limit=48${snapshotParam}`, {
+  const res = await fetch(coursesUrl, {
     headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store',
   });
@@ -107,78 +112,86 @@ export async function LmsStudentCoursesDashboard({ coursesBasePath }: Props) {
   const payload = (await res.json()) as ListResponse;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
-      <aside
-        style={{
-          width: 220,
-          flexShrink: 0,
-          background: '#0f1729',
-          color: '#e2e8f0',
-          padding: '1.25rem 1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1rem',
-        }}
-      >
-        <div style={{ fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.02em' }}>Learn</div>
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-          <Link
-            href={coursesBasePath}
-            prefetch={coursesBasePath === '/lms' ? false : undefined}
-            style={{
-              color: '#38bdf8',
-              fontWeight: 600,
-              fontSize: '0.92rem',
-              textDecoration: 'none',
-            }}
-          >
-            My courses
-          </Link>
-          {coursesBasePath === '/lms' ? (
+    <div
+      style={{
+        display: 'flex',
+        minHeight: embedded ? undefined : '100vh',
+        background: embedded ? 'transparent' : '#f8fafc',
+      }}
+    >
+      {!embedded ? (
+        <aside
+          style={{
+            width: 220,
+            flexShrink: 0,
+            background: '#0f1729',
+            color: '#e2e8f0',
+            padding: '1.25rem 1rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.02em' }}>Learn</div>
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             <Link
-              href="/courses"
-              style={{ color: '#94a3b8', fontSize: '0.78rem', textDecoration: 'none' }}
+              href={coursesBasePath}
+              prefetch={coursesBasePath === '/lms' ? false : undefined}
+              style={{
+                color: '#38bdf8',
+                fontWeight: 600,
+                fontSize: '0.92rem',
+                textDecoration: 'none',
+              }}
             >
-              Open legacy /courses redirect
+              My courses
             </Link>
-          ) : (
+            {coursesBasePath === '/lms' ? (
+              <Link
+                href="/courses"
+                style={{ color: '#94a3b8', fontSize: '0.78rem', textDecoration: 'none' }}
+              >
+                Open legacy /courses redirect
+              </Link>
+            ) : (
+              <Link
+                href="/lms"
+                prefetch={false}
+                style={{ color: '#94a3b8', fontSize: '0.78rem', textDecoration: 'none' }}
+              >
+                Open /lms home
+              </Link>
+            )}
             <Link
-              href="/lms"
-              prefetch={false}
-              style={{ color: '#94a3b8', fontSize: '0.78rem', textDecoration: 'none' }}
+              href="/dashboard"
+              style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.9rem' }}
             >
-              Open /lms home
+              Dashboard
             </Link>
-          )}
-          <Link
-            href="/dashboard"
-            style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.9rem' }}
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/students"
-            style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.9rem' }}
-          >
-            Students
-          </Link>
-        </nav>
-        {canWrite ? (
-          <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 'auto' }}>
-            Faculty: use{' '}
-            <Link href="/teach" style={{ color: '#38bdf8' }}>
-              Teach
-            </Link>{' '}
-            for builder shortcuts (preview).
-          </p>
-        ) : null}
-      </aside>
-      <main style={{ flex: 1, padding: '2rem 1.75rem', maxWidth: 1100 }}>
+            <Link
+              href="/students"
+              style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.9rem' }}
+            >
+              Students
+            </Link>
+          </nav>
+          {canWrite ? (
+            <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 'auto' }}>
+              Faculty: use{' '}
+              <Link href="/teach" style={{ color: '#38bdf8' }}>
+                Teach
+              </Link>{' '}
+              for builder shortcuts (preview).
+            </p>
+          ) : null}
+        </aside>
+      ) : null}
+      <main style={{ flex: 1, padding: embedded ? 0 : '2rem 1.75rem', maxWidth: 1100 }}>
         <h1 style={{ margin: '0 0 0.35rem', fontSize: '1.75rem', color: '#0f1729' }}>My courses</h1>
         <p style={{ margin: '0 0 1.5rem', color: '#64748b', fontSize: '0.95rem' }}>
           {payload.total} course shell{payload.total === 1 ? '' : 's'}
           {session?.user?.studentId ? ' · Progress and due dates refresh per visit' : ''}
-          {coursesBasePath === '/lms' ? ' · Route: /lms (Prompt 8.2)' : null}
+          {coursesBasePath === '/lms' && !embedded ? ' · Route: /lms' : null}
         </p>
         {payload.data.length === 0 ? (
           <p style={{ color: '#64748b' }}>

@@ -25,16 +25,16 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.2.1"
+    "@prisma/client": "^6.19.3"
   },
   "devDependencies": {
     "@unicore/eslint-config": "workspace:*",
     "@unicore/typescript-config": "workspace:*",
     "bcryptjs": "^2.4.3",
     "eslint": "catalog:",
-    "prisma": "^6.2.1",
-    "tsx": "^4.19.2",
+    "prisma": "^6.19.3",
     "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
     "typescript": "catalog:"
   }
 }

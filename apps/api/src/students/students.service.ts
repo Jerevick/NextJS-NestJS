@@ -24,12 +24,10 @@ import {
   type EnrollmentForGpaRow,
   type StudentWithUserProgram,
 } from './students.repository';
+import { CustomizationService } from '../customization/customization.service';
+import { applyStudentNumberFormat } from '../customization/student-number-format.util';
 import { GpaComputationService } from '../progression/gpa-computation.service';
 import { ProgressionService } from '../progression/progression.service';
-
-type InstitutionSettings = {
-  studentNumberFormat?: string;
-};
 
 export type AcademicStanding = 'GOOD' | 'PROBATION' | 'SUSPENSION';
 
@@ -43,6 +41,7 @@ export class StudentsService {
     private readonly workflows: WorkflowEngineService,
     private readonly progression: ProgressionService,
     private readonly gpaComputation: GpaComputationService,
+    private readonly customization: CustomizationService,
   ) {}
 
   private defaultFormat() {
@@ -51,24 +50,23 @@ export class StudentsService {
 
   async buildStudentNumberForProgram(
     institutionId: string,
+    entityId: string,
     programId: string,
     programCode: string,
     admissionDate: Date | undefined,
   ): Promise<string> {
-    const inst = await this.repo.getInstitutionSettings(institutionId);
-    const settings = (inst?.settings ?? {}) as InstitutionSettings;
-    const template = settings.studentNumberFormat?.trim() || this.defaultFormat();
+    const raw = await this.customization.getEffectiveSettingForScope(
+      institutionId,
+      'studentNumberFormat',
+      entityId,
+    );
+    const template = typeof raw === 'string' && raw.trim() ? raw.trim() : this.defaultFormat();
     const ref = admissionDate ?? new Date();
     const year = ref.getFullYear();
     const yearStart = new Date(year, 0, 1);
     const seq =
       (await this.repo.countStudentsForNumbering(institutionId, programId, yearStart)) + 1;
-    const seqPadded = String(seq).padStart(3, '0');
-    const safeCode = programCode.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12) || 'PG';
-    return template
-      .replaceAll('{year}', String(year))
-      .replaceAll('{code}', safeCode)
-      .replaceAll('{seq}', seqPadded);
+    return applyStudentNumberFormat(template, { year, code: programCode, seq });
   }
 
   async list(actor: AuthUser, query: ListStudentsQueryDto) {
@@ -132,6 +130,9 @@ export class StudentsService {
     if (!row) {
       throw new NotFoundException('Student not found');
     }
+    if (actor.entityScope === 'ENTITY' && row.entityId !== actor.entityId) {
+      throw new NotFoundException('Student not found');
+    }
     return await this.serializeDetail(row);
   }
 
@@ -185,6 +186,7 @@ export class StudentsService {
     }
     const studentNumber = await this.buildStudentNumberForProgram(
       actor.institutionId,
+      entityId,
       program.id,
       program.code,
       admissionDate,
@@ -552,6 +554,7 @@ export class StudentsService {
     const entityId = program.entityId;
     const studentNumber = await this.buildStudentNumberForProgram(
       actor.institutionId,
+      entityId,
       program.id,
       program.code,
       new Date(),

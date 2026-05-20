@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
-import { NotificationsList } from '@/components/notifications/notifications-list';
+import { NotificationsRealtimeList } from '@/components/notifications/notifications-realtime-list';
 import { appendOptionalEntityHeader } from '@/lib/api-headers';
 
 const apiBase =
@@ -48,12 +48,13 @@ export default async function NotificationsPage() {
         ← Dashboard
       </Link>
       <h1 style={{ margin: '0.75rem 0 0', color: '#0f1729' }}>Notifications</h1>
+      {!payload ? <p style={{ color: '#b91c1c' }}>Could not load notifications.</p> : null}
       {payload ? (
-        <p style={{ color: '#64748b', fontSize: '0.9rem' }}>{payload.unreadCount} unread</p>
-      ) : (
-        <p style={{ color: '#b91c1c' }}>Could not load notifications.</p>
-      )}
-      <NotificationsList initial={payload?.data ?? []} />
+        <NotificationsRealtimeList
+          initial={payload.data}
+          initialUnreadCount={payload.unreadCount}
+        />
+      ) : null}
     </main>
   );
 }

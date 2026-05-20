@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { NotificationsService } from '../notifications/notifications.service';
-import { MailService } from '../mail/mail.service';
+import { NotificationEventsService } from '../notifications/notification-events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { parseEligibilityRules, studentMeetsEligibility } from './election-eligibility.util';
 
@@ -10,8 +9,7 @@ export class ElectionsNotificationsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notifications: NotificationsService,
-    private readonly mail: MailService,
+    private readonly notify: NotificationEventsService,
   ) {}
 
   async notifyVotingOpen(election: {
@@ -40,9 +38,6 @@ export class ElectionsNotificationsService {
     });
 
     let sent = 0;
-    const title = `Voting open: ${election.title}`;
-    const body = `Ballots are now open for ${election.title}. Cast your vote before the deadline.`;
-    const actionUrl = '/elections';
 
     for (const s of students) {
       if (!s.userId) continue;
@@ -54,26 +49,13 @@ export class ElectionsNotificationsService {
       ) {
         continue;
       }
-      await this.notifications.create({
+      await this.notify.notifyElectionVotingOpen({
         institutionId: election.institutionId,
-        userId: s.userId,
-        category: 'ELECTIONS',
-        title,
-        body,
-        actionUrl,
-        metadata: { electionId: election.id },
+        entityId: s.entityId,
+        recipientId: s.userId,
+        electionTitle: election.title,
+        electionId: election.id,
       });
-      const user = await this.prisma.user.findFirst({
-        where: { id: s.userId },
-        select: { email: true },
-      });
-      if (user?.email) {
-        try {
-          await this.mail.sendEmail(user.email, title, body, `<p>${body}</p>`);
-        } catch (e) {
-          this.log.warn(`Election email failed for ${s.userId}: ${String(e)}`);
-        }
-      }
       sent += 1;
     }
 
@@ -87,18 +69,17 @@ export class ElectionsNotificationsService {
     });
     for (const sp of staffProfiles) {
       if (rules.roles?.length && !rules.roles.includes('STAFF')) continue;
-      await this.notifications.create({
+      await this.notify.notifyElectionVotingOpen({
         institutionId: election.institutionId,
-        userId: sp.userId,
-        category: 'ELECTIONS',
-        title,
-        body,
-        actionUrl,
-        metadata: { electionId: election.id },
+        entityId: election.entityId,
+        recipientId: sp.userId,
+        electionTitle: election.title,
+        electionId: election.id,
       });
       sent += 1;
     }
 
+    this.log.log(`Voting open notifications sent for election ${election.id}: ${sent}`);
     return sent;
   }
 }

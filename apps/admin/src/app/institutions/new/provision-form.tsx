@@ -20,53 +20,131 @@ const labelStyle: CSSProperties = {
   marginBottom: 4,
 };
 
-export function ProvisionInstitutionForm({ bearerConfigured }: { bearerConfigured: boolean }) {
+export type ProvisionInitialValues = {
+  slug?: string;
+  name?: string;
+  domain?: string;
+  plan?: string;
+  adminEmail?: string;
+  adminFirstName?: string;
+  adminLastName?: string;
+};
+
+export function ProvisionInstitutionForm({
+  bearerConfigured,
+  registrationRequestId,
+  initialValues,
+}: {
+  bearerConfigured: boolean;
+  registrationRequestId?: string;
+  initialValues?: ProvisionInitialValues;
+}) {
   const [state, action, pending] = useActionState(provisionInstitutionAction, null);
 
   if (!bearerConfigured) {
     return (
       <p style={{ color: '#fbbf24', fontSize: '0.9rem' }}>
-        Set <code style={{ color: '#e2e8f0' }}>ADMIN_API_BEARER</code> in the admin app environment to
-        provision institutions against the live API.
+        Set <code style={{ color: '#e2e8f0' }}>ADMIN_API_BEARER</code> in the admin app environment
+        to provision institutions against the live API.
       </p>
     );
   }
 
   return (
     <form action={action} style={{ display: 'grid', gap: '1rem', maxWidth: 480 }}>
+      {registrationRequestId ? (
+        <input type="hidden" name="registrationRequestId" value={registrationRequestId} />
+      ) : null}
       <div>
         <label htmlFor="slug" style={labelStyle}>
           Slug
         </label>
-        <input id="slug" name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" style={inputStyle} />
+        <input
+          id="slug"
+          name="slug"
+          required
+          pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+          style={inputStyle}
+          defaultValue={initialValues?.slug}
+        />
       </div>
       <div>
         <label htmlFor="name" style={labelStyle}>
           Institution name
         </label>
-        <input id="name" name="name" required minLength={2} style={inputStyle} />
+        <input
+          id="name"
+          name="name"
+          required
+          minLength={2}
+          style={inputStyle}
+          defaultValue={initialValues?.name}
+        />
       </div>
       <div>
         <label htmlFor="domain" style={labelStyle}>
           Domain (optional)
         </label>
-        <input id="domain" name="domain" type="text" style={inputStyle} placeholder="university.edu" />
+        <input
+          id="domain"
+          name="domain"
+          type="text"
+          style={inputStyle}
+          placeholder="university.edu"
+          defaultValue={initialValues?.domain}
+        />
       </div>
       <div>
         <label htmlFor="plan" style={labelStyle}>
           Plan
         </label>
-        <select id="plan" name="plan" defaultValue="STARTER" style={inputStyle}>
+        <select
+          id="plan"
+          name="plan"
+          defaultValue={initialValues?.plan ?? 'STARTER'}
+          style={inputStyle}
+        >
           <option value="STARTER">STARTER</option>
           <option value="GROWTH">GROWTH</option>
           <option value="ENTERPRISE">ENTERPRISE</option>
         </select>
       </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+        <div>
+          <label htmlFor="adminFirstName" style={labelStyle}>
+            Admin first name
+          </label>
+          <input
+            id="adminFirstName"
+            name="adminFirstName"
+            style={inputStyle}
+            defaultValue={initialValues?.adminFirstName}
+          />
+        </div>
+        <div>
+          <label htmlFor="adminLastName" style={labelStyle}>
+            Admin last name
+          </label>
+          <input
+            id="adminLastName"
+            name="adminLastName"
+            style={inputStyle}
+            defaultValue={initialValues?.adminLastName}
+          />
+        </div>
+      </div>
       <div>
         <label htmlFor="adminEmail" style={labelStyle}>
           Admin email
         </label>
-        <input id="adminEmail" name="adminEmail" type="email" required style={inputStyle} />
+        <input
+          id="adminEmail"
+          name="adminEmail"
+          type="email"
+          required
+          style={inputStyle}
+          defaultValue={initialValues?.adminEmail}
+        />
       </div>
       <div>
         <label htmlFor="adminPassword" style={labelStyle}>
@@ -79,6 +157,7 @@ export function ProvisionInstitutionForm({ bearerConfigured }: { bearerConfigure
           required
           minLength={8}
           style={inputStyle}
+          placeholder={initialValues ? 'Set initial password (required)' : undefined}
         />
       </div>
       {state?.error ? (

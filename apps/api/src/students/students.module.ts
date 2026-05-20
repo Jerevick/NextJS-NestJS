@@ -2,6 +2,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { DynamicModule, forwardRef, Logger, Module } from '@nestjs/common';
 import { STUDENT_CSV_IMPORT_QUEUE } from '../queues/queue.constants';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { CustomizationModule } from '../modules/customization';
+import { NotificationsModule } from '../modules/notifications';
 import { ProgressionModule } from '../progression/progression.module';
 import { WorkflowEngineModule } from '../workflow-engine/workflow-engine.module';
 import { GraduationClearanceController } from './graduation-clearance.controller';
@@ -30,6 +32,8 @@ export class StudentsModule {
     return {
       module: StudentsModule,
       imports: [
+        CustomizationModule,
+        NotificationsModule.register(),
         forwardRef(() => WorkflowEngineModule),
         forwardRef(() => ProgressionModule),
         ...(useBull ? [BullModule.registerQueue({ name: STUDENT_CSV_IMPORT_QUEUE })] : []),

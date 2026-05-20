@@ -1,8 +1,18 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import type { ComponentProps } from 'react';
 import { motion } from 'framer-motion';
-import { EntitiesBillableChart, type EntityChartRow } from './entities-billable-chart';
+import type {
+  EntitiesBillableChart as EntitiesBillableChartComponent,
+  EntityChartRow,
+} from './entities-billable-chart';
+
+const EntitiesBillableChart = dynamic<ComponentProps<typeof EntitiesBillableChartComponent>>(
+  () => import('./entities-billable-chart.js').then((m) => m.EntitiesBillableChart),
+  { ssr: false },
+);
 import type { ParsedEntitySettings } from '@/lib/entity-settings';
 import { EntityMetaBadges } from './entity-meta-badges';
 import { EntityTypeBadge } from './entity-type-badge';
@@ -104,7 +114,15 @@ export function EntitiesDashboard({
         </p>
       ) : null}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
         <h2 style={{ margin: 0, fontSize: '1.05rem' }}>Campuses</h2>
         {canManageAll && canCreate ? (
           <Link
@@ -149,7 +167,14 @@ export function EntitiesDashboard({
               gap: 8,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                gap: 8,
+              }}
+            >
               <div>
                 <div style={{ fontWeight: 700, fontSize: '1rem' }}>{r.name}</div>
                 <div style={{ color: '#64748b', fontSize: '0.85rem' }}>{r.code}</div>
@@ -159,15 +184,24 @@ export function EntitiesDashboard({
             <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
               Status: <strong style={{ color: '#0f172a' }}>{r.status}</strong>
             </div>
-            <EntityMetaBadges coupling={r.settings?.coupling} billingClassification={r.settings?.billingClassification} />
+            <EntityMetaBadges
+              coupling={r.settings?.coupling}
+              billingClassification={r.settings?.billingClassification}
+            />
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'baseline', flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Billable</div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 700 }}>{r.billableStudentCount ?? '—'}</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>
+                  Billable
+                </div>
+                <div style={{ fontSize: '1.35rem', fontWeight: 700 }}>
+                  {r.billableStudentCount ?? '—'}
+                </div>
               </div>
               <div>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Inactive</div>
-                <div style={{ fontSize: '1rem', color: '#64748b' }}>{r.inactiveStudentCount ?? '—'}</div>
+                <div style={{ fontSize: '1rem', color: '#64748b' }}>
+                  {r.inactiveStudentCount ?? '—'}
+                </div>
               </div>
               {typeof r.staffCount === 'number' ? (
                 <div>
@@ -175,10 +209,13 @@ export function EntitiesDashboard({
                   <div style={{ fontSize: '1rem', color: '#475569' }}>{r.staffCount}</div>
                 </div>
               ) : null}
-              {typeof r.enrollmentsCurrentAcademicYear === 'number' && r.enrollmentsCurrentAcademicYear > 0 ? (
+              {typeof r.enrollmentsCurrentAcademicYear === 'number' &&
+              r.enrollmentsCurrentAcademicYear > 0 ? (
                 <div>
                   <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Enrollments</div>
-                  <div style={{ fontSize: '1rem', color: '#475569' }}>{r.enrollmentsCurrentAcademicYear}</div>
+                  <div style={{ fontSize: '1rem', color: '#475569' }}>
+                    {r.enrollmentsCurrentAcademicYear}
+                  </div>
                 </div>
               ) : null}
             </div>

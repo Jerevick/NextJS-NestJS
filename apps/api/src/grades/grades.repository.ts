@@ -100,7 +100,9 @@ export class GradesRepository {
         student: {
           select: {
             id: true,
+            userId: true,
             studentNumber: true,
+            entityId: true,
             user: { select: { email: true, profile: true } },
           },
         },

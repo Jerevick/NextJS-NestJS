@@ -6,6 +6,11 @@ import {
   NotFoundException,
   forwardRef,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  PLATFORM_WEBHOOK_DISPATCH,
+  type PlatformWebhookDispatchPayload,
+} from '../events/platform-webhook.events';
 import { Prisma, WorkflowStatus } from '@prisma/client';
 import type { AuthUser } from '../auth/auth.types';
 import { AuditService } from '../audit/audit.service';
@@ -26,7 +31,9 @@ import {
   sanitizeFreeformComponents,
   weightedScoreFromComponents,
 } from './grade-component-weights.util';
+import { CustomizationService } from '../customization/customization.service';
 import { GradesRepository } from './grades.repository';
+import { NotificationEventsService } from '../notifications/notification-events.service';
 import { ResitGradeService } from '../progression/resit-grade.service';
 
 type ScaleBand = { min: number; max: number; letter: string; points: number };
@@ -107,6 +114,9 @@ export class GradesService {
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => WorkflowEngineService))
     private readonly workflows: WorkflowEngineService,
+    private readonly notify: NotificationEventsService,
+    private readonly customization: CustomizationService,
+    private readonly events: EventEmitter2,
   ) {}
 
   private async cancelOpenWorkflowInstances(
@@ -401,6 +411,46 @@ export class GradesService {
       oldValues: gradeJsonSummary(prev),
       newValues: gradeJsonSummary(next),
     });
+
+    if (
+      dto.workflowStatus === 'APPROVED' &&
+      prevWorkflow !== 'APPROVED' &&
+      !governance.gradeReleaseWorkflowOnSubmit &&
+      row.student.userId
+    ) {
+      const profile = (row.student.user?.profile ?? {}) as {
+        firstName?: string;
+        lastName?: string;
+      };
+      const studentName =
+        [profile.firstName, profile.lastName].filter(Boolean).join(' ') ||
+        row.student.studentNumber;
+      const courseName = row.section.course.title ?? row.section.course.code ?? 'your course';
+      void this.notify.notifyGradeReleased({
+        institutionId: actor.institutionId,
+        entityId: row.student.entityId,
+        enrollmentId: row.id,
+        studentUserId: row.student.userId,
+        studentName,
+        courseName,
+      });
+      const gradeObj = asGradeObject(next.grade);
+      const webhookPayload: PlatformWebhookDispatchPayload = {
+        event: 'grade.released',
+        institutionId: actor.institutionId,
+        entityId: row.student.entityId,
+        data: {
+          enrollmentId: row.id,
+          studentId: row.studentId,
+          sectionId: row.sectionId,
+          courseCode: row.section.course.code,
+          letterGrade: typeof gradeObj.letter === 'string' ? gradeObj.letter : null,
+          percentScore: typeof gradeObj.percent === 'number' ? gradeObj.percent : null,
+        },
+      };
+      this.events.emit(PLATFORM_WEBHOOK_DISPATCH, webhookPayload);
+    }
+
     return this.serializeEnrollmentRow(updated);
   }
 
@@ -413,9 +463,22 @@ export class GradesService {
 
   async getEffectiveGradeGovernance(actor: AuthUser) {
     const inst = await this.repo.getInstitutionSettings(actor.institutionId);
+    const entityId = actor.entityScope === 'ENTITY' ? actor.entityId : undefined;
+    const gradingSystem = await this.customization.getEffectiveSettingForScope(
+      actor.institutionId,
+      'grading.system',
+      entityId,
+    );
+    const semesterLabels = await this.customization.getEffectiveSettingForScope(
+      actor.institutionId,
+      'academic.semesterLabels',
+      entityId,
+    );
     return {
       ...parseGradeGovernance(inst?.settings),
       componentWeights: parseGradeComponentWeights(inst?.settings),
+      gradingSystem: typeof gradingSystem === 'string' ? gradingSystem : 'PERCENTAGE',
+      semesterLabels: Array.isArray(semesterLabels) ? semesterLabels : ['Semester 1', 'Semester 2'],
     };
   }
 

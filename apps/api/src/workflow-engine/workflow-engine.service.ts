@@ -4,11 +4,17 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  PLATFORM_WEBHOOK_DISPATCH,
+  type PlatformWebhookDispatchPayload,
+} from '../events/platform-webhook.events';
 import { Prisma, WorkflowStatus } from '@prisma/client';
 import type { AuthUser } from '../auth/auth.types';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkflowAssigneeResolver } from './workflow-assignee.resolver';
+import { NotificationEventsService } from '../notifications/notification-events.service';
 import { WorkflowCompletionHandler } from './workflow-completion.handler';
 import type {
   InitiateWorkflowDto,
@@ -25,6 +31,8 @@ export class WorkflowEngineService {
     private readonly assigneeResolver: WorkflowAssigneeResolver,
     private readonly completion: WorkflowCompletionHandler,
     private readonly audit: AuditService,
+    private readonly notify: NotificationEventsService,
+    private readonly events: EventEmitter2,
   ) {}
 
   async findDefinition(institutionId: string, entityId: string, code: string) {
@@ -120,6 +128,14 @@ export class WorkflowEngineService {
         entityType: dto.entityType,
         entityId_record: dto.entityId_record,
       },
+    });
+
+    void this.notify.notifyWorkflowActionAssigned({
+      institutionId: instance.institutionId,
+      entityId: instance.entityId,
+      assigneeUserId: prepared.currentAssigneeUserId,
+      workflowName: instance.definition.name,
+      workflowInstanceId: instance.id,
     });
 
     return instance;
@@ -254,6 +270,13 @@ export class WorkflowEngineService {
         instance.entityId_record,
         nextStepNumber,
       );
+      void this.notify.notifyWorkflowActionAssigned({
+        institutionId: advanced.institutionId,
+        entityId: advanced.entityId,
+        assigneeUserId: nextAssignee.userId,
+        workflowName: instance.definition.name,
+        workflowInstanceId: advanced.id,
+      });
       return advanced;
     }
 
@@ -281,6 +304,19 @@ export class WorkflowEngineService {
       actor.userId,
       metadata,
     );
+
+    const webhookPayload: PlatformWebhookDispatchPayload = {
+      event: 'workflow.completed',
+      institutionId: instance.institutionId,
+      entityId: instance.entityId,
+      data: {
+        workflowInstanceId: instance.id,
+        definitionCode: instance.definitionCode,
+        entityIdRecord: instance.entityId_record,
+        completedByUserId: actor.userId,
+      },
+    };
+    this.events.emit(PLATFORM_WEBHOOK_DISPATCH, webhookPayload);
 
     return approved;
   }
@@ -337,6 +373,50 @@ export class WorkflowEngineService {
 
   async checkSlaBreaches(): Promise<number> {
     const now = new Date();
+    const oneHour = new Date(now.getTime() + 60 * 60 * 1000);
+    const approaching = await this.prisma.workflowInstance.findMany({
+      where: {
+        dueAt: { gte: now, lte: oneHour },
+        status: { in: [WorkflowStatus.IN_PROGRESS, WorkflowStatus.ESCALATED] },
+      },
+      take: 100,
+      include: { definition: true },
+    });
+    for (const instance of approaching) {
+      const meta = (instance.metadata ?? {}) as Record<string, unknown>;
+      if (meta.slaWarningSent === true) {
+        continue;
+      }
+      const steps = parseWorkflowSteps(instance.definition.steps);
+      const stepConfig = steps.find((s) => s.stepNumber === instance.currentStep);
+      let supervisorUserId: string | null = null;
+      if (stepConfig && instance.currentAssigneeUserId) {
+        const escalated = await this.assigneeResolver.resolveEscalationAssignee(
+          instance.institutionId,
+          instance.entityId,
+          stepConfig,
+        );
+        supervisorUserId = escalated?.userId ?? null;
+      }
+      if (instance.currentAssigneeUserId && instance.dueAt) {
+        await this.notify.notifyWorkflowSlaWarning({
+          institutionId: instance.institutionId,
+          entityId: instance.entityId,
+          assigneeUserId: instance.currentAssigneeUserId,
+          supervisorUserId,
+          workflowName: instance.definition.name,
+          workflowInstanceId: instance.id,
+          dueAt: instance.dueAt,
+        });
+        await this.prisma.workflowInstance.update({
+          where: { id: instance.id },
+          data: {
+            metadata: { ...meta, slaWarningSent: true } as object,
+          },
+        });
+      }
+    }
+
     const breached = await this.prisma.workflowInstance.findMany({
       where: {
         dueAt: { lt: now },
@@ -371,6 +451,17 @@ export class WorkflowEngineService {
           dueAt,
         },
       });
+      if (instance.currentAssigneeUserId && instance.dueAt) {
+        await this.notify.notifyWorkflowSlaWarning({
+          institutionId: instance.institutionId,
+          entityId: instance.entityId,
+          assigneeUserId: instance.currentAssigneeUserId,
+          supervisorUserId: escalated.userId,
+          workflowName: instance.definition.name,
+          workflowInstanceId: instance.id,
+          dueAt: instance.dueAt,
+        });
+      }
       this.audit.append({
         institutionId: instance.institutionId,
         actorId: instance.initiatedBy,

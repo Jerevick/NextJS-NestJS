@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { GridColDef } from '@mui/x-data-grid';
 import { UniCoreDataGrid } from '@unicore/ui';
+import { RegistrationRequestRowActions } from '@/components/registration-request-row-actions';
 
 export type InstitutionGridRow = {
   id: string;
@@ -130,6 +131,61 @@ export function AdminDisputesDataGrid({ rows }: { rows: AdminDisputeGridRow[] })
       rows={rows}
       columns={adminDisputeColumns}
       getRowId={(r: AdminDisputeGridRow) => r.id}
+    />
+  );
+}
+
+export type RegistrationRequestGridRow = {
+  id: string;
+  kind: string;
+  status: string;
+  email: string;
+  summary: string;
+  institutionSlug: string;
+  createdAt: string;
+  canProvision: boolean;
+};
+
+const registrationRequestColumns: GridColDef<RegistrationRequestGridRow>[] = [
+  { field: 'kind', headerName: 'Type', width: 130 },
+  { field: 'status', headerName: 'Status', width: 100 },
+  { field: 'email', headerName: 'Email', flex: 1, minWidth: 180 },
+  {
+    field: 'summary',
+    headerName: 'Summary',
+    flex: 1.2,
+    minWidth: 200,
+    renderCell: ({ row, value }) => (
+      <Link href={`/registration-requests/${row.id}`} style={{ color: '#60a5fa' }}>
+        {value}
+      </Link>
+    ),
+  },
+  { field: 'institutionSlug', headerName: 'Slug', width: 140 },
+  {
+    field: 'createdAt',
+    headerName: 'Submitted',
+    width: 110,
+    valueFormatter: (v) => (v ? new Date(String(v)).toLocaleDateString() : '—'),
+  },
+  {
+    field: 'id',
+    headerName: 'Actions',
+    width: 220,
+    sortable: false,
+    filterable: false,
+    renderCell: ({ row }) => (
+      <RegistrationRequestRowActions requestId={row.id} canProvision={row.canProvision} />
+    ),
+  },
+];
+
+export function RegistrationRequestsDataGrid({ rows }: { rows: RegistrationRequestGridRow[] }) {
+  return (
+    <UniCoreDataGrid
+      rows={rows}
+      columns={registrationRequestColumns}
+      getRowId={(r: RegistrationRequestGridRow) => r.id}
     />
   );
 }

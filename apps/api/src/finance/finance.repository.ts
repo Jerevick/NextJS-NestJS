@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  assertFinanceTransactionUpdateAllowed,
+  pickGatewayOnlyUpdate,
+} from './finance-transaction-immutability.util';
 import {
   FinancePaymentPlanStatus,
   FinanceScholarshipApplicationStatus,
@@ -209,15 +213,20 @@ export class FinanceRepository {
       if (!pending) {
         return null;
       }
+      if (pending.status !== FinanceTransactionStatus.PENDING) {
+        throw new BadRequestException('Only PENDING transactions can be completed');
+      }
+      const completionData = {
+        status: FinanceTransactionStatus.COMPLETED,
+        processedAt: now,
+        processedBy: data.processedBy ?? null,
+        gatewayResponse: data.gatewayResponse ?? pending.gatewayResponse ?? undefined,
+        ...(data.metadata !== undefined ? { metadata: data.metadata } : {}),
+      };
+      assertFinanceTransactionUpdateAllowed(pending, completionData);
       const row = await tx.financeTransaction.update({
         where: { id: transactionId },
-        data: {
-          status: FinanceTransactionStatus.COMPLETED,
-          processedAt: now,
-          processedBy: data.processedBy ?? null,
-          gatewayResponse: data.gatewayResponse ?? pending.gatewayResponse ?? undefined,
-          ...(data.metadata !== undefined ? { metadata: data.metadata } : {}),
-        },
+        data: completionData,
       });
       const agg = await tx.financeTransaction.aggregate({
         where: {
@@ -970,11 +979,13 @@ export class FinanceRepository {
           !Array.isArray(row.gatewayResponse)
             ? (row.gatewayResponse as Record<string, unknown>)
             : {};
+        const updateData = {
+          gatewayResponse: { ...existing, ...patch } as Prisma.InputJsonValue,
+        };
+        assertFinanceTransactionUpdateAllowed(row, updateData);
         return this.prisma.financeTransaction.update({
           where: { id: transactionId },
-          data: {
-            gatewayResponse: { ...existing, ...patch } as Prisma.InputJsonValue,
-          },
+          data: pickGatewayOnlyUpdate(updateData),
         });
       });
   }

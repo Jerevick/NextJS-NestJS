@@ -7,8 +7,10 @@ import { AppraisalModule } from '../appraisal/appraisal.module';
 import { ElectionsModule } from '../elections/elections.module';
 import { LeaveModule } from '../leave/leave.module';
 import { MeetingsModule } from '../meetings/meetings.module';
+import { SportsModule } from '../sports/sports.module';
 import { StaffModule } from '../staff/staff.module';
 import { ProgressionModule } from '../progression/progression.module';
+import { NotificationsModule } from '../modules/notifications';
 import { StudentsModule } from '../students/students.module';
 import { WorkflowAssigneeResolver } from './workflow-assignee.resolver';
 import { WorkflowCompletionHandler } from './workflow-completion.handler';
@@ -31,6 +33,8 @@ import { AnyPermissionsGuard } from '../common/guards/any-permissions.guard';
     forwardRef(() => AppraisalModule),
     forwardRef(() => ElectionsModule),
     forwardRef(() => MeetingsModule),
+    SportsModule.register(),
+    NotificationsModule.register(),
   ],
   controllers: [WorkflowEngineController],
   providers: [

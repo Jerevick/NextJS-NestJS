@@ -15,6 +15,8 @@ import type { UpdateInstitutionModulesDto } from './dto/update-institution-modul
 import type { UpdateInstitutionDto } from './dto/update-institution.dto';
 import { packInstitutionAiKeys, readInstitutionAiSettings } from '../ai/ai-institution-settings';
 import type { UpdateInstitutionAiDto } from './dto/update-institution-ai.dto';
+import { buildInstitutionModulePairs } from '../common/tenant-modules/tenant-module-packages';
+import { TenantModulesService } from '../common/tenant-modules/tenant-modules.service';
 import { InstitutionsRepository } from './institutions.repository';
 
 function isPlatformOperator(user: AuthUser): boolean {
@@ -40,6 +42,7 @@ export class InstitutionsService {
   constructor(
     private readonly repo: InstitutionsRepository,
     private readonly audit: AuditService,
+    private readonly tenantModules: TenantModulesService,
   ) {}
 
   private assertRead(actor: AuthUser) {
@@ -130,16 +133,11 @@ export class InstitutionsService {
       maxStudents,
       settings,
     });
-    await this.repo.createDefaultModules(row.id, [
-      { module: TenantModule.SIS, enabled: true },
-      { module: TenantModule.LMS, enabled: true },
-      { module: TenantModule.FINANCE, enabled: false },
-      { module: TenantModule.HR, enabled: false },
-      { module: TenantModule.ELECTIONS, enabled: true },
-      { module: TenantModule.ALUMNI, enabled: false },
-      { module: TenantModule.SPORTS, enabled: false },
-      { module: TenantModule.MEETINGS, enabled: true },
-    ]);
+    await this.repo.createDefaultModules(
+      row.id,
+      buildInstitutionModulePairs([TenantModule.SIS, TenantModule.LMS]),
+    );
+    await this.tenantModules.syncSisLmsBridge(row.id);
     await this.repo.ensureMainCampusEntity(row.id, row.name);
     const withModules = await this.repo.findById(row.id);
     this.audit.append({
@@ -235,6 +233,7 @@ export class InstitutionsService {
       id,
       dto.modules.map((m) => ({ module: m.module, enabled: m.enabled })),
     );
+    await this.tenantModules.syncSisLmsBridge(id);
     const row = await this.repo.findById(id);
     this.audit.append({
       institutionId: id,

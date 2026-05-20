@@ -232,7 +232,7 @@ export class AppraisalService {
             dto.staffIds.map((id) => this.staffRepo.findProfile(user.institutionId, id, entityId)),
           )
         ).filter(Boolean)
-      : await this.staffRepo.listProfiles(user.institutionId, entityId);
+      : await this.staffRepo.listProfiles(user.institutionId, entityId, 500);
     const periodStart = new Date(dto.periodStart);
     const periodEnd = new Date(dto.periodEnd);
     const created: string[] = [];

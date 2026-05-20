@@ -55,6 +55,29 @@ async function platformGet(
   return { ok: true, data: (await res.json()) as Json };
 }
 
+async function platformPatch(
+  path: string,
+  body: unknown,
+): Promise<{ ok: true; data: Json } | { ok: false; status: number; text: string }> {
+  const token = env.ADMIN_API_BEARER;
+  if (!token) {
+    return { ok: false, status: 401, text: 'missing bearer' };
+  }
+  const res = await fetch(`${apiBase()}${path}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    return { ok: false, status: res.status, text: await res.text() };
+  }
+  return { ok: true, data: (await res.json()) as Json };
+}
+
 async function platformPost(
   path: string,
   body: unknown,
@@ -164,7 +187,9 @@ export async function getMonitoringInstitutionAudit(id: string) {
   if (!env.ADMIN_API_BEARER) {
     return { mode: 'mock' as const, data: [], total: 0, notice: 'Configure ADMIN_API_BEARER.' };
   }
-  const live = await platformGet(`/monitoring/institutions/${encodeURIComponent(id)}/audit-log?limit=30`);
+  const live = await platformGet(
+    `/monitoring/institutions/${encodeURIComponent(id)}/audit-log?limit=30`,
+  );
   if (live.ok) {
     return { mode: 'live' as const, ...live.data };
   }
@@ -180,6 +205,54 @@ export async function getPendingBillingDisputes() {
     return { mode: 'live' as const, ...live.data };
   }
   return { mode: 'error' as const, status: live.status, message: live.text, data: [], total: 0 };
+}
+
+export async function getRegistrationRequests(query?: {
+  status?: string;
+  kind?: string;
+  limit?: number;
+}) {
+  if (!env.ADMIN_API_BEARER) {
+    return { mode: 'mock' as const, data: [], total: 0 };
+  }
+  const params = new URLSearchParams();
+  if (query?.status) params.set('status', query.status);
+  if (query?.kind) params.set('kind', query.kind);
+  if (query?.limit) params.set('limit', String(query.limit));
+  const qs = params.toString();
+  const live = await platformGet(`/super-admin/registration-requests${qs ? `?${qs}` : ''}`);
+  if (live.ok) {
+    const data = Array.isArray(live.data.data) ? live.data.data : [];
+    return { mode: 'live' as const, data, total: data.length };
+  }
+  return { mode: 'error' as const, status: live.status, message: live.text, data: [], total: 0 };
+}
+
+export async function getRegistrationRequest(id: string) {
+  if (!env.ADMIN_API_BEARER) {
+    return { mode: 'mock' as const, found: false as const };
+  }
+  const live = await platformGet(`/super-admin/registration-requests/${encodeURIComponent(id)}`);
+  if (live.ok) {
+    return { mode: 'live' as const, found: true as const, request: live.data };
+  }
+  if (live.status === 404) {
+    return { mode: 'live' as const, found: false as const };
+  }
+  return { mode: 'error' as const, status: live.status, message: live.text };
+}
+
+export async function reviewRegistrationRequest(id: string, status: 'REVIEWED' | 'DISMISSED') {
+  if (!env.ADMIN_API_BEARER) {
+    return { mode: 'mock' as const, ok: false, message: 'Configure ADMIN_API_BEARER.' };
+  }
+  const live = await platformPatch(`/super-admin/registration-requests/${encodeURIComponent(id)}`, {
+    status,
+  });
+  if (live.ok) {
+    return { mode: 'live' as const, ok: true };
+  }
+  return { mode: 'error' as const, ok: false, status: live.status, message: live.text };
 }
 
 export async function provisionInstitution(body: Record<string, unknown>) {

@@ -31,5 +31,5 @@ export default async function EnrollmentRegisterPage() {
     );
   }
 
-  redirect(`/students/${session.user.studentId}/enroll`);
+  redirect('/register-courses');
 }

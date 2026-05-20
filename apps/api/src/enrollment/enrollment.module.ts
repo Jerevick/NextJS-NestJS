@@ -1,6 +1,7 @@
 import { DynamicModule, Logger, Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { TenantModulesModule } from '../common/tenant-modules/tenant-modules.module';
 import { ProgressionModule } from '../progression/progression.module';
 import { BULK_ENROLLMENT_QUEUE } from '../queues/queue.constants';
 import { BulkEnrollmentController } from './bulk-enrollment.controller';
@@ -28,6 +29,7 @@ export class EnrollmentModule {
       module: EnrollmentModule,
       imports: [
         ProgressionModule,
+        TenantModulesModule,
         ...(useBull ? [BullModule.registerQueue({ name: BULK_ENROLLMENT_QUEUE })] : []),
       ],
       controllers: [EnrollmentController, EnrollmentHoldsController, BulkEnrollmentController],

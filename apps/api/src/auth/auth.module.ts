@@ -1,28 +1,15 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { MailService } from '../mail/mail.service';
+import { Module, forwardRef } from '@nestjs/common';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { AuthCoreModule } from './auth-core.module';
+import { AuthRegistrationService } from './auth-registration.service';
 import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
 import { OauthGoogleController } from './oauth-google.controller';
 import { SamlAuthController } from './saml-auth.controller';
-import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
-  imports: [
-    PassportModule.register({ defaultStrategy: 'jwt' }),
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.getOrThrow<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '15m' },
-      }),
-    }),
-  ],
+  imports: [AuthCoreModule, forwardRef(() => NotificationsModule.register())],
   controllers: [AuthController, SamlAuthController, OauthGoogleController],
-  providers: [AuthService, JwtStrategy, MailService],
-  exports: [AuthService],
+  providers: [AuthRegistrationService],
+  exports: [AuthCoreModule, AuthRegistrationService],
 })
 export class AuthModule {}

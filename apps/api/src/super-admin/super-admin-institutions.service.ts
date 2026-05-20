@@ -17,6 +17,8 @@ import * as bcrypt from 'bcrypt';
 import type { AuthUser } from '../auth/auth.types';
 import { AuditService } from '../audit/audit.service';
 import { EntityProvisioningService } from '../institution-entities/entity-provisioning.service';
+import { buildInstitutionModulePairs } from '../common/tenant-modules/tenant-module-packages';
+import { TenantModulesService } from '../common/tenant-modules/tenant-modules.service';
 import { InstitutionsRepository } from '../institutions/institutions.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import type { ListInstitutionsQueryDto } from '../institutions/dto/list-institutions-query.dto';
@@ -47,6 +49,7 @@ export class SuperAdminInstitutionsService {
     private readonly audit: AuditService,
     private readonly health: InstitutionHealthService,
     private readonly provisioning: EntityProvisioningService,
+    private readonly tenantModules: TenantModulesService,
   ) {}
 
   async list(query: ListInstitutionsQueryDto) {
@@ -167,12 +170,7 @@ export class SuperAdminInstitutionsService {
 
     const plan = dto.plan ?? PlanTier.STARTER;
     const modules =
-      dto.modules ??
-      [
-        { module: TenantModule.SIS, enabled: true },
-        { module: TenantModule.LMS, enabled: true },
-        { module: TenantModule.FINANCE, enabled: false },
-      ];
+      dto.modules ?? buildInstitutionModulePairs([TenantModule.SIS, TenantModule.LMS]);
 
     const institution = await this.prisma.$transaction(async (tx) => {
       const inst = await tx.institution.create({
@@ -261,6 +259,7 @@ export class SuperAdminInstitutionsService {
     });
 
     await this.provisioning.provisionEntity(institution.inst.id, institution.mainEntityId);
+    await this.tenantModules.syncSisLmsBridge(institution.inst.id);
 
     this.audit.append({
       institutionId: institution.inst.id,
@@ -394,9 +393,7 @@ export class SuperAdminInstitutionsService {
     return { ok: true as const, status: InstitutionStatus.ACTIVE };
   }
 
-  private serialize(
-    row: NonNullable<Awaited<ReturnType<InstitutionsRepository['findById']>>>,
-  ) {
+  private serialize(row: NonNullable<Awaited<ReturnType<InstitutionsRepository['findById']>>>) {
     return {
       id: row.id,
       slug: row.slug,

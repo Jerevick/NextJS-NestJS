@@ -166,10 +166,17 @@ async function main() {
     data: [
       { code: 'institutions.read', label: 'Read institutions' },
       { code: 'institutions.write', label: 'Manage institutions' },
+      { code: 'integrations.read', label: 'View integrations marketplace and webhooks' },
+      {
+        code: 'integrations.write',
+        label: 'Configure integrations, webhooks, and public API keys',
+      },
       { code: 'students.read', label: 'Read students' },
       { code: 'students.write', label: 'Manage students' },
       { code: 'alumni.read', label: 'Read alumni directory and mentorship matches' },
       { code: 'alumni.write', label: 'Manage alumni profiles' },
+      { code: 'sports.read', label: 'View sports teams, fixtures, and eligibility' },
+      { code: 'sports.write', label: 'Manage sports teams, fixtures, and facilities' },
       { code: 'enrollments.read', label: 'Read enrollments' },
       { code: 'enrollments.write', label: 'Manage enrollments' },
       { code: 'grades.read', label: 'Read grades' },
@@ -226,6 +233,10 @@ async function main() {
       { code: 'meetings.read', label: 'View meetings, agendas, and resolution register' },
       { code: 'meetings.convene', label: 'Convene meetings and approve minutes' },
       { code: 'meetings.write', label: 'Full meeting administration' },
+      {
+        code: 'notifications.broadcast',
+        label: 'Send bulk notifications to students by entity or programme',
+      },
     ],
     skipDuplicates: true,
   });
@@ -240,6 +251,16 @@ async function main() {
       code: 'MEETINGS_CONVENE',
       name: 'Meetings convene & minutes',
       permissions: ['meetings.read', 'meetings.convene', 'meetings.write'],
+    },
+    {
+      code: 'ALUMNI_MANAGE',
+      name: 'Alumni administration',
+      permissions: ['alumni.read', 'alumni.write'],
+    },
+    {
+      code: 'SPORTS_MANAGE',
+      name: 'Sports administration',
+      permissions: ['sports.read', 'sports.write'],
     },
   ]) {
     await prisma.permissionBundle.upsert({
@@ -290,6 +311,13 @@ async function main() {
     'meetings.read',
     'meetings.convene',
     'meetings.write',
+    'alumni.read',
+    'alumni.write',
+    'sports.read',
+    'sports.write',
+    'notifications.broadcast',
+    'integrations.read',
+    'integrations.write',
   ] as const;
   const registrarPerms = await prisma.permission.findMany({
     where: { code: { in: [...registrarPermCodes] } },

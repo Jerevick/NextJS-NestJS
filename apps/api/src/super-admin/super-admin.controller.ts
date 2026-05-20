@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -19,11 +10,14 @@ import { LockDailySnapshotsDto } from '../billing/dto/lock-daily-snapshots.dto';
 import { AmendSnapshotDto } from './dto/amend-snapshot.dto';
 import { InstitutionFeatureFlagDto } from './dto/institution-feature-flag.dto';
 import { ProvisionInstitutionDto } from './dto/provision-institution.dto';
+import { ReviewRegistrationRequestDto } from './dto/review-registration-request.dto';
 import { UpdateInstitutionBillingConfigDto } from './dto/update-institution-billing-config.dto';
 import { UpsertFeatureFlagDto } from './dto/upsert-feature-flag.dto';
 import { FeatureFlagsService } from './feature-flags.service';
+import { RegistrationReviewService } from './registration-review.service';
 import { SuperAdminBillingService } from './super-admin-billing.service';
 import { SuperAdminInstitutionsService } from './super-admin-institutions.service';
+import { AuthRegistrationService } from '../auth/auth-registration.service';
 import { SuperAdminPlatformService } from './super-admin-platform.service';
 
 @ApiTags('super-admin')
@@ -36,6 +30,8 @@ export class SuperAdminController {
     private readonly institutions: SuperAdminInstitutionsService,
     private readonly billing: SuperAdminBillingService,
     private readonly featureFlags: FeatureFlagsService,
+    private readonly registration: AuthRegistrationService,
+    private readonly registrationReview: RegistrationReviewService,
   ) {}
 
   @Get('overview')
@@ -111,11 +107,7 @@ export class SuperAdminController {
     @Query('year') year: string,
     @Query('month') month: string,
   ) {
-    return this.billing.listInstitutionSnapshots(
-      institutionId,
-      Number(year),
-      Number(month),
-    );
+    return this.billing.listInstitutionSnapshots(institutionId, Number(year), Number(month));
   }
 
   @Patch('billing/snapshots/:id')
@@ -133,12 +125,7 @@ export class SuperAdminController {
     @Param('institutionId') institutionId: string,
     @Body() body: { year: number; month: number },
   ) {
-    return this.billing.generateInvoiceForInstitution(
-      user,
-      institutionId,
-      body.year,
-      body.month,
-    );
+    return this.billing.generateInvoiceForInstitution(user, institutionId, body.year, body.month);
   }
 
   @Post('billing/snapshots/lock')
@@ -162,5 +149,32 @@ export class SuperAdminController {
     @Body() dto: InstitutionFeatureFlagDto,
   ) {
     return this.featureFlags.setInstitutionOverride(institutionId, dto.flagKey, dto.enabled);
+  }
+
+  @Get('registration-requests/:id')
+  getRegistrationRequest(@Param('id') id: string) {
+    return this.registration.getRegistrationRequest(id);
+  }
+
+  @Get('registration-requests')
+  listRegistrationRequests(
+    @Query('status') status?: string,
+    @Query('kind') kind?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.registration.listRegistrationRequests({
+      status,
+      kind,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
+  @Patch('registration-requests/:id')
+  reviewRegistrationRequest(
+    @CurrentUser() actor: AuthUser,
+    @Param('id') id: string,
+    @Body() body: ReviewRegistrationRequestDto,
+  ) {
+    return this.registrationReview.review(actor, id, body.status);
   }
 }

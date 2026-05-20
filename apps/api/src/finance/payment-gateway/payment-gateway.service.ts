@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { CustomizationService } from '../../customization/customization.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import type {
   InitializePaymentInput,
@@ -11,14 +12,11 @@ import { PaymobFinanceGateway } from './paymob-finance.gateway';
 import { PaystackFinanceGateway } from './paystack-finance.gateway';
 import { StripeFinanceGateway } from './stripe-finance.gateway';
 
-type EntityPaymentSettings = {
-  paymentGateway?: string;
-};
-
 @Injectable()
 export class PaymentGatewayService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly customization: CustomizationService,
     private readonly stripe: StripeFinanceGateway,
     private readonly flutterwave: FlutterwaveFinanceGateway,
     private readonly paystack: PaystackFinanceGateway,
@@ -85,10 +83,17 @@ export class PaymentGatewayService {
   async resolveForEntity(entityId: string): Promise<PaymentGateway> {
     const entity = await this.prisma.institutionEntity.findFirst({
       where: { id: entityId, deletedAt: null },
-      select: { settings: true, institutionId: true },
+      select: { institutionId: true },
     });
-    const settings = (entity?.settings ?? {}) as EntityPaymentSettings;
-    const gw = (settings.paymentGateway ?? 'noop').toLowerCase();
+    const institutionId = entity?.institutionId;
+    const raw = institutionId
+      ? await this.customization.getEffectiveSettingForScope(
+          institutionId,
+          'paymentGateway',
+          entityId,
+        )
+      : 'noop';
+    const gw = (typeof raw === 'string' ? raw : 'noop').toLowerCase();
     const bank = await this.findActiveBankIntegration(entityId, gw);
     if (bank && gw !== 'noop') {
       // Active bank row confirms provider is configured for settlements on this entity.

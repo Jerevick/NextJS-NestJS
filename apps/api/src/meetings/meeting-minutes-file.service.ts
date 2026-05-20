@@ -29,7 +29,7 @@ export class MeetingMinutesFileService {
     const stored = await this.storage.putBuffer(key, buffer, 'text/plain');
     return {
       minutesFileKey: stored.key,
-      downloadUrl: this.storage.getDownloadUrl(stored.key),
+      downloadUrl: await this.storage.resolveDownloadUrl(stored.key),
     };
   }
 

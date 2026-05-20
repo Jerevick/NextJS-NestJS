@@ -123,12 +123,13 @@ export class ElectionsService {
     const election = await this.repo.resolveElection(user.institutionId, electionId, entityId);
     if (!election) throw new NotFoundException('Election not found');
     const data = await this.repo.listCandidates(electionId);
-    return {
-      data: data.map((c) => ({
+    const withPhotos = await Promise.all(
+      data.map(async (c) => ({
         ...c,
-        photoUrl: this.documents.getPhotoUrl(c.photo),
+        photoUrl: await this.documents.getPhotoUrl(c.photo),
       })),
-    };
+    );
+    return { data: withPhotos };
   }
 
   async create(user: AuthUser, dto: CreateElectionDto) {

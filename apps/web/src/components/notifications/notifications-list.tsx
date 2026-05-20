@@ -52,7 +52,24 @@ export function NotificationsList({ initial }: { initial: Row[] }) {
               style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}
             >
               {n.actionUrl ? (
-                <Link href={n.actionUrl} style={{ fontSize: '0.82rem', color: '#0d9488' }}>
+                <Link
+                  href={n.actionUrl}
+                  style={{ fontSize: '0.82rem', color: '#0d9488' }}
+                  onClick={() => {
+                    if (!n.readAt) {
+                      startTransition(async () => {
+                        const r = await markNotificationReadAction(n.id);
+                        if (r.ok) {
+                          setRows((prev) =>
+                            prev.map((row) =>
+                              row.id === n.id ? { ...row, readAt: new Date().toISOString() } : row,
+                            ),
+                          );
+                        }
+                      });
+                    }
+                  }}
+                >
                   Open
                 </Link>
               ) : null}

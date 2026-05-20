@@ -36,6 +36,29 @@ export default auth((req) => {
       return NextResponse.redirect(new URL('/dashboard', r.nextUrl.origin));
     }
   }
+  const role = req.auth.user?.role;
+  if (role === 'GUARDIAN' && path === '/dashboard') {
+    return NextResponse.redirect(new URL('/guardian/dashboard', r.nextUrl.origin));
+  }
+  if (role === 'STUDENT' && (path.startsWith('/students') || path.startsWith('/staff'))) {
+    return NextResponse.redirect(new URL('/dashboard', r.nextUrl.origin));
+  }
+  if (role === 'ALUMNI') {
+    const alumniPortalPaths = ['/alumni/home', '/alumni/events', '/alumni/jobs', '/alumni/profile'];
+    const isAlumniPortal =
+      alumniPortalPaths.some((p) => path === p || path.startsWith(`${p}/`)) ||
+      path.startsWith('/api/portal/alumni');
+
+    if (path === '/dashboard') {
+      return NextResponse.redirect(new URL('/alumni/home', r.nextUrl.origin));
+    }
+    if (path === '/alumni' || (path.startsWith('/alumni/') && !isAlumniPortal)) {
+      return NextResponse.redirect(new URL('/alumni/home', r.nextUrl.origin));
+    }
+    if (path.startsWith('/students') || path.startsWith('/staff') || path.startsWith('/admin')) {
+      return NextResponse.redirect(new URL('/alumni/home', r.nextUrl.origin));
+    }
+  }
   return NextResponse.next();
 });
 

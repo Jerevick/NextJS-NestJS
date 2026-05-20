@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { NotificationsModule } from '../modules/notifications';
 import { AnyPermissionsGuard } from '../common/guards/any-permissions.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { DocumentsController } from './documents.controller';
@@ -7,7 +8,9 @@ import { DocumentsRepository } from './documents.repository';
 import { DocumentsService } from './documents.service';
 
 @Module({
+  imports: [NotificationsModule.register()],
   controllers: [DocumentsPublicController, DocumentsController],
   providers: [DocumentsService, DocumentsRepository, PermissionsGuard, AnyPermissionsGuard],
+  exports: [DocumentsService],
 })
 export class DocumentsModule {}

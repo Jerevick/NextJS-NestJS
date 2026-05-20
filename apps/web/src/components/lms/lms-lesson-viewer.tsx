@@ -5,12 +5,11 @@ import { auth } from '@/auth';
 import { hasPermission } from '@/lib/permissions';
 import type { LMSLesson as LmsCourseLessonDetail } from '@/components/lms/course-structure';
 import { LessonCompleteButton } from '@/components/lms/lesson-complete-button';
-import { HlsVideoPlayer } from '@/components/lms/hls-video-player';
+import { HlsVideoPlayer, LessonPdfViewer } from '@/components/lms/lms-lesson-media';
 import { LessonResourcesList } from '@/components/lms/lesson-resources-list';
 import { QuizLessonPanel, quizLessonAssessmentId } from '@/components/lms/quiz-lesson-panel';
 import { CourseAccessPing } from '@/components/lms/course-access-ping';
 import { LmsLearningShell, type LmsOutlineModule } from '@/components/lms/lms-learning-shell';
-import { LessonPdfViewer } from '@/components/lms/lesson-pdf-viewer';
 
 import type { LmsLearningRoutePrefix } from '@/components/lms/lms-learning-routes';
 

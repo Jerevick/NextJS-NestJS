@@ -25,6 +25,7 @@ import { StaffNotificationsService } from './staff-notifications.service';
 import { decryptSalary, encryptSalary } from './staff-salary.util';
 import { parseEntityHrSettings, suggestWorkloadDistribution } from './staff-workload.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { normalizePageLimit, sliceCursorPage } from '../common/pagination/cursor-page.util';
 import { StaffRepository } from './staff.repository';
 @Injectable()
 export class StaffService {
@@ -63,12 +64,16 @@ export class StaffService {
     return query?.entityId?.trim() || this.entityId(user);
   }
 
-  listProfiles(user: AuthUser, query?: ListStaffProfilesQueryDto) {
+  async listProfiles(user: AuthUser, query?: ListStaffProfilesQueryDto) {
     const entityId = this.profileScopeEntityId(user, query);
-    return this.repo.listProfiles(user.institutionId, entityId).then((rows) => ({
-      data: rows.map((r) => this.mapProfile(r, user)),
+    const limit = normalizePageLimit(query?.limit, 50, 100);
+    const rows = await this.repo.listProfiles(user.institutionId, entityId, limit, query?.cursor);
+    const { data, nextCursor } = sliceCursorPage(rows, limit);
+    return {
+      data: data.map((r) => this.mapProfile(r, user)),
+      nextCursor,
       scope: query?.scope ?? (entityId ? 'entity' : 'institution'),
-    }));
+    };
   }
 
   async getProfile(user: AuthUser, id: string, query?: ListStaffProfilesQueryDto) {

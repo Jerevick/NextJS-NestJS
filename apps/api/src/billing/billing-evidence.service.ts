@@ -63,7 +63,9 @@ export class BillingEvidenceService {
     for (const ent of params.entitySummaries) {
       const exempt = isEntityBillingExempt(ent.settings);
       const billedCount = exempt ? 0 : Math.max(ent.watermarkCount, floor);
-      const amount = exempt ? new Prisma.Decimal(0) : new Prisma.Decimal(billedCount).mul(params.unit);
+      const amount = exempt
+        ? new Prisma.Decimal(0)
+        : new Prisma.Decimal(billedCount).mul(params.unit);
       total = total.add(amount);
 
       const dailySnapshots = await this.prisma.dailyBillableSnapshot.findMany({
@@ -121,10 +123,10 @@ export class BillingEvidenceService {
     return { evidenceS3Key: stored.key, evidenceUrl: stored.url };
   }
 
-  getEvidenceDownloadUrl(evidenceS3Key: string | null): string | null {
+  getEvidenceDownloadUrl(evidenceS3Key: string | null): Promise<string | null> {
     if (!evidenceS3Key) {
-      return null;
+      return Promise.resolve(null);
     }
-    return this.storage.getDownloadUrl(evidenceS3Key);
+    return this.storage.resolveDownloadUrl(evidenceS3Key);
   }
 }
