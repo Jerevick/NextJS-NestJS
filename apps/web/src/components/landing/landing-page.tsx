@@ -1,8 +1,8 @@
 'use client';
 
-import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   IconBook,
   IconBuilding,
@@ -182,13 +182,6 @@ export function LandingPage() {
   const [navScrolled, setNavScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const reduceMotion = useReducedMotion();
-  const heroRef = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: heroRef,
-    offset: ['start start', 'end start'],
-  });
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.45], [1, 0]);
-  const heroY = useTransform(scrollYProgress, [0, 0.45], [0, reduceMotion ? 0 : 48]);
 
   useEffect(() => {
     const onScroll = () => setNavScrolled(window.scrollY > 16);
@@ -272,11 +265,7 @@ export function LandingPage() {
         </div>
       ) : null}
 
-      <motion.section
-        ref={heroRef}
-        className={styles.hero}
-        style={reduceMotion ? undefined : { opacity: heroOpacity, y: heroY }}
-      >
+      <section className={styles.hero}>
         <div className={styles.heroBg} aria-hidden />
         <div className={styles.heroGrid}>
           <div className={styles.heroContent}>
@@ -362,7 +351,7 @@ export function LandingPage() {
             <DashboardPreview />
           </motion.div>
         </div>
-      </motion.section>
+      </section>
 
       <section className={styles.trustStrip} aria-label="Platform highlights">
         <div className={styles.trustInner}>
