@@ -3404,6 +3404,7 @@ model AgendaItem {
   actionItems   Json           @default("[]")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
 
   institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   entity      InstitutionEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
@@ -3411,6 +3412,7 @@ model AgendaItem {
   resolutions Resolution[]
 
   @@index([meetingId, order])
+  @@index([meetingId, deletedAt])
 }
 
 model Resolution {

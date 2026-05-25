@@ -12,6 +12,26 @@
     "lint": {},
     "typecheck": {
       "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "outputs": ["coverage/**"]
+    },
+    "db:generate": {
+      "cache": false,
+      "outputs": ["../../node_modules/.prisma/**"]
+    },
+    "db:migrate": {
+      "cache": false,
+      "dependsOn": ["db:generate"]
+    },
+    "db:seed": {
+      "cache": false,
+      "dependsOn": ["db:migrate"]
+    },
+    "clean": {
+      "cache": false
     }
   }
 }

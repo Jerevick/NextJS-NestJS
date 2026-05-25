@@ -8,6 +8,29 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: unicore
+          POSTGRES_PASSWORD: unicore
+          POSTGRES_DB: unicore
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U unicore -d unicore"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://unicore:unicore@localhost:5432/unicore?schema=public
+      DIRECT_DATABASE_URL: postgresql://unicore:unicore@localhost:5432/unicore?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
+      JWT_REFRESH_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
+      AUTH_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      SKIP_TESTCONTAINERS: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -18,20 +41,16 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-        env:
-          DATABASE_URL: postgresql://unicore:unicore@localhost:5432/unicore?schema=public
+      - name: Enable Postgres extensions
+        run: |
+          PGPASSWORD=unicore psql -h localhost -U unicore -d unicore -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+          PGPASSWORD=unicore psql -h localhost -U unicore -d unicore -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm;'
+      - name: Prepare Prisma env file
+        run: |
+          printf 'DATABASE_URL=%s\nDIRECT_DATABASE_URL=%s\n' "$DATABASE_URL" "$DIRECT_DATABASE_URL" > packages/database/.env
+      - run: pnpm db:migrate:deploy
       - run: pnpm lint
       - run: pnpm typecheck
-        env:
-          DATABASE_URL: postgresql://unicore:unicore@localhost:5432/unicore?schema=public
-          NEXT_PUBLIC_API_URL: http://localhost:4000
-          JWT_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
-          JWT_REFRESH_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
-          AUTH_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
+      - run: pnpm --filter @unicore/api test
+      - run: pnpm --filter @unicore/api test:e2e
       - run: pnpm build
-        env:
-          DATABASE_URL: postgresql://unicore:unicore@localhost:5432/unicore?schema=public
-          NEXT_PUBLIC_API_URL: http://localhost:4000
-          JWT_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
-          JWT_REFRESH_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
-          AUTH_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci

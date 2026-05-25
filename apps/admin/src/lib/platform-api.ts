@@ -121,6 +121,13 @@ const mockInstitutions = {
 
 export async function getPlatformOverview() {
   if (!env.ADMIN_API_BEARER) {
+    if (env.NODE_ENV === 'production') {
+      return {
+        mode: 'error' as const,
+        status: 503,
+        message: 'ADMIN_API_BEARER is required in production',
+      };
+    }
     return {
       mode: 'mock' as const,
       totalInstitutions: 1,
@@ -137,6 +144,64 @@ export async function getPlatformOverview() {
     return { mode: 'live' as const, ...data };
   }
   return { mode: 'error' as const, status: live.status, message: live.text };
+}
+
+export async function getMrrTrend() {
+  if (!env.ADMIN_API_BEARER) {
+    return { mode: 'mock' as const, months: [] as { month: string; revenue: string }[] };
+  }
+  const live = await platformGet('/super-admin/overview/mrr-trend');
+  if (live.ok) {
+    return {
+      mode: 'live' as const,
+      ...(live.data as { months: { month: string; revenue: string }[] }),
+    };
+  }
+  return { mode: 'error' as const, months: [], message: live.text };
+}
+
+export async function getMapPins() {
+  if (!env.ADMIN_API_BEARER) {
+    return {
+      mode: 'mock' as const,
+      pins: [
+        {
+          id: 'demo',
+          name: 'Demo',
+          plan: 'STARTER',
+          status: 'ACTIVE',
+          students: 0,
+          coordinates: { lat: 6.5, lng: 3.4 },
+        },
+      ],
+    };
+  }
+  const live = await platformGet('/super-admin/overview/map-pins');
+  if (live.ok) {
+    return { mode: 'live' as const, ...(live.data as { pins: unknown[] }) };
+  }
+  return { mode: 'error' as const, pins: [], message: live.text };
+}
+
+export async function getActiveSessions() {
+  if (!env.ADMIN_API_BEARER) {
+    return {
+      mode: 'mock' as const,
+      totalOnline: 0,
+      byInstitution: [],
+      asOf: new Date().toISOString(),
+    };
+  }
+  const live = await platformGet('/super-admin/overview/active-sessions');
+  if (live.ok) {
+    return { mode: 'live' as const, ...(live.data as { totalOnline: number; asOf: string }) };
+  }
+  return {
+    mode: 'error' as const,
+    totalOnline: 0,
+    asOf: new Date().toISOString(),
+    message: live.text,
+  };
 }
 
 export async function getMonitoringInstitutions() {

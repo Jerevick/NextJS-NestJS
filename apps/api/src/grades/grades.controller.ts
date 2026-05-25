@@ -14,6 +14,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { StudentRecordWrite } from '../common/decorators/student-record-write.decorator';
 import { RequireAnyPermissions } from '../common/decorators/require-any-permissions.decorator';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator';
+import { ResourceEntityId } from '../common/decorators/resource-entity-id.decorator';
 import { AnyPermissionsGuard } from '../common/guards/any-permissions.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { CreateGradeOverrideDto } from './dto/create-grade-override.dto';
@@ -52,6 +53,7 @@ export class GradesController {
   }
 
   @Post('enrollments/:enrollmentId/override-requests')
+  @ResourceEntityId('enrollmentId', 'enrollment')
   @UseGuards(AnyPermissionsGuard)
   @RequireAnyPermissions('grades.write', 'grades.enter', 'grades.amend_approved')
   @StudentRecordWrite({

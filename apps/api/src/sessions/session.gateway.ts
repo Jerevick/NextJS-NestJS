@@ -63,6 +63,9 @@ export class SessionGateway implements OnGatewayConnection {
         const actor = await this.auth.validateJwtPayload(payload);
         client.data.actor = actor;
         void client.join(`user:${payload.sub}`);
+        if (actor.permissions.includes('*')) {
+          void client.join('super-admin:monitoring');
+        }
       } catch (err) {
         this.log.debug(`WS auth failed: ${err instanceof Error ? err.message : String(err)}`);
         client.disconnect(true);
@@ -111,5 +114,13 @@ export class SessionGateway implements OnGatewayConnection {
       return;
     }
     this.server.to(`user:${userId}`).emit('notification.new', payload);
+  }
+
+  /** Super-admin dashboard live session counts (WP-6.1). */
+  emitPlatformSessionMetrics(payload: Record<string, unknown>): void {
+    if (!this.server) {
+      return;
+    }
+    this.server.to('super-admin:monitoring').emit('platform.sessions', payload);
   }
 }

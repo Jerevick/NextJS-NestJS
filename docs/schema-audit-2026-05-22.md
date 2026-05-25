@@ -1,0 +1,284 @@
+# Schema audit (auto-generated)
+
+Generated: 2026-05-22
+
+Total models: 141
+Tenant-scoped (institutionId): 133
+
+## P0 — Models with institutionId but no deletedAt
+
+- WorkflowDefinition (junction/config — may be intentional)
+- WorkflowInstance (junction/config — may be intentional)
+- StudentTransferRecord (junction/config — may be intentional)
+- PositionHolder (junction/config — may be intentional)
+- AffiliatePartner (junction/config — may be intentional)
+- InstitutionWebhookDelivery (junction/config — may be intentional)
+- PublicApiKey (junction/config — may be intentional)
+- DailyBillableSnapshot (junction/config — may be intentional)
+- MonthlyBillableSummary (junction/config — may be intentional)
+- LoginMagicLink (junction/config — may be intentional)
+- RegistrationRequest (junction/config — may be intentional)
+- PasswordResetToken (junction/config — may be intentional)
+- AuditLog (junction/config — may be intentional)
+- BulkEnrollmentJob (junction/config — may be intentional)
+- StudentCsvImportJob (junction/config — may be intentional)
+- GraduationClearanceRequest (junction/config — may be intentional)
+- LmsQuestion (junction/config — may be intentional)
+- LmsQuestionBankItem (junction/config — may be intentional)
+- LmsSubmission (junction/config — may be intentional)
+- LmsAnnouncement (junction/config — may be intentional)
+- LmsDiscussion (junction/config — may be intentional)
+- LmsDiscussionPost (junction/config — may be intentional)
+- LmsDirectMessage (junction/config — may be intentional)
+- LmsStudentProgress (junction/config — may be intentional)
+- LmsLessonCompletion (junction/config — may be intentional)
+- LmsAiTutorSession (junction/config — may be intentional)
+- LmsContentSummary (junction/config — may be intentional)
+- BackfillRequest (junction/config — may be intentional)
+- BackfillWindow (junction/config — may be intentional)
+- ReactivationRequest (junction/config — may be intentional)
+- StatusChangeLog (junction/config — may be intentional)
+- FormSubmission (junction/config — may be intentional)
+- ProgressionDecision (junction/config — may be intentional)
+- StudentProgressionHold (junction/config — may be intentional)
+- CarryoverEnrollment (junction/config — may be intentional)
+- ResitRecord (junction/config — may be intentional)
+- StudentAcademicSessionRecord (junction/config — may be intentional)
+- StudentAccount (junction/config — may be intentional)
+- FinanceTransaction (junction/config — may be intentional)
+- FinanceGlAccount (junction/config — may be intentional)
+- FinanceGlJournalLine (junction/config — may be intentional)
+- FinancePaymentPlan (junction/config — may be intentional)
+- FinanceScholarshipApplication (junction/config — may be intentional)
+- FinanceScholarshipAward (junction/config — may be intentional)
+- FinanceBankIntegration (junction/config — may be intentional)
+- FinanceBulkChargeJob (junction/config — may be intentional)
+- NotificationTemplate (junction/config — may be intentional)
+- UserNotification (junction/config — may be intentional)
+- NotificationDigestEntry (junction/config — may be intentional)
+- ScheduledNotification (junction/config — may be intentional)
+- LeaveType (junction/config — may be intentional)
+- LeaveBalance (junction/config — may be intentional)
+- LeaveRequest (junction/config — may be intentional)
+- StaffAppraisal (junction/config — may be intentional)
+- WorkloadRecord (junction/config — may be intentional)
+- ElectionCandidate (junction/config — may be intentional)
+- ElectionVoter (junction/config — may be intentional)
+- ElectionVote (junction/config — may be intentional)
+- ElectionAuditLog (junction/config — may be intentional)
+- MeetingAttendee (junction/config — may be intentional)
+- Resolution (junction/config — may be intentional)
+- MeetingCommittee (junction/config — may be intentional)
+- MeetingActionItem (junction/config — may be intentional)
+- MentorshipProgram (junction/config — may be intentional)
+- MentorshipPair (junction/config — may be intentional)
+- AlumniChapter (junction/config — may be intentional)
+- AlumniEventRegistration (junction/config — may be intentional)
+- FundraisingCampaign (junction/config — may be intentional)
+- JobPosting (junction/config — may be intentional)
+- JobApplication (junction/config — may be intentional)
+- AlumniSurvey (junction/config — may be intentional)
+- SportType (junction/config — may be intentional)
+- SportsPlayer (junction/config — may be intentional)
+- SportsFacility (junction/config — may be intentional)
+- FacilityBooking (junction/config — may be intentional)
+- SportsCompetitionEntry (junction/config — may be intentional)
+- SportsAward (junction/config — may be intentional)
+- SportsRecord (junction/config — may be intentional)
+- SportsFixture (junction/config — may be intentional)
+- EmbeddingDocument (junction/config — may be intentional)
+
+## Models with institutionId but no entityId
+
+- InstitutionEntity
+- StudentTransferRecord
+- InstitutionWebhookDelivery
+- LoginMagicLink
+- RegistrationRequest
+- PasswordResetToken
+- InstitutionModule
+- Subscription
+- Invoice
+- BillingDispute
+- UsageLog
+- User
+- Role
+- AcademicYear
+- Semester
+- AcademicDivision
+- Department
+- SectionWaitlistEntry
+- LmsCourseInstance
+- LmsModule
+- LmsLesson
+- LmsLessonResource
+- LmsAssessment
+- LmsQuestion
+- LmsQuestionBank
+- LmsQuestionBankItem
+- LmsSubmission
+- LmsAnnouncement
+- LmsDiscussion
+- LmsDiscussionPost
+- LmsDirectMessage
+- LmsStudentProgress
+- LmsLessonCompletion
+- LmsAiTutorSession
+- LmsContentSummary
+- StudentEnrollment
+- Transcript
+- AdmissionCycle
+- Application
+- ApplicationForm
+- GradingScale
+- GradeOverride
+- Timetable
+- Room
+- Attendance
+- Document
+- DocumentTemplate
+- ProgressionRule
+- CarryoverEnrollment
+- ResitRecord
+- FinanceGlAccount
+- NotificationDigestEntry
+- AlumniEventRegistration
+- JobApplication
+- SportsCompetitionEntry
+
+## Scoped models missing @@index([institutionId, entityId, deletedAt])
+
+- InstitutionEntity
+- WorkflowDefinition
+- WorkflowInstance
+- StudentTransferRecord
+- PositionHolder
+- PermissionBundle
+- AffiliatePartner
+- InstitutionIntegration
+- InstitutionWebhook
+- InstitutionWebhookDelivery
+- PublicApiKey
+- DailyBillableSnapshot
+- MonthlyBillableSummary
+- LoginMagicLink
+- RegistrationRequest
+- PasswordResetToken
+- InstitutionModule
+- Subscription
+- Invoice
+- BillingDispute
+- UsageLog
+- AuditLog
+- User
+- Role
+- AcademicYear
+- Semester
+- AcademicDivision
+- Department
+- Program
+- Course
+- Section
+- EnrollmentHold
+- SectionWaitlistEntry
+- BulkEnrollmentJob
+- StudentCsvImportJob
+- GraduationClearanceRequest
+- LmsCourseInstance
+- LmsModule
+- LmsLesson
+- LmsLessonResource
+- LmsAssessment
+- LmsQuestion
+- LmsQuestionBank
+- LmsQuestionBankItem
+- LmsSubmission
+- LmsAnnouncement
+- LmsDiscussion
+- LmsDiscussionPost
+- LmsDirectMessage
+- LmsStudentProgress
+- LmsLessonCompletion
+- LmsAiTutorSession
+- LmsContentSummary
+- BackfillRequest
+- BackfillWindow
+- ReactivationRequest
+- StatusChangeLog
+- Student
+- StudentEnrollment
+- Transcript
+- AdmissionCycle
+- Application
+- ApplicationForm
+- CustomForm
+- FormSubmission
+- GradingScale
+- GradeOverride
+- Timetable
+- Room
+- Attendance
+- Document
+- DocumentTemplate
+- ProgressionRule
+- ProgressionDecision
+- StudentProgressionHold
+- CarryoverEnrollment
+- ResitRecord
+- StudentAcademicSessionRecord
+- FeeStructure
+- StudentAccount
+- FinanceTransaction
+- FinanceGlAccount
+- FinanceGlJournalLine
+- FinancePaymentPlan
+- FinanceScholarship
+- FinanceScholarshipApplication
+- FinanceScholarshipAward
+- FinanceBankIntegration
+- FinanceBulkChargeJob
+- NotificationTemplate
+- UserNotification
+- NotificationDigestEntry
+- ScheduledNotification
+- LeaveType
+- LeaveBalance
+- LeaveRequest
+- StaffAppraisal
+- WorkloadRecord
+- Election
+- ElectionCandidate
+- ElectionVoter
+- ElectionVote
+- ElectionAuditLog
+- Meeting
+- MeetingAttendee
+- AgendaItem
+- Resolution
+- MeetingCommittee
+- MeetingActionItem
+- AlumniProfile
+- MentorshipProgram
+- MentorshipPair
+- AlumniChapter
+- AlumniEvent
+- AlumniEventRegistration
+- FundraisingCampaign
+- JobPosting
+- JobApplication
+- AlumniSurvey
+- SportType
+- SportsTeam
+- SportsPlayer
+- SportsFacility
+- FacilityBooking
+- SportsCompetition
+- SportsCompetitionEntry
+- SportsAward
+- SportsRecord
+- SportsFixture
+- EmbeddingDocument
+
+## Recommendation
+
+Add composite index only where entityId exists and soft-delete applies.

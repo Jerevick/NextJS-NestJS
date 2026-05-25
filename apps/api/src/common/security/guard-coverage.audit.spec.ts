@@ -48,6 +48,9 @@ describe('guard coverage audit (Phase 16)', () => {
     const appModule = readFileSync(join(SRC_ROOT, 'app.module.ts'), 'utf8');
     expect(appModule).toContain('JwtAuthGuard');
     expect(appModule).toContain('InstitutionScopeGuard');
+    expect(appModule).toContain('EntityScopeGuard');
+    expect(appModule).toContain('PositionGuard');
+    expect(appModule).toContain('ScopeGuard');
     expect(appModule).toContain('StudentRecordPostingGuard');
   });
 });

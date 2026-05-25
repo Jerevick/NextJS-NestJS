@@ -1,8 +1,20 @@
 import Link from 'next/link';
-import { getPlatformOverview, getRegistrationRequests } from '@/lib/platform-api';
+import { DashboardAnalytics } from '@/components/dashboard-analytics';
+import {
+  getActiveSessions,
+  getMapPins,
+  getMrrTrend,
+  getPlatformOverview,
+  getRegistrationRequests,
+} from '@/lib/platform-api';
 
 export default async function SuperAdminDashboardPage() {
-  const overview = await getPlatformOverview();
+  const [overview, mrrTrend, mapPins, sessions] = await Promise.all([
+    getPlatformOverview(),
+    getMrrTrend(),
+    getMapPins(),
+    getActiveSessions(),
+  ]);
   const pendingRequests = await getRegistrationRequests({ status: 'PENDING', limit: 5 });
   const pendingCount =
     pendingRequests.mode === 'live' && Array.isArray(pendingRequests.data)
@@ -49,6 +61,25 @@ export default async function SuperAdminDashboardPage() {
       </p>
 
       <KpiGrid kpis={kpis} mono={mono} />
+
+      {overview.mode === 'live' ? (
+        <DashboardAnalytics
+          mrrMonths={mrrTrend.mode === 'live' ? mrrTrend.months : []}
+          pins={
+            mapPins.mode === 'live' && Array.isArray(mapPins.pins)
+              ? (mapPins.pins as {
+                  id: string;
+                  name: string;
+                  plan: string;
+                  status: string;
+                  students: number;
+                  coordinates: { lat: number; lng: number };
+                }[])
+              : []
+          }
+          initialOnline={sessions.mode === 'live' ? sessions.totalOnline : 0}
+        />
+      ) : null}
 
       {pendingCount > 0 ? (
         <section

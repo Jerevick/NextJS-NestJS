@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator';
+import { ResourceEntityId } from '../common/decorators/resource-entity-id.decorator';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import type { AuthUser } from '../auth/auth.types';
 import { CreateStudentDto } from './dto/create-student.dto';
@@ -56,6 +57,7 @@ export class StudentsController {
   }
 
   @Post(':id/confirm-graduation')
+  @ResourceEntityId('id', 'student')
   @RequirePermissions('students.write')
   confirmGraduation(
     @CurrentUser() user: AuthUser,
@@ -82,6 +84,7 @@ export class StudentsController {
   }
 
   @Get(':id')
+  @ResourceEntityId('id', 'student')
   @RequirePermissions('students.read')
   getById(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.students.getById(user, id);
@@ -94,6 +97,7 @@ export class StudentsController {
   }
 
   @Patch(':id')
+  @ResourceEntityId('id', 'student')
   @RequirePermissions('students.write')
   update(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: UpdateStudentDto) {
     return this.students.update(user, id, dto);

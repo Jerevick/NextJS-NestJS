@@ -9,6 +9,7 @@ export const BILLING_RETROACTIVE_QUEUE = 'billing-retroactive' as const;
 export const FINANCE_BULK_CHARGE_QUEUE = 'finance-bulk-charge' as const;
 export const FINANCE_PAYMENT_REMINDER_QUEUE = 'finance-payment-reminder' as const;
 export const AI_EMBED_CONTENT_QUEUE = 'ai-embed-content' as const;
+export const LMS_TRANSCODE_QUEUE = 'lms-transcode' as const;
 export const SPORTS_ELIGIBILITY_QUEUE = 'sports-eligibility' as const;
 export const NOTIFICATION_DISPATCH_QUEUE = 'notification-dispatch' as const;
 export const NOTIFICATION_BULK_QUEUE = 'notification-bulk' as const;

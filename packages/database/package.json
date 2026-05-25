@@ -17,22 +17,26 @@
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prisma": "prisma",
-    "db:migrate": "prisma migrate dev",
-    "db:generate": "prisma generate",
-    "migrate:deploy": "prisma migrate deploy"
+    "db:migrate": "pnpm -w db:migrate",
+    "db:seed": "pnpm -w db:seed",
+    "db:generate": "pnpm -w db:generate",
+    "db:studio": "pnpm -w db:studio",
+    "migrate:deploy": "pnpm -w db:migrate:deploy",
+    "test": "pnpm -w test",
+    "clean": "node -e \"const fs=require('fs');['dist'].forEach(p=>{try{fs.rmSync(p,{recursive:true,force:true})}catch{}})\""
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3"
+    "@prisma/client": "6.19.3"
   },
   "devDependencies": {
     "@unicore/eslint-config": "workspace:*",
     "@unicore/typescript-config": "workspace:*",
     "bcryptjs": "^2.4.3",
     "eslint": "catalog:",
-    "prisma": "^6.19.3",
+    "prisma": "6.19.3",
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "catalog:"

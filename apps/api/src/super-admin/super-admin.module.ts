@@ -9,7 +9,10 @@ import { NotificationsModule } from '../modules/notifications';
 import { OrgStructureModule } from '../org-structure/org-structure.module';
 import { WorkflowEngineModule } from '../workflow-engine/workflow-engine.module';
 import { FeatureFlagsService } from './feature-flags.service';
+import { InstitutionHealthScheduler } from './institution-health.scheduler';
 import { InstitutionHealthService } from './institution-health.service';
+import { PlatformMonitoringPublisher } from './platform-monitoring.publisher';
+import { PlatformSessionMetricsService } from './platform-session-metrics.service';
 import { RegistrationReviewService } from './registration-review.service';
 import { SuperAdminBillingService } from './super-admin-billing.service';
 import { SuperAdminController } from './super-admin.controller';
@@ -32,6 +35,9 @@ import { SuperAdminGuard } from '../common/guards/super-admin.guard';
     SuperAdminGuard,
     EntityProvisioningService,
     InstitutionHealthService,
+    InstitutionHealthScheduler,
+    PlatformSessionMetricsService,
+    PlatformMonitoringPublisher,
     SuperAdminInstitutionsService,
     SuperAdminBillingService,
     SuperAdminPlatformService,
@@ -39,6 +45,6 @@ import { SuperAdminGuard } from '../common/guards/super-admin.guard';
     RegistrationReviewService,
     MailService,
   ],
-  exports: [InstitutionHealthService],
+  exports: [InstitutionHealthService, PlatformSessionMetricsService],
 })
 export class SuperAdminModule {}

@@ -15,7 +15,7 @@ import type { JwtAccessPayload } from '@unicore/types';
 import type { UserRole } from '@unicore/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
-import type { AuthUser } from './auth.types';
+import type { AuthPosition, AuthUser } from './auth.types';
 import { MailService } from '../mail/mail.service';
 import type { DisableTotpDto } from './dto/disable-totp.dto';
 import type { EnableTotpDto } from './dto/enable-totp.dto';
@@ -144,6 +144,36 @@ export class AuthService {
     return { entityId: main.id, entityScope };
   }
 
+  private async resolveActivePosition(
+    userId: string,
+    institutionId: string,
+    entityId: string,
+  ): Promise<AuthUser['position'] | undefined> {
+    const holder = await this.prisma.positionHolder.findFirst({
+      where: {
+        userId,
+        institutionId,
+        entityId,
+        OR: [{ endDate: null }, { endDate: { gt: new Date() } }],
+      },
+      orderBy: { startDate: 'desc' },
+      include: {
+        position: {
+          select: { code: true, level: true, scope: true, orgUnitId: true, deletedAt: true },
+        },
+      },
+    });
+    if (!holder?.position || holder.position.deletedAt) {
+      return undefined;
+    }
+    return {
+      code: holder.position.code,
+      level: holder.position.level,
+      scope: holder.position.scope,
+      orgUnitId: holder.position.orgUnitId,
+    };
+  }
+
   private async resolveLinkedStudentId(
     userId: string,
     institutionId: string,
@@ -181,6 +211,7 @@ export class AuthService {
       permissions,
       options?.entityId ?? null,
     );
+    const position = await this.resolveActivePosition(user.id, institutionId, entityId);
     const accessJti = randomUUID();
     const payload: JwtAccessPayload = {
       sub: user.id,
@@ -190,6 +221,7 @@ export class AuthService {
       permissions,
       entityId,
       entityScope,
+      ...(position ? { position } : {}),
       sessionVersion: user.sessionVersion,
       jti: accessJti,
     };
@@ -226,6 +258,7 @@ export class AuthService {
         entityId,
         entityScope,
         permissions,
+        ...(position ? { position } : {}),
         ...(studentId ? { studentId } : {}),
       },
     };
@@ -504,6 +537,14 @@ export class AuthService {
       user.role === 'STUDENT'
         ? await this.resolveLinkedStudentId(user.id, user.institutionId)
         : undefined;
+    const position: AuthPosition | undefined = payload.position
+      ? {
+          code: payload.position.code,
+          level: payload.position.level,
+          scope: payload.position.scope,
+          orgUnitId: payload.position.orgUnitId,
+        }
+      : await this.resolveActivePosition(user.id, user.institutionId, entityId);
     return {
       userId: user.id,
       email: user.email,
@@ -512,6 +553,7 @@ export class AuthService {
       entityId,
       entityScope,
       permissions,
+      ...(position ? { position } : {}),
       accessJti:
         typeof payload.jti === 'string' && payload.jti.length > 0 ? payload.jti : undefined,
       studentId,
@@ -557,6 +599,17 @@ export class AuthService {
     if (!access) {
       throw new ForbiddenException('No access to the requested campus entity');
     }
+  }
+
+  /** Issue tokens after enterprise SAML ACS (WP-1.4). */
+  async createSessionForSamlUser(userId: string, institutionId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, institutionId, deletedAt: null, isActive: true },
+    });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    return this.buildAuthSession(user, institutionId, false);
   }
 
   async switchEntity(actor: AuthUser, entityId: string, currentRefreshToken?: string) {

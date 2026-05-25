@@ -51,8 +51,8 @@ export class BillingJobsService {
           jobId: `daily-all-${utcDayKey(day)}`,
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
-          removeOnComplete: 100,
-          removeOnFail: 50,
+          removeOnComplete: false,
+          removeOnFail: false,
         },
       );
       return;
@@ -72,8 +72,8 @@ export class BillingJobsService {
           jobId,
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
-          removeOnComplete: 100,
-          removeOnFail: 50,
+          removeOnComplete: false,
+          removeOnFail: false,
         },
       );
       return;
@@ -99,8 +99,8 @@ export class BillingJobsService {
           delay: delayMs,
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
-          removeOnComplete: 200,
-          removeOnFail: 100,
+          removeOnComplete: false,
+          removeOnFail: false,
         },
       );
       return;
@@ -118,8 +118,8 @@ export class BillingJobsService {
       jobId: `retro-${data.backfillRequestId}`,
       attempts: 3,
       backoff: { type: 'exponential', delay: 5000 },
-      removeOnComplete: 100,
-      removeOnFail: 50,
+      removeOnComplete: false,
+      removeOnFail: false,
     });
     return true;
   }

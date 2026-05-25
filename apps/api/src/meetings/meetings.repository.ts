@@ -19,7 +19,7 @@ export class MeetingsRepository {
       include: {
         orgUnit: { select: { id: true, name: true, code: true } },
         convenerPosition: { select: { id: true, title: true, code: true } },
-        agendaItems: { orderBy: { order: 'asc' } },
+        agendaItems: { where: { deletedAt: null }, orderBy: { order: 'asc' } },
         _count: { select: { attendees: true, actionItems: true } },
       },
     });
@@ -34,7 +34,7 @@ export class MeetingsRepository {
         attendees: {
           include: { user: { select: { id: true, email: true, profile: true } } },
         },
-        agendaItems: { orderBy: { order: 'asc' } },
+        agendaItems: { where: { deletedAt: null }, orderBy: { order: 'asc' } },
         actionItems: true,
         resolutions: true,
       },
@@ -58,7 +58,10 @@ export class MeetingsRepository {
   }
 
   deleteAgendaItem(id: string) {
-    return this.prisma.agendaItem.delete({ where: { id } });
+    return this.prisma.agendaItem.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
   }
 
   reorderAgenda(meetingId: string, orderedIds: string[]) {

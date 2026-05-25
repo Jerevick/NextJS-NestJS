@@ -18,7 +18,7 @@ import { PortalService } from './portal.service';
     FinanceModule,
     ProgressionModule,
     AttendanceModule,
-    LmsFeatureModule,
+    LmsFeatureModule.register(),
     DocumentsModule,
     AlumniModule,
     AiModule.register(),

@@ -18,6 +18,7 @@ import { RegistrationReviewService } from './registration-review.service';
 import { SuperAdminBillingService } from './super-admin-billing.service';
 import { SuperAdminInstitutionsService } from './super-admin-institutions.service';
 import { AuthRegistrationService } from '../auth/auth-registration.service';
+import { PlatformSessionMetricsService } from './platform-session-metrics.service';
 import { SuperAdminPlatformService } from './super-admin-platform.service';
 
 @ApiTags('super-admin')
@@ -32,11 +33,27 @@ export class SuperAdminController {
     private readonly featureFlags: FeatureFlagsService,
     private readonly registration: AuthRegistrationService,
     private readonly registrationReview: RegistrationReviewService,
+    private readonly sessionMetrics: PlatformSessionMetricsService,
   ) {}
 
   @Get('overview')
   getOverview() {
     return this.platform.getOverview();
+  }
+
+  @Get('overview/mrr-trend')
+  getMrrTrend() {
+    return this.platform.getMrrTrend();
+  }
+
+  @Get('overview/map-pins')
+  getMapPins() {
+    return this.platform.getInstitutionMapPins();
+  }
+
+  @Get('overview/active-sessions')
+  getActiveSessions() {
+    return this.sessionMetrics.snapshot();
   }
 
   @Get('institutions')

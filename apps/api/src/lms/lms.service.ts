@@ -21,6 +21,7 @@ import type { UpdateLmsContentModuleDto } from './dto/update-lms-content-module.
 import type { UpdateLmsCourseInstanceDto } from './dto/update-lms-course-instance.dto';
 import type { UpdateLmsLessonDto } from './dto/update-lms-lesson.dto';
 import type { UpdateLmsLessonResourceDto } from './dto/update-lms-lesson-resource.dto';
+import { LmsTranscodeJobsService } from './jobs/lms-transcode-jobs.service';
 import { LmsRepository } from './lms.repository';
 import { LmsStudentEligibilityService } from './lms-student-eligibility.service';
 
@@ -31,7 +32,12 @@ export class LmsService {
     private readonly audit: AuditService,
     private readonly studentEligibility: LmsStudentEligibilityService,
     private readonly events: EventEmitter2,
+    private readonly transcodeJobs: LmsTranscodeJobsService,
   ) {}
+
+  private isVideoFileType(fileType: string): boolean {
+    return fileType.trim().toLowerCase().startsWith('video/');
+  }
 
   private lessonContentText(content: unknown): string {
     if (typeof content === 'string') return content;
@@ -564,6 +570,14 @@ export class LmsService {
       entityId: row.id,
       newValues: { lessonId } as Prisma.InputJsonValue,
     });
+    if (this.isVideoFileType(dto.fileType)) {
+      await this.transcodeJobs.enqueue({
+        institutionId: actor.institutionId,
+        lessonId,
+        resourceId: row.id,
+        sourceFileKey: row.fileKey,
+      });
+    }
     return this.serializeLessonResource(row);
   }
 

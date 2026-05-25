@@ -44,7 +44,11 @@ import { TranscriptsModule } from './transcripts/transcripts.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { FieldsSelectionInterceptor } from './common/interceptors/fields-selection.interceptor';
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
+import { EntityScopeGuard } from './common/guards/entity-scope.guard';
 import { InstitutionScopeGuard } from './common/guards/institution-scope.guard';
+import { PositionGuard } from './common/guards/position.guard';
+import { ScopeGuard } from './common/guards/scope.guard';
+import { AffiliateApiKeyGuard } from './common/guards/affiliate-api-key.guard';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { StudentRecordPostingGuard } from './common/guards/student-record-posting.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -105,7 +109,7 @@ import { SessionsModule } from './sessions/sessions.module';
     PortalModule,
     DashboardModule,
     SuperAdminModule,
-    LmsFeatureModule,
+    LmsFeatureModule.register(),
     LmsAssessmentsModule,
     FinanceModule,
     StaffModule,
@@ -129,6 +133,10 @@ import { SessionsModule } from './sessions/sessions.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: InstitutionScopeGuard },
+    { provide: APP_GUARD, useClass: EntityScopeGuard },
+    { provide: APP_GUARD, useClass: PositionGuard },
+    { provide: APP_GUARD, useClass: ScopeGuard },
+    { provide: APP_GUARD, useClass: AffiliateApiKeyGuard },
     { provide: APP_GUARD, useClass: StudentRecordPostingGuard },
   ],
 })

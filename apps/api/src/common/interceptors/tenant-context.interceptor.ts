@@ -1,4 +1,9 @@
-import { Injectable, type NestInterceptor, type ExecutionContext, type CallHandler } from '@nestjs/common';
+import {
+  Injectable,
+  type NestInterceptor,
+  type ExecutionContext,
+  type CallHandler,
+} from '@nestjs/common';
 import type { Observable } from 'rxjs';
 import { tenantAls } from '../context/tenant-als';
 import type { AuthUser } from '../../auth/auth.types';
@@ -17,6 +22,7 @@ export class TenantContextInterceptor implements NestInterceptor {
         institutionId: user.institutionId,
         entityId: user.entityId,
         entityScope: user.entityScope,
+        bypassTenantFilter: user.permissions.includes('*'),
       });
     }
     return next.handle();

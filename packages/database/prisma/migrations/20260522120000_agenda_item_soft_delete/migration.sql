@@ -1,0 +1,5 @@
+-- No-op placeholder.
+-- AgendaItem.deletedAt and AgendaItem_meetingId_deletedAt_idx are declared in
+-- 20260522120000_phase11_elections_meetings. This migration shares the same
+-- timestamp and sorts before that file, so applying DDL here would run before
+-- AgendaItem exists during Prisma shadow replay.

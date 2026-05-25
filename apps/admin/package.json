@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start --port 3001",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "clean": "node -e \"const fs=require('fs');['.next','out'].forEach(p=>{try{fs.rmSync(p,{recursive:true,force:true})}catch{}})\""
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -23,6 +24,8 @@
     "next": "^15.1.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-simple-maps": "^3.0.0",
+    "recharts": "^2.15.0",
     "zod": "catalog:"
   },
   "devDependencies": {

@@ -9,11 +9,24 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "typecheck": "turbo run typecheck",
     "db:generate": "prisma generate --schema packages/database/prisma/schema.prisma",
-    "db:migrate": "prisma migrate dev --schema packages/database/prisma/schema.prisma",
-    "db:migrate:deploy": "node --env-file=packages/.env node_modules/prisma/build/index.js migrate deploy --schema packages/database/prisma/schema.prisma",
+    "db:migrate": "node --env-file=packages/database/.env scripts/check-prisma-migrate-env.mjs && node --env-file=packages/database/.env node_modules/prisma/build/index.js migrate deploy --schema packages/database/prisma/schema.prisma",
+    "db:migrate:dev": "node --env-file=packages/database/.env scripts/check-prisma-migrate-env.mjs && node --env-file=packages/database/.env node_modules/prisma/build/index.js migrate dev --schema packages/database/prisma/schema.prisma",
+    "db:migrate:deploy": "node --env-file=packages/database/.env scripts/check-prisma-migrate-env.mjs && node --env-file=packages/database/.env node_modules/prisma/build/index.js migrate deploy --schema packages/database/prisma/schema.prisma",
     "db:validate": "prisma validate --schema packages/database/prisma/schema.prisma",
-    "db:seed": "prisma db seed --schema packages/database/prisma/schema.prisma",
+    "db:ping": "node --env-file=packages/database/.env scripts/test-db-connection.mjs",
+    "db:seed": "node --env-file=packages/database/.env node_modules/prisma/build/index.js db seed --schema packages/database/prisma/schema.prisma",
+    "db:studio": "node --env-file=packages/database/.env node_modules/prisma/build/index.js studio --schema packages/database/prisma/schema.prisma",
+    "schema:audit": "node scripts/schema-audit.mjs",
+    "test": "turbo run test --filter=@unicore/api",
+    "test:workspace": "turbo run test --continue",
+    "clean": "turbo run clean --continue",
     "prepare": "husky"
+  },
+  "pnpm": {
+    "overrides": {
+      "prisma": "6.19.3",
+      "@prisma/client": "6.19.3"
+    }
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.0",
@@ -21,7 +34,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^15.4.3",
     "prettier": "catalog:",
-    "prisma": "^6.19.3",
+    "prisma": "6.19.3",
     "turbo": "^2.3.3",
     "typescript": "catalog:"
   },
