@@ -21,7 +21,7 @@ export class DashboardController {
   }
 
   @Get('admin')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN')
   admin(@CurrentUser() user: AuthUser) {
     return this.dashboard.getAdminHome(user);
   }

@@ -1,0 +1,525 @@
+.shell {
+  min-height: 100vh;
+  padding: 2rem;
+  color: #0f172a;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 32rem),
+    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 28px;
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 64, 175, 0.9)),
+    #0f172a;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.2);
+  color: #fff;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #60a5fa;
+}
+
+.hero h1,
+.panel h2,
+.errorState h1 {
+  margin: 0.35rem 0 0;
+  letter-spacing: -0.04em;
+}
+
+.hero h1 {
+  max-width: 760px;
+  font-size: clamp(2rem, 4vw, 4rem);
+  line-height: 0.98;
+}
+
+.heroText {
+  max-width: 720px;
+  margin: 1rem 0 0;
+  color: #cbd5e1;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.heroActions,
+.quickNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.heroActions {
+  margin-top: 1.5rem;
+}
+
+.primaryAction,
+.secondaryAction,
+.panelLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.primaryAction {
+  padding: 0.85rem 1.15rem;
+  color: #0f172a;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+}
+
+.secondaryAction {
+  padding: 0.8rem 1.1rem;
+  color: #e2e8f0;
+  border: 1px solid rgba(226, 232, 240, 0.24);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.healthCard {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 220px;
+  padding: 1.2rem;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+}
+
+.healthPulse {
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-bottom: auto;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 8px rgba(34, 197, 94, 0.14);
+}
+
+.healthLabel {
+  margin: 0;
+  color: #bfdbfe;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.healthCard strong {
+  margin-top: 0.3rem;
+  overflow-wrap: anywhere;
+}
+
+.healthCard span:last-child {
+  margin-top: 0.35rem;
+  color: #cbd5e1;
+  font-size: 0.88rem;
+}
+
+.metricGrid,
+.contentGrid,
+.commandGrid,
+.panel,
+.quickNav {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.metricCard,
+.panel,
+.commandCard,
+.errorState {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+}
+
+.metricCard {
+  padding: 1.1rem;
+  border-radius: 22px;
+  position: relative;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+}
+
+.metricCard::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: #2563eb;
+}
+
+.metricCard[data-tone='amber']::before {
+  background: #f59e0b;
+}
+
+.metricCard[data-tone='green']::before {
+  background: #22c55e;
+}
+
+.metricCard[data-tone='purple']::before {
+  background: #8b5cf6;
+}
+
+.metricCard[data-tone='slate']::before {
+  background: #64748b;
+}
+
+.metricCard span,
+.miniStat span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.metricCard strong {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 1.75rem;
+  letter-spacing: -0.04em;
+}
+
+.metricCard p,
+.commandCard p,
+.emptyState {
+  margin: 0.35rem 0 0;
+  color: #64748b;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.commandGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.commandCard {
+  padding: 1.1rem;
+  border-radius: 22px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.commandCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+}
+
+.commandCard strong {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 1.05rem;
+}
+
+.commandCard b {
+  display: inline-block;
+  margin-top: 0.9rem;
+  color: #2563eb;
+  font-size: 0.9rem;
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.platformInsightStack {
+  display: grid;
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 1.25rem auto 0;
+}
+
+.panel,
+.errorState {
+  margin-top: 1.25rem;
+  padding: 1.2rem;
+  border-radius: 24px;
+}
+
+.contentGrid .panel {
+  margin-top: 0;
+}
+
+.platformInsightStack .panel {
+  margin-top: 0;
+}
+
+.revenuePanel {
+  width: 100%;
+}
+
+.riskPanel {
+  width: 100%;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.panelHeader h2 {
+  font-size: 1.15rem;
+}
+
+.panelLink {
+  flex: 0 0 auto;
+  padding: 0.55rem 0.8rem;
+  color: #2563eb;
+  background: #eff6ff;
+  font-size: 0.84rem;
+}
+
+.headcountGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.miniStat {
+  padding: 0.9rem;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.miniStat strong {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 1.35rem;
+}
+
+.progressBlock {
+  margin-top: 1rem;
+  padding: 0.9rem;
+  border-radius: 18px;
+  background: #0f172a;
+  color: #fff;
+  text-decoration: none;
+}
+
+.progressBlock div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+}
+
+.progressBlock strong {
+  color: #fff;
+}
+
+.progressTrack {
+  height: 0.55rem;
+  margin-top: 0.75rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.progressTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #60a5fa, #22c55e);
+}
+
+.horizontalInsightGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.revenueTrendGrid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.riskSignalGrid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.horizontalInsightCard {
+  margin-top: 0;
+  min-width: 0;
+}
+
+.horizontalInsightCard p {
+  margin: 0.65rem 0 0;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+}
+
+.riskSignalCard {
+  align-items: center;
+  min-width: 0;
+}
+
+.riskSignalCard b {
+  flex: 0 0 auto;
+}
+
+.workflowList {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.workflowItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem;
+  border-radius: 16px;
+  color: inherit;
+  text-decoration: none;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.workflowItem small {
+  display: block;
+  margin-top: 0.25rem;
+  color: #64748b;
+}
+
+.workflowItem b {
+  color: #2563eb;
+  font-size: 0.82rem;
+}
+
+.campusGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.campusCard {
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+}
+
+.campusCard span {
+  display: inline-flex;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  color: #1d4ed8;
+  background: #dbeafe;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.campusCard strong {
+  display: block;
+  margin-top: 0.7rem;
+}
+
+.campusCard p {
+  margin: 0.35rem 0 0;
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
+.quickNav {
+  margin-top: 1.25rem;
+}
+
+.quickNav a {
+  padding: 0.7rem 0.9rem;
+  border-radius: 999px;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 0.86rem;
+}
+
+.errorState {
+  max-width: 760px;
+}
+
+.errorState p:last-child {
+  color: #b91c1c;
+}
+
+@media (max-width: 960px) {
+  .shell {
+    padding: 1rem;
+  }
+
+  .hero,
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .metricGrid,
+  .commandGrid,
+  .horizontalInsightGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .revenueTrendGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .riskSignalGrid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .metricGrid,
+  .commandGrid,
+  .headcountGrid,
+  .horizontalInsightGrid,
+  .revenueTrendGrid,
+  .riskSignalGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .panelHeader,
+  .workflowItem {
+    flex-direction: column;
+  }
+}

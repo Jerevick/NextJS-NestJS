@@ -12,6 +12,7 @@ import {
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator';
 import { ResourceEntityId } from '../common/decorators/resource-entity-id.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import type { AuthUser } from '../auth/auth.types';
 import { CreateStudentDto } from './dto/create-student.dto';
@@ -25,6 +26,7 @@ import { StudentCsvImportService } from './student-csv-import.service';
 import { StudentsService } from './students.service';
 
 @Controller('students')
+@Roles('ADMIN', 'STAFF', 'FACULTY')
 @UseGuards(PermissionsGuard)
 export class StudentsController {
   constructor(
