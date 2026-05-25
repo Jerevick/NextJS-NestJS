@@ -62,6 +62,12 @@ export default async function RegistrationRequestsPage({
         <FilterLink href="/registration-requests?status=REVIEWED" active={status === 'REVIEWED'}>
           Reviewed
         </FilterLink>
+        <FilterLink
+          href="/registration-requests?status=PROVISIONED"
+          active={status === 'PROVISIONED'}
+        >
+          Provisioned
+        </FilterLink>
         <FilterLink href="/registration-requests?status=DISMISSED" active={status === 'DISMISSED'}>
           Dismissed
         </FilterLink>
@@ -80,7 +86,7 @@ export default async function RegistrationRequestsPage({
               summary: registrationRequestSummary(r),
               institutionSlug: r.institutionSlug ?? r.institution?.slug ?? '—',
               createdAt: r.createdAt,
-              canProvision: r.kind === 'NEW_INSTITUTION' && r.status === 'PENDING',
+              canProvision: r.kind === 'NEW_INSTITUTION' && r.status === 'REVIEWED',
             }),
           )}
         />

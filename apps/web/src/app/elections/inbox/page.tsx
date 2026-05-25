@@ -35,11 +35,11 @@ export default async function ElectionsInboxPage() {
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 900 }}>
       <p style={{ marginTop: 0 }}>
-        <Link href="/elections" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/elections" style={{ color: '#2563eb' }}>
           ← Elections
         </Link>
         {' · '}
-        <Link href="/workflow/inbox" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/workflow/inbox" style={{ color: '#2563eb' }}>
           All workflows
         </Link>
       </p>

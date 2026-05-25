@@ -5,7 +5,6 @@ import {
   IsObject,
   IsOptional,
   IsString,
-  Matches,
   Max,
   Min,
   MinLength,
@@ -13,12 +12,9 @@ import {
 import { PlanTier } from '@prisma/client';
 
 export class CreateInstitutionDto {
+  @IsOptional()
   @IsString()
-  @MinLength(2)
-  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
-    message: 'slug must be lowercase letters, numbers, and single hyphens',
-  })
-  slug!: string;
+  slug?: string;
 
   @IsString()
   @MinLength(2)

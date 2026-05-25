@@ -117,7 +117,7 @@ export function MeetingsHub({
       ) : null}
 
       <p style={{ fontSize: '0.9rem' }}>
-        <Link href="/meetings/inbox" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/meetings/inbox" style={{ color: '#2563eb' }}>
           Minutes filing inbox →
         </Link>
       </p>
@@ -139,7 +139,7 @@ export function MeetingsHub({
                 </div>
               </button>
               <a
-                href={`/meetings/${m.id}/ical`}
+                href={`/dashboard/meetings/${m.id}/ical`}
                 style={{ fontSize: '0.8rem', color: '#2563eb', marginLeft: 8 }}
               >
                 iCal

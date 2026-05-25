@@ -361,7 +361,7 @@ export async function StudentHomeDashboard({
                   }}
                 >
                   <Link
-                    href={`/lms/${a.courseInstanceId}`}
+                    href={`/dashboard/lms/${a.courseInstanceId}`}
                     style={{ textDecoration: 'none', color: 'inherit' }}
                   >
                     <div style={{ fontWeight: 600 }}>{a.title}</div>
@@ -411,7 +411,10 @@ export async function StudentHomeDashboard({
             ))}
           </ul>
         )}
-        <Link href="/notifications" style={{ color: STUDENT_PORTAL.teal, fontWeight: 600 }}>
+        <Link
+          href="/dashboard/notifications"
+          style={{ color: STUDENT_PORTAL.teal, fontWeight: 600 }}
+        >
           View all notifications →
         </Link>
       </section>

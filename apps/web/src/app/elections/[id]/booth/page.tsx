@@ -113,7 +113,7 @@ export default function ElectionBoothPage() {
       }}
     >
       <p style={{ marginTop: 0 }}>
-        <Link href="/elections" style={{ color: '#93c5fd' }}>
+        <Link href="/dashboard/elections" style={{ color: '#93c5fd' }}>
           ← Elections
         </Link>
       </p>

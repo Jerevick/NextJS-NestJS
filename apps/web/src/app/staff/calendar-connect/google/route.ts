@@ -12,11 +12,11 @@ export async function GET() {
     cache: 'no-store',
   });
   if (!res.ok) {
-    redirect('/staff?calendar=error');
+    redirect('/dashboard/staff?calendar=error');
   }
   const body = (await res.json()) as { url?: string };
   if (!body.url) {
-    redirect('/staff?calendar=error');
+    redirect('/dashboard/staff?calendar=error');
   }
   redirect(body.url);
 }

@@ -35,11 +35,11 @@ export default async function MeetingsInboxPage() {
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 900 }}>
       <p style={{ marginTop: 0 }}>
-        <Link href="/meetings" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/meetings" style={{ color: '#2563eb' }}>
           ← Meetings
         </Link>
         {' · '}
-        <Link href="/workflow/inbox" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/workflow/inbox" style={{ color: '#2563eb' }}>
           All workflows
         </Link>
       </p>

@@ -423,12 +423,15 @@ export function MeetingsDetailPanel({
               </pre>
               <p style={{ marginTop: 8, fontSize: '0.85rem' }}>
                 <a
-                  href={`/meetings/${meetingId}/minutes.pdf`}
+                  href={`/dashboard/meetings/${meetingId}/minutes.pdf`}
                   style={{ color: '#2563eb', marginRight: 12 }}
                 >
                   PDF
                 </a>
-                <a href={`/meetings/${meetingId}/minutes.docx`} style={{ color: '#2563eb' }}>
+                <a
+                  href={`/dashboard/meetings/${meetingId}/minutes.docx`}
+                  style={{ color: '#2563eb' }}
+                >
                   Word (.docx)
                 </a>
               </p>

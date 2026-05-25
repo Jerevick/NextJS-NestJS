@@ -83,8 +83,8 @@ export async function enrollInSection(
     payload = {};
   }
 
-  revalidatePath('/students');
-  revalidatePath(`/students/${studentId}`);
+  revalidatePath('/dashboard/students');
+  revalidatePath(`/dashboard/students/${studentId}`);
 
   if (payload.status === 'WAITING' && typeof payload.position === 'number') {
     return {
@@ -92,5 +92,5 @@ export async function enrollInSection(
     };
   }
 
-  redirect(`/students/${studentId}`);
+  redirect(`/dashboard/students/${studentId}`);
 }

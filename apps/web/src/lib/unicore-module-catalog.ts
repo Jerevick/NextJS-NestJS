@@ -87,7 +87,7 @@ export const UNICORE_MODULE_CATALOG: readonly UnicoreModuleOption[] = [
   {
     id: 'MEETINGS',
     tier: 'outOfBox',
-    bundledWith: 'LMS',
+    bundledWith: 'SIS',
     label: 'Meetings',
     description: 'Committee meetings, agendas, minutes capture, and optional AI-assisted drafting.',
   },

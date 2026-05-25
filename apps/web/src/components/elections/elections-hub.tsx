@@ -249,13 +249,13 @@ export function ElectionsHub({
                 style={{ ...btnSmall, background: '#0f172a' }}
               />
               <Link
-                href="/elections/inbox"
+                href="/dashboard/elections/inbox"
                 style={{ fontSize: '0.85rem', color: '#2563eb', alignSelf: 'center' }}
               >
                 Certification inbox →
               </Link>
               <Link
-                href="/elections/verify"
+                href="/dashboard/elections/verify"
                 style={{ fontSize: '0.85rem', color: '#2563eb', alignSelf: 'center' }}
               >
                 Verify vote →

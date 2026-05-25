@@ -148,14 +148,14 @@ export async function LmsStudentCoursesDashboard({ coursesBasePath, embedded = f
             </Link>
             {coursesBasePath === '/lms' ? (
               <Link
-                href="/courses"
+                href="/dashboard/courses"
                 style={{ color: '#94a3b8', fontSize: '0.78rem', textDecoration: 'none' }}
               >
                 Open legacy /courses redirect
               </Link>
             ) : (
               <Link
-                href="/lms"
+                href="/dashboard/lms"
                 prefetch={false}
                 style={{ color: '#94a3b8', fontSize: '0.78rem', textDecoration: 'none' }}
               >
@@ -169,7 +169,7 @@ export async function LmsStudentCoursesDashboard({ coursesBasePath, embedded = f
               Dashboard
             </Link>
             <Link
-              href="/students"
+              href="/dashboard/students"
               style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.9rem' }}
             >
               Students
@@ -178,7 +178,7 @@ export async function LmsStudentCoursesDashboard({ coursesBasePath, embedded = f
           {canWrite ? (
             <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 'auto' }}>
               Faculty: use{' '}
-              <Link href="/teach" style={{ color: '#38bdf8' }}>
+              <Link href="/dashboard/teach" style={{ color: '#38bdf8' }}>
                 Teach
               </Link>{' '}
               for builder shortcuts (preview).
@@ -424,7 +424,7 @@ export async function LmsStudentCoursesDashboard({ coursesBasePath, embedded = f
                       }}
                     >
                       <Link
-                        href={`/teach/${c.id}`}
+                        href={`/dashboard/teach/${c.id}`}
                         style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}
                       >
                         Teach (preview)

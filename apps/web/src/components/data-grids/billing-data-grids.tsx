@@ -47,7 +47,10 @@ const invoiceColumns: GridColDef<InvoiceGridRow>[] = [
     minWidth: 140,
     renderCell: ({ row }) => (
       <>
-        <Link href={`/billing/invoice/${encodeURIComponent(row.id)}`} style={{ color: '#2563eb' }}>
+        <Link
+          href={`/dashboard/billing/invoice/${encodeURIComponent(row.id)}`}
+          style={{ color: '#2563eb' }}
+        >
           View
         </Link>
         <span style={{ color: '#94a3b8', margin: '0 0.35rem' }}>|</span>

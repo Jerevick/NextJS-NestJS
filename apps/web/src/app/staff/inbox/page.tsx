@@ -51,7 +51,7 @@ export default async function StaffWorkflowInboxPage() {
     <main
       style={{ padding: '2rem 2.5rem', maxWidth: 900, background: '#f8fafc', minHeight: '100vh' }}
     >
-      <Link href="/staff" style={{ color: '#2563eb', fontSize: '0.9rem' }}>
+      <Link href="/dashboard/staff" style={{ color: '#2563eb', fontSize: '0.9rem' }}>
         ← Staff & HR
       </Link>
       <h1 style={{ margin: '0.75rem 0 0', color: '#0f1729' }}>HR workflow inbox</h1>
@@ -59,7 +59,7 @@ export default async function StaffWorkflowInboxPage() {
         Leave requests and performance appraisals waiting on your position.
       </p>
       <p style={{ fontSize: '0.9rem' }}>
-        <Link href="/workflow/inbox" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/workflow/inbox" style={{ color: '#2563eb' }}>
           All workflows →
         </Link>
       </p>
@@ -69,7 +69,7 @@ export default async function StaffWorkflowInboxPage() {
         {rows.map((r) => (
           <Link
             key={r.id}
-            href={`/workflow/${r.id}`}
+            href={`/dashboard/workflow/${r.id}`}
             style={{
               textDecoration: 'none',
               color: 'inherit',

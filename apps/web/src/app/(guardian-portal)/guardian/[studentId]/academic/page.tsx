@@ -48,7 +48,7 @@ export default async function GuardianStudentAcademicPage({
   return (
     <>
       <Link
-        href="/guardian/dashboard"
+        href="/dashboard/guardian/dashboard"
         style={{ color: GUARDIAN_PORTAL.accent, textDecoration: 'none' }}
       >
         ← All students

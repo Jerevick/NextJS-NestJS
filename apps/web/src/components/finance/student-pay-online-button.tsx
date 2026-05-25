@@ -32,8 +32,8 @@ export function StudentPayOnlineButton({
             const r = await initiateOnlinePaymentAction(studentId, {
               amount,
               description: 'Student account payment',
-              successUrl: `${origin}/students/${studentId}?tab=financial&paid=1`,
-              cancelUrl: `${origin}/students/${studentId}?tab=financial`,
+              successUrl: `${origin}/dashboard/students/${studentId}?tab=financial&paid=1`,
+              cancelUrl: `${origin}/dashboard/students/${studentId}?tab=financial`,
             });
             if (r.error) {
               setMessage(r.error);

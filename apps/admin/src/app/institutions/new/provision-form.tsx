@@ -21,7 +21,6 @@ const labelStyle: CSSProperties = {
 };
 
 export type ProvisionInitialValues = {
-  slug?: string;
   name?: string;
   domain?: string;
   plan?: string;
@@ -56,19 +55,6 @@ export function ProvisionInstitutionForm({
         <input type="hidden" name="registrationRequestId" value={registrationRequestId} />
       ) : null}
       <div>
-        <label htmlFor="slug" style={labelStyle}>
-          Slug
-        </label>
-        <input
-          id="slug"
-          name="slug"
-          required
-          pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-          style={inputStyle}
-          defaultValue={initialValues?.slug}
-        />
-      </div>
-      <div>
         <label htmlFor="name" style={labelStyle}>
           Institution name
         </label>
@@ -80,6 +66,9 @@ export function ProvisionInstitutionForm({
           style={inputStyle}
           defaultValue={initialValues?.name}
         />
+        <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: '0.35rem 0 0' }}>
+          The tenant slug is generated automatically from this name and made unique if needed.
+        </p>
       </div>
       <div>
         <label htmlFor="domain" style={labelStyle}>

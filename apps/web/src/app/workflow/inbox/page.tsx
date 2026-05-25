@@ -56,13 +56,13 @@ export default async function WorkflowInboxPage() {
         Actions waiting on your position assignment.
       </p>
       <p style={{ fontSize: '0.9rem', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <Link href="/workflow/initiated" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/workflow/initiated" style={{ color: '#2563eb' }}>
           Requests I started →
         </Link>
-        <Link href="/elections/inbox" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/elections/inbox" style={{ color: '#2563eb' }}>
           Elections certification
         </Link>
-        <Link href="/meetings/inbox" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/meetings/inbox" style={{ color: '#2563eb' }}>
           Meeting minutes filing
         </Link>
       </p>
@@ -73,7 +73,7 @@ export default async function WorkflowInboxPage() {
         {rows.map((r) => (
           <Link
             key={r.id}
-            href={`/workflow/${r.id}`}
+            href={`/dashboard/workflow/${r.id}`}
             style={{
               textDecoration: 'none',
               color: 'inherit',

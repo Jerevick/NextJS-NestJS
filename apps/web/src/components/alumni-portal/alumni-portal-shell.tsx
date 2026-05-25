@@ -23,25 +23,25 @@ export function AlumniPortalShell({
         }}
       >
         <Link
-          href="/alumni/home"
+          href="/dashboard/alumni/home"
           style={{ color: '#fff', textDecoration: 'none', fontWeight: 700 }}
         >
           Alumni portal
         </Link>
         <nav style={{ display: 'flex', gap: '1.25rem', fontSize: '0.9rem', flexWrap: 'wrap' }}>
-          <Link href="/alumni/home" style={{ color: '#a5f3fc' }}>
+          <Link href="/dashboard/alumni/home" style={{ color: '#a5f3fc' }}>
             Home
           </Link>
-          <Link href="/alumni/events" style={{ color: '#a5f3fc' }}>
+          <Link href="/dashboard/alumni/events" style={{ color: '#a5f3fc' }}>
             Events
           </Link>
-          <Link href="/alumni/jobs" style={{ color: '#a5f3fc' }}>
+          <Link href="/dashboard/alumni/jobs" style={{ color: '#a5f3fc' }}>
             Jobs
           </Link>
-          <Link href="/alumni/profile" style={{ color: '#a5f3fc' }}>
+          <Link href="/dashboard/alumni/profile" style={{ color: '#a5f3fc' }}>
             Profile
           </Link>
-          <Link href="/notifications" style={{ color: '#a5f3fc' }}>
+          <Link href="/dashboard/notifications" style={{ color: '#a5f3fc' }}>
             Notifications
           </Link>
         </nav>

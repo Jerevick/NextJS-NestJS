@@ -3,7 +3,8 @@ import { auth } from '@/auth';
 import { hasPermission } from '@/lib/permissions';
 import { BulkEnrollForm } from './bulk-enroll-form';
 
-const apiBase = process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiBase =
+  process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 type SemesterOption = {
   id: string;
@@ -49,7 +50,7 @@ export default async function BulkEnrollPage({
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 640 }}>
         <nav style={{ marginBottom: '1rem' }}>
-          <Link href="/students">← Students</Link>
+          <Link href="/dashboard/students">← Students</Link>
         </nav>
         <p style={{ color: '#64748b' }}>You need enrollments.write to bulk enroll.</p>
       </main>
@@ -66,7 +67,7 @@ export default async function BulkEnrollPage({
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 640 }}>
         <nav style={{ marginBottom: '1rem' }}>
-          <Link href="/students">← Students</Link>
+          <Link href="/dashboard/students">← Students</Link>
         </nav>
         <p style={{ color: '#b91c1c' }}>Could not load semesters ({semRes.status}).</p>
         <pre style={{ fontSize: 12 }}>{detail}</pre>
@@ -82,16 +83,20 @@ export default async function BulkEnrollPage({
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 560 }}>
         <nav style={{ marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
-          <Link href="/students">← Students</Link>
+          <Link href="/dashboard/students">← Students</Link>
         </nav>
         <h1 style={{ color: '#1e3a5f' }}>Bulk enroll</h1>
         <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
-          Choose a semester and section, then paste many student ids. Each row calls the same enrollment rules as single enroll (window, capacity, prerequisites).
+          Choose a semester and section, then paste many student ids. Each row calls the same
+          enrollment rules as single enroll (window, capacity, prerequisites).
         </p>
         {semesters.length === 0 ? (
           <p>No semesters configured.</p>
         ) : (
-          <form method="get" style={{ marginTop: '1.25rem', display: 'grid', gap: '1rem', maxWidth: 400 }}>
+          <form
+            method="get"
+            style={{ marginTop: '1.25rem', display: 'grid', gap: '1rem', maxWidth: 400 }}
+          >
             <label style={{ display: 'grid', gap: 6 }}>
               <span>Semester</span>
               <select name="semesterId" required defaultValue="" style={{ padding: '0.5rem' }}>
@@ -114,17 +119,20 @@ export default async function BulkEnrollPage({
     );
   }
 
-  const secRes = await fetch(`${apiBase}/academic/semesters/${encodeURIComponent(semesterId)}/sections`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store',
-  });
+  const secRes = await fetch(
+    `${apiBase}/academic/semesters/${encodeURIComponent(semesterId)}/sections`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    },
+  );
 
   if (!secRes.ok) {
     const detail = await secRes.text();
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 640 }}>
         <nav style={{ marginBottom: '1rem' }}>
-          <Link href="/students/bulk-enroll">← Change semester</Link>
+          <Link href="/dashboard/students/bulk-enroll">← Change semester</Link>
         </nav>
         <p style={{ color: '#b91c1c' }}>Could not load sections ({secRes.status}).</p>
         <pre style={{ fontSize: 12 }}>{detail}</pre>
@@ -138,8 +146,8 @@ export default async function BulkEnrollPage({
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 560 }}>
         <nav style={{ marginBottom: '1rem' }}>
-          <Link href="/students/bulk-enroll">← Change semester</Link>
-          <Link href="/students" style={{ marginLeft: '1rem' }}>
+          <Link href="/dashboard/students/bulk-enroll">← Change semester</Link>
+          <Link href="/dashboard/students" style={{ marginLeft: '1rem' }}>
             Students
           </Link>
         </nav>
@@ -147,7 +155,10 @@ export default async function BulkEnrollPage({
         {sections.length === 0 ? (
           <p style={{ color: '#64748b' }}>No sections for this semester.</p>
         ) : (
-          <form method="get" style={{ marginTop: '1rem', display: 'grid', gap: '1rem', maxWidth: 480 }}>
+          <form
+            method="get"
+            style={{ marginTop: '1rem', display: 'grid', gap: '1rem', maxWidth: 480 }}
+          >
             <input type="hidden" name="semesterId" value={semesterId} />
             <label style={{ display: 'grid', gap: 6 }}>
               <span>Section</span>
@@ -176,7 +187,11 @@ export default async function BulkEnrollPage({
     return (
       <main style={{ padding: '2rem' }}>
         <nav style={{ marginBottom: '1rem' }}>
-          <Link href={`/students/bulk-enroll?semesterId=${encodeURIComponent(semesterId)}`}>← Pick section again</Link>
+          <Link
+            href={`/dashboard/students/bulk-enroll?semesterId=${encodeURIComponent(semesterId)}`}
+          >
+            ← Pick section again
+          </Link>
         </nav>
         <p style={{ color: '#b91c1c' }}>That section is not in this semester.</p>
       </main>
@@ -189,9 +204,11 @@ export default async function BulkEnrollPage({
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 720 }}>
       <nav style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-        <Link href={`/students/bulk-enroll?semesterId=${encodeURIComponent(semesterId)}`}>← Change section</Link>
-        <Link href="/students/bulk-enroll">New semester</Link>
-        <Link href="/students">Students</Link>
+        <Link href={`/dashboard/students/bulk-enroll?semesterId=${encodeURIComponent(semesterId)}`}>
+          ← Change section
+        </Link>
+        <Link href="/dashboard/students/bulk-enroll">New semester</Link>
+        <Link href="/dashboard/students">Students</Link>
       </nav>
       <h1 style={{ color: '#1e3a5f' }}>Paste student ids</h1>
       <p style={{ color: '#64748b', fontSize: '0.9rem' }}>

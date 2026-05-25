@@ -28,13 +28,8 @@ export const newInstitutionSchema = z
     contactTitle: z.string().trim().min(2, 'Job title is required'),
     contactPhone: z.string().trim().min(6, 'Phone number is required'),
     contactEmail: z.string().trim().email('Enter a valid contact email'),
-    estimatedStudents: z.enum(['under-500', '500-2000', '2000-10000', '10000-plus']).optional(),
-    modulesInterested: z
-      .array(z.enum(CORE_PACKAGE_IDS))
-      .min(1, 'Select at least one core package')
-      .refine((mods) => !mods.includes('LMS') || mods.includes('SIS'), {
-        message: 'Learning Management requires the Student Information System.',
-      }),
+    estimatedStudents: z.enum(['under-500', '500-2000', '2000-10000', '10000-plus']),
+    modulesInterested: z.array(z.enum(CORE_PACKAGE_IDS)).min(1, 'Select at least one core package'),
     message: z.string().trim().max(1000).optional(),
   })
   .superRefine((data, ctx) => {

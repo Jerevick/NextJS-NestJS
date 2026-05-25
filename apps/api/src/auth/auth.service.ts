@@ -16,6 +16,7 @@ import type { UserRole } from '@unicore/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import type { AuthPosition, AuthUser } from './auth.types';
+import type { ChangePasswordDto } from './dto/change-password.dto';
 import { MailService } from '../mail/mail.service';
 import type { DisableTotpDto } from './dto/disable-totp.dto';
 import type { EnableTotpDto } from './dto/enable-totp.dto';
@@ -24,10 +25,25 @@ import type { MagicLinkConsumeDto } from './dto/magic-link-consume.dto';
 import type { MagicLinkRequestDto } from './dto/magic-link-request.dto';
 
 const REFRESH_COOKIE = 'unicore_refresh';
+const REFRESH_TOKEN_INACTIVITY_TTL = '24h';
+const REFRESH_ROTATION_GRACE_MS = 60_000;
+const REFRESH_ROTATION_GRACE_SEC = Math.ceil(REFRESH_ROTATION_GRACE_MS / 1000);
+const TERMS_ACCEPTANCE_VERSION = 'unicore-terms-v1';
+
+function profileRecord(profile: unknown): Record<string, unknown> {
+  return profile && typeof profile === 'object' && !Array.isArray(profile)
+    ? (profile as Record<string, unknown>)
+    : {};
+}
+
+function mustChangePassword(profile: unknown): boolean {
+  return profileRecord(profile).forcePasswordChange === true;
+}
 
 @Injectable()
 export class AuthService {
   private readonly revokedRefresh = new Set<string>();
+  private readonly refreshRotationGrace = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -44,6 +60,34 @@ export class AuthService {
     return s;
   }
 
+  private refreshGraceKey(jti: string): string {
+    return `refresh:rotation-grace:${jti}`;
+  }
+
+  private pruneRefreshRotationGrace(now = Date.now()): void {
+    for (const [jti, expiresAt] of this.refreshRotationGrace) {
+      if (expiresAt <= now) {
+        this.refreshRotationGrace.delete(jti);
+      }
+    }
+  }
+
+  private async rememberRefreshRotationGrace(jti: string): Promise<void> {
+    this.pruneRefreshRotationGrace();
+    this.refreshRotationGrace.set(jti, Date.now() + REFRESH_ROTATION_GRACE_MS);
+    await this.redis.setCachedString(this.refreshGraceKey(jti), '1', REFRESH_ROTATION_GRACE_SEC);
+  }
+
+  private async hasRefreshRotationGrace(jti: string): Promise<boolean> {
+    const now = Date.now();
+    this.pruneRefreshRotationGrace(now);
+    const localGraceExpiresAt = this.refreshRotationGrace.get(jti);
+    if (localGraceExpiresAt && localGraceExpiresAt > now) {
+      return true;
+    }
+    return (await this.redis.getCachedString(this.refreshGraceKey(jti))) === '1';
+  }
+
   private async assertInstitutionNotSuspended(institutionId: string): Promise<void> {
     const inst = await this.prisma.institution.findFirst({
       where: { id: institutionId, deletedAt: null },
@@ -52,6 +96,26 @@ export class AuthService {
     if (inst?.status === 'SUSPENDED') {
       throw new UnauthorizedException('Institution is suspended');
     }
+  }
+
+  private async institutionTermsAccepted(institutionId: string): Promise<boolean> {
+    const institution = await this.prisma.institution.findFirst({
+      where: { id: institutionId, deletedAt: null },
+      select: { settings: true },
+    });
+    const settings =
+      institution?.settings &&
+      typeof institution.settings === 'object' &&
+      !Array.isArray(institution.settings)
+        ? (institution.settings as Record<string, unknown>)
+        : {};
+    const terms =
+      settings.termsAcceptance &&
+      typeof settings.termsAcceptance === 'object' &&
+      !Array.isArray(settings.termsAcceptance)
+        ? (settings.termsAcceptance as Record<string, unknown>)
+        : null;
+    return terms?.version === TERMS_ACCEPTANCE_VERSION && typeof terms.acceptedAt === 'string';
   }
 
   private async resolveInstitutionId(req: Request, dto: LoginDto): Promise<string> {
@@ -195,12 +259,14 @@ export class AuthService {
       role: UserRole;
       institutionId: string;
       sessionVersion: number;
+      profile?: unknown;
     },
     institutionId: string,
-    rememberLongLived?: boolean,
+    _rememberLongLived?: boolean,
     options?: { entityId?: string | null; skipLastLoginTouch?: boolean },
   ) {
     const permissions = await this.permissionsForUser(user.id, institutionId, user.role);
+    const institutionTermsAccepted = await this.institutionTermsAccepted(institutionId);
     const studentId =
       user.role === 'STUDENT'
         ? await this.resolveLinkedStudentId(user.id, institutionId)
@@ -223,11 +289,12 @@ export class AuthService {
       entityScope,
       ...(position ? { position } : {}),
       sessionVersion: user.sessionVersion,
+      institutionTermsAccepted,
+      forcePasswordChange: mustChangePassword(user.profile),
       jti: accessJti,
     };
     const accessToken = this.jwt.sign({ ...payload });
     const jti = randomUUID();
-    const refreshTtl = rememberLongLived ? '30d' : '7d';
     const refreshToken = jwt.sign(
       {
         sub: user.id,
@@ -239,7 +306,7 @@ export class AuthService {
         sessionVersion: user.sessionVersion,
       },
       this.refreshSecret(),
-      { expiresIn: refreshTtl },
+      { expiresIn: REFRESH_TOKEN_INACTIVITY_TTL },
     );
     if (!options?.skipLastLoginTouch) {
       await this.prisma.user.update({
@@ -258,6 +325,8 @@ export class AuthService {
         entityId,
         entityScope,
         permissions,
+        institutionTermsAccepted,
+        forcePasswordChange: mustChangePassword(user.profile),
         ...(position ? { position } : {}),
         ...(studentId ? { studentId } : {}),
       },
@@ -432,10 +501,9 @@ export class AuthService {
     ) {
       throw new UnauthorizedException('Invalid refresh token');
     }
-    if (
-      this.revokedRefresh.has(decoded.jti) ||
-      (await this.redis.isRefreshJtiRevoked(decoded.jti))
-    ) {
+    const refreshAlreadyRotated =
+      this.revokedRefresh.has(decoded.jti) || (await this.redis.isRefreshJtiRevoked(decoded.jti));
+    if (refreshAlreadyRotated && !(await this.hasRefreshRotationGrace(decoded.jti))) {
       throw new UnauthorizedException('Refresh token revoked');
     }
     const institutionId = decoded.institutionId as string;
@@ -455,6 +523,7 @@ export class AuthService {
     }
     const oldJti = decoded.jti;
     this.revokedRefresh.add(oldJti);
+    await this.rememberRefreshRotationGrace(oldJti);
     await this.redis.revokeRefreshJti(oldJti);
 
     const preferredEntityId =
@@ -489,6 +558,29 @@ export class AuthService {
     return REFRESH_COOKIE;
   }
 
+  async listSigninInstitutions() {
+    const rows = await this.prisma.institution.findMany({
+      where: {
+        deletedAt: null,
+        status: { not: 'SUSPENDED' },
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+      orderBy: [{ name: 'asc' }, { slug: 'asc' }],
+      take: 500,
+    });
+    return {
+      data: rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        slug: row.slug,
+      })),
+    };
+  }
+
   async validateJwtPayload(payload: JwtAccessPayload): Promise<AuthUser> {
     if (typeof payload.jti === 'string' && payload.jti.length > 0) {
       if (await this.redis.isAccessJtiBlocked(payload.jti)) {
@@ -514,7 +606,7 @@ export class AuthService {
       throw new UnauthorizedException();
     }
     const permissions = await this.permissionsForUser(user.id, user.institutionId, user.role);
-    let preferredEntityId =
+    const preferredEntityId =
       typeof payload.entityId === 'string' && payload.entityId.trim()
         ? payload.entityId.trim()
         : null;
@@ -553,6 +645,8 @@ export class AuthService {
       entityId,
       entityScope,
       permissions,
+      institutionTermsAccepted: payload.institutionTermsAccepted === true,
+      forcePasswordChange: payload.forcePasswordChange === true,
       ...(position ? { position } : {}),
       accessJti:
         typeof payload.jti === 'string' && payload.jti.length > 0 ? payload.jti : undefined,
@@ -691,6 +785,43 @@ export class AuthService {
     await this.prisma.user.update({
       where: { id: user.id },
       data: { mfaSecret: null },
+    });
+    return { ok: true as const };
+  }
+
+  async changePassword(actor: AuthUser, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: actor.userId,
+        institutionId: actor.institutionId,
+        deletedAt: null,
+        isActive: true,
+      },
+      select: { id: true, passwordHash: true, profile: true },
+    });
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    const currentMatches = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!currentMatches) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+    const sameAsCurrent = await bcrypt.compare(dto.newPassword, user.passwordHash);
+    if (sameAsCurrent) {
+      throw new BadRequestException('New password must be different from the temporary password');
+    }
+    const profile = profileRecord(user.profile);
+    const passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        profile: {
+          ...profile,
+          forcePasswordChange: false,
+          passwordChangedAt: new Date().toISOString(),
+        },
+      },
     });
     return { ok: true as const };
   }

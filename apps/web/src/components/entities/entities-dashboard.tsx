@@ -58,11 +58,13 @@ export function EntitiesDashboard({
   stats,
   canManageAll,
   canCreate,
+  createBlockedReason,
 }: {
   rows: EntityListRow[];
   stats: ConsolidatedStatsPayload | null;
   canManageAll: boolean;
   canCreate: boolean;
+  createBlockedReason?: string;
 }) {
   const chartRows: EntityChartRow[] =
     stats?.entities.map((e) => ({
@@ -126,7 +128,7 @@ export function EntitiesDashboard({
         <h2 style={{ margin: 0, fontSize: '1.05rem' }}>Campuses</h2>
         {canManageAll && canCreate ? (
           <Link
-            href="/entities/new"
+            href="/dashboard/entities/new"
             style={{
               display: 'inline-block',
               padding: '0.45rem 0.9rem',
@@ -142,6 +144,11 @@ export function EntitiesDashboard({
           </Link>
         ) : null}
       </div>
+      {createBlockedReason ? (
+        <p style={{ color: '#b45309', margin: '0.75rem 0 0', fontSize: '0.9rem' }}>
+          {createBlockedReason}
+        </p>
+      ) : null}
 
       <div
         style={{
@@ -225,7 +232,7 @@ export function EntitiesDashboard({
               </div>
             ) : null}
             <Link
-              href={`/entities/${r.id}`}
+              href={`/dashboard/entities/${r.id}`}
               style={{
                 marginTop: 'auto',
                 fontSize: '0.9rem',

@@ -21,22 +21,67 @@ const microsoftOAuth =
   typeof process.env.NEXT_PUBLIC_MICROSOFT_OAUTH === 'string' &&
   process.env.NEXT_PUBLIC_MICROSOFT_OAUTH === '1';
 
+type SigninInstitution = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
 export function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [magicBusy, setMagicBusy] = useState(false);
+  const [institutions, setInstitutions] = useState<SigninInstitution[]>([]);
+  const [institutionsLoading, setInstitutionsLoading] = useState(true);
+  const [institutionsError, setInstitutionsError] = useState<string | null>(null);
+  const initialInstitutionSlug =
+    searchParams.get('institutionSlug')?.trim() || searchParams.get('institution')?.trim() || '';
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: '',
       password: '',
-      institutionSlug: 'demo-university',
+      institutionSlug: initialInstitutionSlug,
       mfaToken: '',
-      rememberMe: false,
     },
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setInstitutionsLoading(true);
+      setInstitutionsError(null);
+      try {
+        const res = await fetch(`${apiBase}/auth/institutions`, { cache: 'no-store' });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const payload = (await res.json()) as { data?: SigninInstitution[] };
+        const rows = (payload.data ?? []).filter((row) => row.slug && row.name);
+        if (cancelled) {
+          return;
+        }
+        setInstitutions(rows);
+        const current = form.getValues('institutionSlug')?.trim();
+        if (!current && rows.length === 1) {
+          form.setValue('institutionSlug', rows[0]!.slug, { shouldValidate: true });
+        }
+      } catch {
+        if (!cancelled) {
+          setInstitutionsError('Could not load institution list. Refresh and try again.');
+        }
+      } finally {
+        if (!cancelled) {
+          setInstitutionsLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [form]);
 
   useEffect(() => {
     const token = searchParams.get('magicToken');
@@ -48,29 +93,11 @@ export function LoginPage() {
       setMagicBusy(true);
       setError(null);
       try {
-        const res = await fetch(`${apiBase}/auth/magic-link/consume`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: token.trim() }),
-        });
-        if (!res.ok) {
-          if (!cancelled) {
-            setError('Magic link is invalid or expired.');
-          }
-          return;
-        }
-        const data = (await res.json()) as { accessToken?: string };
-        if (!data.accessToken) {
-          if (!cancelled) {
-            setError('Magic link response was incomplete.');
-          }
-          return;
-        }
         const sign = await signIn('credentials', {
           redirect: false,
           email: 'magic',
           password: 'magic',
-          magicAccessToken: data.accessToken,
+          magicToken: token.trim(),
         });
         if (sign?.error) {
           if (!cancelled) {
@@ -100,7 +127,6 @@ export function LoginPage() {
       password: values.password,
       institutionSlug: slug,
       mfaToken: values.mfaToken?.trim() || undefined,
-      rememberMe: values.rememberMe ? '1' : '0',
     });
     if (res?.error) {
       setError('Invalid email or password.');
@@ -113,7 +139,7 @@ export function LoginPage() {
   return (
     <AuthShell
       headline="Welcome back"
-      lead="Sign in to your institution workspace. Use your institution slug on localhost (e.g. demo-university from seed data)."
+      lead="Sign in to your institution workspace. Select your institution, then enter your account credentials."
     >
       <header className={styles.mainHeader}>
         <Link href="/" className={styles.backLink}>
@@ -135,11 +161,26 @@ export function LoginPage() {
         <form className={styles.form} onSubmit={form.handleSubmit(onSubmit)} noValidate>
           <div className={styles.field}>
             <span className={styles.label}>Institution slug</span>
-            <input
-              className={styles.input}
+            <select
+              className={styles.select}
               autoComplete="organization"
+              disabled={institutionsLoading || institutions.length === 0}
               {...form.register('institutionSlug')}
-            />
+            >
+              <option value="">
+                {institutionsLoading
+                  ? 'Loading institutions...'
+                  : institutions.length === 0
+                    ? 'No institutions available'
+                    : 'Select institution'}
+              </option>
+              {institutions.map((institution) => (
+                <option key={institution.id} value={institution.slug}>
+                  {institution.name} ({institution.slug})
+                </option>
+              ))}
+            </select>
+            {institutionsError ? <p className={styles.error}>{institutionsError}</p> : null}
             {form.formState.errors.institutionSlug ? (
               <p className={styles.error}>{form.formState.errors.institutionSlug.message}</p>
             ) : null}
@@ -180,11 +221,6 @@ export function LoginPage() {
               {...form.register('mfaToken')}
             />
           </div>
-
-          <label className={styles.checkboxRow}>
-            <input type="checkbox" {...form.register('rememberMe')} />
-            <span>Remember this device (longer refresh session)</span>
-          </label>
 
           {error ? <p className={styles.error}>{error}</p> : null}
 

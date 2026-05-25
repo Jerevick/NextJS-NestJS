@@ -27,7 +27,7 @@ export default async function AlumniJobsPage() {
   return (
     <main style={{ maxWidth: 900 }}>
       <p style={{ margin: '0 0 0.5rem' }}>
-        <Link href="/alumni/home" style={{ color: '#0d9488' }}>
+        <Link href="/dashboard/alumni/home" style={{ color: '#0d9488' }}>
           ← Home
         </Link>
       </p>

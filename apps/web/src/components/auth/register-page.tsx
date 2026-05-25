@@ -3,11 +3,22 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
-import { useRef, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useState, type ReactNode } from 'react';
 import { useForm, type FieldPath, type UseFormReturn } from 'react-hook-form';
-import { submitInstitutionRequest } from '@/app/register/actions';
+import {
+  checkRegistrationRequestStatus,
+  loadRegistrationRequestForUpdate,
+  submitInstitutionRequest,
+  updateInstitutionRequest,
+  type EditableRegistrationRequest,
+  type RegistrationTrackingStatus,
+} from '@/app/register/actions';
 import { COUNTRIES } from '@/lib/countries';
 import {
+  REGISTRATION_EVIDENCE_MAX_MB,
+  REGISTRATION_LOGO_MAX_MB,
+  REGISTRATION_TOTAL_UPLOAD_MAX_MB,
   validateEvidenceFile,
   validateLogoFile,
   validateRegistrationFiles,
@@ -61,14 +72,57 @@ const STEP_FIELDS: FieldPath<NewInstitutionValues>[][] = [
   ['country', 'stateProvince', 'city', 'postalCode', 'addressLine1'],
   ['accreditationStatus'],
   ['contactFirstName', 'contactLastName', 'contactTitle', 'contactPhone', 'contactEmail'],
-  ['modulesInterested'],
+  ['estimatedStudents', 'modulesInterested'],
 ];
 
+const TRACKING_STATUS_COPY: Record<
+  RegistrationTrackingStatus['status'],
+  { label: string; detail: string }
+> = {
+  PENDING: {
+    label: 'Pending review',
+    detail: 'Your request is in the UniCore onboarding queue.',
+  },
+  REVIEWED: {
+    label: 'Reviewed',
+    detail: 'Our team has reviewed the request and will follow up with next steps.',
+  },
+  PROVISIONED: {
+    label: 'Provisioned',
+    detail:
+      'Your institution tenant has been created. Check the registrant/admin email addresses for sign-in instructions.',
+  },
+  DISMISSED: {
+    label: 'Closed',
+    detail: 'This request is not moving forward. Contact UniCore support if this seems incorrect.',
+  },
+};
+
+type EditingRegistrationState = {
+  reference: string;
+  verificationEmail: string;
+  documents: EditableRegistrationRequest['documents'];
+  previousStatus: EditableRegistrationRequest['status'];
+};
+
 export function RegisterPage() {
+  const searchParams = useSearchParams();
+  const initialTrackerReference = searchParams.get('reference')?.trim() ?? '';
   const [step, setStep] = useState(0);
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
   const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+  const [trackerReference, setTrackerReference] = useState(initialTrackerReference);
+  const [trackerStatus, setTrackerStatus] = useState<RegistrationTrackingStatus | null>(null);
+  const [trackerError, setTrackerError] = useState<string | null>(null);
+  const [isTracking, setIsTracking] = useState(false);
+  const [editVerificationEmail, setEditVerificationEmail] = useState('');
+  const [editLoadError, setEditLoadError] = useState<string | null>(null);
+  const [isLoadingEdit, setIsLoadingEdit] = useState(false);
+  const [editingRequest, setEditingRequest] = useState<EditingRegistrationState | null>(null);
+  const [submissionMode, setSubmissionMode] = useState<'created' | 'updated'>('created');
 
   const form = useForm<NewInstitutionValues>({
     resolver: zodResolver(newInstitutionSchema),
@@ -97,31 +151,133 @@ export function RegisterPage() {
     },
   });
 
-  const logoRef = useRef<HTMLInputElement>(null);
-  const evidenceRef = useRef<HTMLInputElement>(null);
+  function validateFilesForCurrentMode(values: NewInstitutionValues): string | null {
+    const evidence = values.accreditationStatus === 'not_accredited' ? null : evidenceFile;
+    if (!editingRequest) {
+      return validateRegistrationFiles(logoFile, evidence, values.accreditationStatus);
+    }
+
+    if (logoFile) {
+      const logoError = validateLogoFile(logoFile);
+      if (logoError) {
+        return logoError;
+      }
+    } else if (!editingRequest.documents.hasLogo) {
+      return 'Institution logo is required';
+    }
+
+    if (values.accreditationStatus !== 'not_accredited') {
+      if (evidenceFile) {
+        const evidenceError = validateEvidenceFile(evidenceFile);
+        if (evidenceError) {
+          return evidenceError;
+        }
+      } else if (!editingRequest.documents.hasAccreditationEvidence) {
+        return 'Accreditation evidence document is required';
+      }
+    }
+
+    const totalBytes = (logoFile?.size ?? 0) + (evidenceFile?.size ?? 0);
+    if (totalBytes > REGISTRATION_TOTAL_UPLOAD_MAX_MB * 1024 * 1024) {
+      return `Logo plus evidence must be ${REGISTRATION_TOTAL_UPLOAD_MAX_MB} MB or smaller in total.`;
+    }
+
+    return null;
+  }
 
   async function onSubmit(values: NewInstitutionValues) {
     setSubmitError(null);
-    const logo = logoRef.current?.files?.[0];
-    const evidence = evidenceRef.current?.files?.[0];
-    const fileError = validateRegistrationFiles(logo, evidence, values.accreditationStatus);
+    const evidence = values.accreditationStatus === 'not_accredited' ? null : evidenceFile;
+    const fileError = validateFilesForCurrentMode(values);
     if (fileError) {
       setSubmitError(fileError);
       return;
     }
-    const result = await submitInstitutionRequest(values, logo!, evidence ?? null);
+    const result = editingRequest
+      ? await updateInstitutionRequest(
+          editingRequest.reference,
+          editingRequest.verificationEmail,
+          values,
+          logoFile,
+          evidence,
+        )
+      : await submitInstitutionRequest(values, logoFile!, evidence);
     if (!result.ok) {
       setSubmitError(result.error);
       return;
     }
+    setSubmissionMode(editingRequest ? 'updated' : 'created');
     setSubmittedEmail(result.email);
     setSubmittedRequestId(result.requestId ?? null);
+    setTrackerReference(result.requestId ?? '');
+    setTrackerStatus(null);
+    setTrackerError(null);
+    setEditLoadError(null);
+    setEditingRequest(null);
+  }
+
+  async function trackRegistrationRequest() {
+    setTrackerError(null);
+    setTrackerStatus(null);
+    setIsTracking(true);
+    try {
+      const result = await checkRegistrationRequestStatus(trackerReference);
+      if (!result.ok) {
+        setTrackerError(result.error);
+        return;
+      }
+      setTrackerStatus(result.data);
+      setTrackerReference(result.data.reference);
+    } finally {
+      setIsTracking(false);
+    }
+  }
+
+  async function loadRequestForUpdate() {
+    setEditLoadError(null);
+    setIsLoadingEdit(true);
+    try {
+      const result = await loadRegistrationRequestForUpdate(
+        trackerReference,
+        editVerificationEmail,
+      );
+      if (!result.ok) {
+        setEditLoadError(result.error);
+        return;
+      }
+      form.reset(result.data.values);
+      setEditingRequest({
+        reference: result.data.reference,
+        verificationEmail: editVerificationEmail.trim(),
+        documents: result.data.documents,
+        previousStatus: result.data.status,
+      });
+      setLogoFile(null);
+      setEvidenceFile(null);
+      setSubmittedEmail(null);
+      setSubmittedRequestId(null);
+      setSubmitError(null);
+      setStep(0);
+    } finally {
+      setIsLoadingEdit(false);
+    }
   }
 
   function resetFlow() {
     setSubmittedEmail(null);
     setSubmittedRequestId(null);
     setSubmitError(null);
+    setLogoFile(null);
+    setEvidenceFile(null);
+    setTrackerReference('');
+    setTrackerStatus(null);
+    setTrackerError(null);
+    setIsTracking(false);
+    setEditVerificationEmail('');
+    setEditLoadError(null);
+    setIsLoadingEdit(false);
+    setEditingRequest(null);
+    setSubmissionMode('created');
     setStep(0);
     form.reset();
   }
@@ -143,7 +299,18 @@ export function RegisterPage() {
 
       <motion.div className={`${styles.panel} ${styles.registerPanel}`} layout>
         {submittedEmail ? (
-          <SuccessPanel email={submittedEmail} requestId={submittedRequestId} onReset={resetFlow} />
+          <SuccessPanel
+            mode={submissionMode}
+            email={submittedEmail}
+            requestId={submittedRequestId}
+            trackerReference={trackerReference}
+            trackerStatus={trackerStatus}
+            trackerError={trackerError}
+            isTracking={isTracking}
+            onTrackerReferenceChange={setTrackerReference}
+            onTrackSubmit={trackRegistrationRequest}
+            onReset={resetFlow}
+          />
         ) : (
           <div className={styles.registerLayout}>
             <div className={styles.registerHeader}>
@@ -154,6 +321,20 @@ export function RegisterPage() {
               </p>
             </div>
 
+            <RegistrationTracker
+              reference={trackerReference}
+              status={trackerStatus}
+              error={trackerError}
+              isLoading={isTracking}
+              onReferenceChange={setTrackerReference}
+              onSubmit={trackRegistrationRequest}
+              updateEmail={editVerificationEmail}
+              updateError={editLoadError}
+              isLoadingUpdate={isLoadingEdit}
+              onUpdateEmailChange={setEditVerificationEmail}
+              onLoadUpdate={loadRequestForUpdate}
+            />
+
             <StepIndicator currentStep={step} />
 
             {submitError ? (
@@ -162,11 +343,26 @@ export function RegisterPage() {
               </p>
             ) : null}
 
+            {editingRequest ? (
+              <p className={styles.fileLimitNote} role="status">
+                Updating request <strong>{editingRequest.reference}</strong>. Existing uploaded
+                files are kept unless you choose replacements. Saving changes returns the request to
+                pending review before final onboarding.
+              </p>
+            ) : null}
+
             <InstitutionForm
               form={form}
               step={step}
-              logoRef={logoRef}
-              evidenceRef={evidenceRef}
+              logoFile={logoFile}
+              evidenceFile={evidenceFile}
+              mode={editingRequest ? 'update' : 'create'}
+              existingLogoFileName={editingRequest?.documents.logoFileName ?? null}
+              existingEvidenceFileName={
+                editingRequest?.documents.accreditationEvidenceFileName ?? null
+              }
+              onLogoFileChange={setLogoFile}
+              onEvidenceFileChange={setEvidenceFile}
               onStepChange={setStep}
               onSubmit={onSubmit}
               setSubmitError={setSubmitError}
@@ -218,16 +414,26 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
 function InstitutionForm({
   form,
   step,
-  logoRef,
-  evidenceRef,
+  logoFile,
+  evidenceFile,
+  mode,
+  existingLogoFileName,
+  existingEvidenceFileName,
+  onLogoFileChange,
+  onEvidenceFileChange,
   onStepChange,
   onSubmit,
   setSubmitError,
 }: {
   form: UseFormReturn<NewInstitutionValues>;
   step: number;
-  logoRef: React.RefObject<HTMLInputElement | null>;
-  evidenceRef: React.RefObject<HTMLInputElement | null>;
+  logoFile: File | null;
+  evidenceFile: File | null;
+  mode: 'create' | 'update';
+  existingLogoFileName: string | null;
+  existingEvidenceFileName: string | null;
+  onLogoFileChange: (file: File | null) => void;
+  onEvidenceFileChange: (file: File | null) => void;
   onStepChange: (step: number) => void;
   onSubmit: (values: NewInstitutionValues) => void;
   setSubmitError: (error: string | null) => void;
@@ -248,7 +454,11 @@ function InstitutionForm({
     }
 
     if (step === 0) {
-      const logoError = validateLogoFile(logoRef.current?.files?.[0]);
+      const logoError = logoFile
+        ? validateLogoFile(logoFile)
+        : existingLogoFileName
+          ? null
+          : validateLogoFile(null);
       if (logoError) {
         setSubmitError(logoError);
         return;
@@ -256,7 +466,11 @@ function InstitutionForm({
     }
 
     if (step === 2 && needsEvidence) {
-      const evidenceError = validateEvidenceFile(evidenceRef.current?.files?.[0]);
+      const evidenceError = evidenceFile
+        ? validateEvidenceFile(evidenceFile)
+        : existingEvidenceFileName
+          ? null
+          : validateEvidenceFile(null);
       if (evidenceError) {
         setSubmitError(evidenceError);
         return;
@@ -290,10 +504,25 @@ function InstitutionForm({
           exit={{ opacity: 0, x: -12 }}
           transition={{ duration: 0.2 }}
         >
-          {step === 0 ? <InstitutionStep form={form} logoRef={logoRef} /> : null}
+          {step === 0 ? (
+            <InstitutionStep
+              form={form}
+              logoFile={logoFile}
+              mode={mode}
+              existingLogoFileName={existingLogoFileName}
+              onLogoFileChange={onLogoFileChange}
+            />
+          ) : null}
           {step === 1 ? <AddressStep form={form} /> : null}
           {step === 2 ? (
-            <ComplianceStep form={form} evidenceRef={evidenceRef} needsEvidence={needsEvidence} />
+            <ComplianceStep
+              form={form}
+              evidenceFile={evidenceFile}
+              mode={mode}
+              existingEvidenceFileName={existingEvidenceFileName}
+              onEvidenceFileChange={onEvidenceFileChange}
+              needsEvidence={needsEvidence}
+            />
           ) : null}
           {step === 3 ? <ContactStep form={form} /> : null}
           {step === 4 ? <RequirementsStep form={form} /> : null}
@@ -315,7 +544,13 @@ function InstitutionForm({
           </button>
         ) : (
           <button type="submit" className={styles.submit} disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? 'Submitting…' : 'Submit request'}
+            {form.formState.isSubmitting
+              ? mode === 'update'
+                ? 'Saving...'
+                : 'Submitting...'
+              : mode === 'update'
+                ? 'Save updates'
+                : 'Submit request'}
           </button>
         )}
       </div>
@@ -331,10 +566,16 @@ function InstitutionForm({
 
 function InstitutionStep({
   form,
-  logoRef,
+  logoFile,
+  mode,
+  existingLogoFileName,
+  onLogoFileChange,
 }: {
   form: UseFormReturn<NewInstitutionValues>;
-  logoRef: React.RefObject<HTMLInputElement | null>;
+  logoFile: File | null;
+  mode: 'create' | 'update';
+  existingLogoFileName: string | null;
+  onLogoFileChange: (file: File | null) => void;
 }) {
   return (
     <motion.div className={styles.stepFields} layout>
@@ -368,14 +609,26 @@ function InstitutionStep({
         </Field>
       </div>
 
-      <Field label="Institution logo" hint="PNG, JPEG, or WebP · max 2 MB">
+      <Field
+        label="Institution logo"
+        hint={`PNG, JPEG, or WebP. Maximum file size: ${REGISTRATION_LOGO_MAX_MB} MB.`}
+      >
         <input
-          ref={logoRef}
           type="file"
           accept="image/png,image/jpeg,image/webp"
           className={styles.fileInput}
-          required
+          onChange={(event) => onLogoFileChange(event.currentTarget.files?.[0] ?? null)}
+          required={mode === 'create' || !existingLogoFileName}
         />
+        <FileLimitNote
+          text={
+            mode === 'update' && existingLogoFileName
+              ? `Leave blank to keep the current logo. New logo files must be ${REGISTRATION_LOGO_MAX_MB} MB or smaller.`
+              : `Logo files must be ${REGISTRATION_LOGO_MAX_MB} MB or smaller.`
+          }
+        />
+        {!logoFile && existingLogoFileName ? <ExistingFile name={existingLogoFileName} /> : null}
+        <SelectedFile file={logoFile} />
       </Field>
     </motion.div>
   );
@@ -451,11 +704,17 @@ function AddressStep({ form }: { form: UseFormReturn<NewInstitutionValues> }) {
 
 function ComplianceStep({
   form,
-  evidenceRef,
+  evidenceFile,
+  mode,
+  existingEvidenceFileName,
+  onEvidenceFileChange,
   needsEvidence,
 }: {
   form: UseFormReturn<NewInstitutionValues>;
-  evidenceRef: React.RefObject<HTMLInputElement | null>;
+  evidenceFile: File | null;
+  mode: 'create' | 'update';
+  existingEvidenceFileName: string | null;
+  onEvidenceFileChange: (file: File | null) => void;
   needsEvidence: boolean;
 }) {
   return (
@@ -493,14 +752,28 @@ function ComplianceStep({
             </Field>
           </motion.div>
 
-          <Field label="Accreditation evidence" hint="PDF or image · max 10 MB">
+          <Field
+            label="Accreditation evidence"
+            hint={`PDF, PNG, or JPEG. Maximum file size: ${REGISTRATION_EVIDENCE_MAX_MB} MB.`}
+          >
             <input
-              ref={evidenceRef}
               type="file"
               accept="application/pdf,image/png,image/jpeg"
               className={styles.fileInput}
-              required
+              onChange={(event) => onEvidenceFileChange(event.currentTarget.files?.[0] ?? null)}
+              required={mode === 'create' || !existingEvidenceFileName}
             />
+            <FileLimitNote
+              text={
+                mode === 'update' && existingEvidenceFileName
+                  ? `Leave blank to keep the current evidence file. New evidence files must be ${REGISTRATION_EVIDENCE_MAX_MB} MB or smaller.`
+                  : `Evidence files must be ${REGISTRATION_EVIDENCE_MAX_MB} MB or smaller. Logo plus evidence must be ${REGISTRATION_TOTAL_UPLOAD_MAX_MB} MB or smaller in total.`
+              }
+            />
+            {!evidenceFile && existingEvidenceFileName ? (
+              <ExistingFile name={existingEvidenceFileName} />
+            ) : null}
+            <SelectedFile file={evidenceFile} />
           </Field>
         </>
       ) : (
@@ -609,7 +882,10 @@ function ModulePicker({ form }: { form: UseFormReturn<NewInstitutionValues> }) {
 
   return (
     <div className={styles.modulePicker}>
-      <Field label="Core packages" hint="SIS for records and enrollment; LMS for teaching.">
+      <Field
+        label="Core packages"
+        hint="Choose SIS, LMS, or both. SIS includes native modules like Finance, HR, Alumni, Elections, Sports, and Meetings."
+      >
         {bothSisAndLms ? (
           <p className={styles.moduleBridgeNote} role="status">
             With both packages, enrollments sync to LMS course access automatically.
@@ -675,18 +951,181 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
+function FileLimitNote({ text }: { text: string }) {
+  return <p className={styles.fileLimitNote}>{text}</p>;
+}
+
+function SelectedFile({ file }: { file: File | null }) {
+  if (!file) return null;
+  const size =
+    file.size >= 1024 * 1024
+      ? `${(file.size / 1024 / 1024).toFixed(1)} MB`
+      : `${Math.max(1, Math.round(file.size / 1024))} KB`;
+  return (
+    <p className={styles.selectedFile} role="status">
+      Selected: <strong>{file.name}</strong> ({size})
+    </p>
+  );
+}
+
+function ExistingFile({ name }: { name: string }) {
+  return (
+    <p className={styles.selectedFile} role="status">
+      Current file retained: <strong>{name}</strong>
+    </p>
+  );
+}
+
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return <p className={styles.error}>{message}</p>;
 }
 
+function formatTrackingDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function RegistrationTracker({
+  reference,
+  status,
+  error,
+  isLoading,
+  onReferenceChange,
+  onSubmit,
+  updateEmail,
+  updateError,
+  isLoadingUpdate,
+  onUpdateEmailChange,
+  onLoadUpdate,
+  compact = false,
+}: {
+  reference: string;
+  status: RegistrationTrackingStatus | null;
+  error: string | null;
+  isLoading: boolean;
+  onReferenceChange: (reference: string) => void;
+  onSubmit: () => Promise<void>;
+  updateEmail?: string;
+  updateError?: string | null;
+  isLoadingUpdate?: boolean;
+  onUpdateEmailChange?: (email: string) => void;
+  onLoadUpdate?: () => Promise<void>;
+  compact?: boolean;
+}) {
+  const statusCopy = status ? TRACKING_STATUS_COPY[status.status] : null;
+  const canUpdate = Boolean(status?.canUpdate && onLoadUpdate && onUpdateEmailChange);
+  return (
+    <motion.section
+      className={styles.trackerCard}
+      data-compact={compact ? 'true' : undefined}
+      layout
+    >
+      <div className={styles.trackerHeader}>
+        <span className={styles.referenceLabel}>Reference tracker</span>
+        <h3 className={styles.trackerTitle}>Track an onboarding request</h3>
+        <p className={styles.trackerText}>
+          Enter the reference shown after submission to check the latest review status.
+        </p>
+      </div>
+      <form
+        className={styles.trackerForm}
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onSubmit();
+        }}
+      >
+        <input
+          className={styles.trackerInput}
+          value={reference}
+          onChange={(event) => onReferenceChange(event.target.value)}
+          placeholder="Paste tracking reference"
+          aria-label="Tracking reference"
+        />
+        <button type="submit" className={styles.trackerButton} disabled={isLoading}>
+          {isLoading ? 'Checking...' : 'Check status'}
+        </button>
+      </form>
+      {error ? (
+        <p className={`${styles.error} ${styles.trackerError}`} role="alert">
+          {error}
+        </p>
+      ) : null}
+      {status && statusCopy ? (
+        <div className={styles.trackerResult} role="status" aria-live="polite">
+          <div>
+            <span className={styles.trackerResultLabel}>
+              {status.institutionName ?? 'Institution request'}
+            </span>
+            <strong>{statusCopy.label}</strong>
+          </div>
+          <span className={styles.trackerStatusPill} data-status={status.status}>
+            {status.status}
+          </span>
+          <p>{statusCopy.detail}</p>
+          <p>
+            Submitted {formatTrackingDate(status.submittedAt)}
+            {status.reviewedAt ? ` · Reviewed ${formatTrackingDate(status.reviewedAt)}` : ''}
+          </p>
+          {canUpdate ? (
+            <form
+              className={styles.trackerForm}
+              onSubmit={(event) => {
+                event.preventDefault();
+                void onLoadUpdate?.();
+              }}
+            >
+              <input
+                type="email"
+                className={styles.trackerInput}
+                value={updateEmail ?? ''}
+                onChange={(event) => onUpdateEmailChange?.(event.target.value)}
+                placeholder="Contact or institutional email"
+                aria-label="Verification email"
+              />
+              <button type="submit" className={styles.trackerButton} disabled={isLoadingUpdate}>
+                {isLoadingUpdate ? 'Loading...' : 'Update request'}
+              </button>
+            </form>
+          ) : null}
+          {updateError ? (
+            <p className={`${styles.error} ${styles.trackerError}`} role="alert">
+              {updateError}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </motion.section>
+  );
+}
+
 function SuccessPanel({
+  mode,
   email,
   requestId,
+  trackerReference,
+  trackerStatus,
+  trackerError,
+  isTracking,
+  onTrackerReferenceChange,
+  onTrackSubmit,
   onReset,
 }: {
+  mode: 'created' | 'updated';
   email: string;
   requestId: string | null;
+  trackerReference: string;
+  trackerStatus: RegistrationTrackingStatus | null;
+  trackerError: string | null;
+  isTracking: boolean;
+  onTrackerReferenceChange: (reference: string) => void;
+  onTrackSubmit: () => Promise<void>;
   onReset: () => void;
 }) {
   return (
@@ -699,18 +1138,43 @@ function SuccessPanel({
       <div className={styles.successIcon} aria-hidden>
         ✓
       </div>
-      <h2 className={styles.successTitle}>Request submitted</h2>
+      <h2 className={styles.successTitle}>
+        {mode === 'updated' ? 'Request updated' : 'Request submitted'}
+      </h2>
       <p className={styles.successText}>
-        Thank you. We received your submission for <strong>{email}</strong>. The UniCore team will
-        contact you to configure billing, modules, and your first administrator account.
+        {mode === 'updated' ? (
+          <>
+            Thank you. We saved the latest information for <strong>{email}</strong>. The request is
+            back in pending review before final onboarding.
+          </>
+        ) : (
+          <>
+            Thank you. We received your submission for <strong>{email}</strong>. The UniCore team
+            will contact you to configure billing, modules, and your first administrator account.
+          </>
+        )}
       </p>
 
       {requestId ? (
         <motion.div className={styles.referenceCard} role="status" aria-live="polite" layout>
           <span className={styles.referenceLabel}>Tracking reference</span>
           <code className={styles.referenceCode}>{requestId}</code>
-          <p className={styles.referenceHint}>Keep this reference for follow-up correspondence.</p>
+          <p className={styles.referenceHint}>
+            Keep this reference for follow-up correspondence and status tracking.
+          </p>
         </motion.div>
+      ) : null}
+
+      {requestId ? (
+        <RegistrationTracker
+          reference={trackerReference}
+          status={trackerStatus}
+          error={trackerError}
+          isLoading={isTracking}
+          onReferenceChange={onTrackerReferenceChange}
+          onSubmit={onTrackSubmit}
+          compact
+        />
       ) : null}
 
       <motion.div className={styles.successActions} layout>

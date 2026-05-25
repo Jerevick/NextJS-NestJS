@@ -1,8 +1,10 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import {
   InviteStatus,
@@ -39,6 +41,7 @@ export class MeetingsService {
     private readonly repo: MeetingsRepository,
     private readonly audit: AuditService,
     private readonly tenantModules: TenantModulesService,
+    @Inject(forwardRef(() => WorkflowEngineService))
     private readonly workflows: WorkflowEngineService,
     private readonly minutesFiles: MeetingMinutesFileService,
     private readonly calendarSync: MeetingsCalendarSyncService,

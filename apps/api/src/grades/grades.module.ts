@@ -12,7 +12,7 @@ import { GradesService } from './grades.service';
 @Module({
   imports: [
     CustomizationModule,
-    ProgressionModule,
+    forwardRef(() => ProgressionModule),
     NotificationsModule.register(),
     forwardRef(() => WorkflowEngineModule),
   ],

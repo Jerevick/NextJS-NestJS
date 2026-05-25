@@ -46,7 +46,7 @@ export default async function AssessmentPage({
   if (!token || !canRead) {
     return (
       <main style={{ padding: '2rem' }}>
-        <Link href={`/courses/${courseInstanceId}`}>← Course</Link>
+        <Link href={`/dashboard/courses/${courseInstanceId}`}>← Course</Link>
       </main>
     );
   }
@@ -79,7 +79,7 @@ export default async function AssessmentPage({
         <CourseAccessPing courseInstanceId={courseInstanceId} />
       ) : null}
       <Link
-        href={`/courses/${courseInstanceId}`}
+        href={`/dashboard/courses/${courseInstanceId}`}
         style={{ color: '#2563eb', textDecoration: 'none', fontSize: '0.9rem' }}
       >
         ← Back to course

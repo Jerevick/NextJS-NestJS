@@ -2,8 +2,10 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import {
   CandidateStatus,
@@ -48,6 +50,7 @@ export class ElectionsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly tenantModules: TenantModulesService,
+    @Inject(forwardRef(() => WorkflowEngineService))
     private readonly workflows: WorkflowEngineService,
     private readonly documents: ElectionDocumentsService,
   ) {}

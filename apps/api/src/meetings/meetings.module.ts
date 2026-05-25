@@ -24,7 +24,7 @@ import { MeetingsService } from './meetings.service';
     AuditModule,
     NotificationsModule.register(),
     StorageModule,
-    StaffCoreModule,
+    forwardRef(() => StaffCoreModule),
     forwardRef(() => WorkflowEngineModule),
   ],
   controllers: [MeetingsController, CalendarWebhooksController],

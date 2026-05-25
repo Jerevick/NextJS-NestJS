@@ -51,7 +51,7 @@ export function CourseAssessmentsList({
             ) : null}
           </div>
           <Link
-            href={`/courses/${courseInstanceId}/assessments/${a.id}${qs}`}
+            href={`/dashboard/courses/${courseInstanceId}/assessments/${a.id}${qs}`}
             style={{
               fontSize: '0.85rem',
               fontWeight: 600,

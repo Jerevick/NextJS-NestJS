@@ -120,7 +120,7 @@ function KanbanCardVisual({
       {mode === 'card' ? (
         <div style={{ marginTop: 10 }}>
           <Link
-            href={`/admissions/${row.id}`}
+            href={`/dashboard/admissions/${row.id}`}
             style={{ fontSize: '0.78rem', fontWeight: 600, color: primary }}
           >
             Open →

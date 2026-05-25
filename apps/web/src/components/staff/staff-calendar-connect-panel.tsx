@@ -24,14 +24,14 @@ export function StaffCalendarConnectPanel({
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {googleEnabled ? (
-          <a href="/staff/calendar-connect/google" style={linkStyle}>
+          <a href="/dashboard/staff/calendar-connect/google" style={linkStyle}>
             Connect Google Calendar
           </a>
         ) : (
           <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Google OAuth not configured</span>
         )}
         {microsoftEnabled ? (
-          <a href="/staff/calendar-connect/microsoft" style={linkStyle}>
+          <a href="/dashboard/staff/calendar-connect/microsoft" style={linkStyle}>
             Connect Outlook
           </a>
         ) : (

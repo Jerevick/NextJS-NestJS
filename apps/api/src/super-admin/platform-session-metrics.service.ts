@@ -14,24 +14,39 @@ export class PlatformSessionMetricsService {
   /** Users with login activity in the last 15 minutes (proxy for active sessions). */
   async snapshot(): Promise<PlatformSessionSnapshot> {
     const since = new Date(Date.now() - 15 * 60_000);
-    const rows = await this.prisma.user.groupBy({
-      by: ['institutionId'],
-      where: { deletedAt: null, lastLoginAt: { gte: since } },
-      _count: { _all: true },
+    const users = await this.prisma.user.findMany({
+      where: {
+        deletedAt: null,
+        lastLoginAt: { gte: since },
+        institution: { deletedAt: null },
+      },
+      select: {
+        institutionId: true,
+        institution: { select: { name: true } },
+      },
     });
-    const institutionIds = rows.map((r) => r.institutionId);
-    const names = await this.prisma.institution.findMany({
-      where: { id: { in: institutionIds }, deletedAt: null },
-      select: { id: true, name: true },
-    });
-    const nameById = new Map(names.map((n) => [n.id, n.name]));
-    const byInstitution = rows
-      .map((r) => ({
-        institutionId: r.institutionId,
-        name: nameById.get(r.institutionId) ?? r.institutionId,
-        online: r._count._all,
+
+    const counts = new Map<string, { name: string; online: number }>();
+    for (const user of users) {
+      const current = counts.get(user.institutionId);
+      if (current) {
+        current.online += 1;
+      } else {
+        counts.set(user.institutionId, {
+          name: user.institution.name,
+          online: 1,
+        });
+      }
+    }
+
+    const byInstitution = Array.from(counts.entries())
+      .map(([institutionId, row]) => ({
+        institutionId,
+        name: row.name,
+        online: row.online,
       }))
       .sort((a, b) => b.online - a.online);
+
     return {
       totalOnline: byInstitution.reduce((s, r) => s + r.online, 0),
       byInstitution,

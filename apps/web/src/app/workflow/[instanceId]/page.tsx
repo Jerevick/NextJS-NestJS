@@ -56,7 +56,7 @@ export default async function WorkflowInstancePage({
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 720 }}>
       <p style={{ marginTop: 0 }}>
-        <Link href="/workflow/inbox" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/workflow/inbox" style={{ color: '#2563eb' }}>
           ← Inbox
         </Link>
       </p>
@@ -73,7 +73,12 @@ export default async function WorkflowInstancePage({
         <h2 style={{ fontSize: '1rem' }}>History</h2>
         <ul style={{ fontSize: '0.88rem', paddingLeft: '1.25rem' }}>
           {history.map((h, i) => {
-            const entry = h as { stepName?: string; action?: string; decidedAt?: string; notes?: string };
+            const entry = h as {
+              stepName?: string;
+              action?: string;
+              decidedAt?: string;
+              notes?: string;
+            };
             return (
               <li key={i} style={{ marginBottom: 6 }}>
                 <strong>{entry.stepName}</strong> — {entry.action} at{' '}

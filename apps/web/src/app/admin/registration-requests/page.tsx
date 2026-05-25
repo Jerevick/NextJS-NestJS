@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { appendOptionalEntityHeader } from '@/lib/api-headers';
 import {
@@ -26,6 +27,7 @@ const STATUS_FILTERS: Array<{ value: '' | RegistrationRequestStatus; label: stri
   { value: '', label: 'All' },
   { value: 'PENDING', label: 'Pending' },
   { value: 'REVIEWED', label: 'Reviewed' },
+  { value: 'PROVISIONED', label: 'Provisioned' },
   { value: 'DISMISSED', label: 'Dismissed' },
 ];
 
@@ -35,6 +37,7 @@ type SearchParams = {
 };
 
 function statusBadgeClass(status: RegistrationRequestStatus): string {
+  if (status === 'PROVISIONED') return styles.statusProvisioned;
   if (status === 'REVIEWED') return styles.statusReviewed;
   if (status === 'DISMISSED') return styles.statusDismissed;
   return styles.statusPending;
@@ -61,20 +64,14 @@ export default async function RegistrationRequestsPage({
   const session = await auth();
 
   if (!session?.accessToken || !session.user) {
-    return (
-      <main className={styles.page}>
-        <Link href="/login" className={styles.breadcrumb}>
-          Sign in to continue
-        </Link>
-      </main>
-    );
+    redirect('/login?callbackUrl=/dashboard/admin/registration-requests');
   }
 
   if (!session.user.permissions?.includes('*')) {
     return (
       <main className={styles.page}>
-        <Link href="/admin" className={styles.breadcrumb}>
-          ← Admin
+        <Link href="/dashboard" className={styles.breadcrumb}>
+          ← Dashboard
         </Link>
         <h1 className={styles.title}>Registration requests</h1>
         <p className={styles.subtitle} style={{ color: '#b91c1c' }}>
@@ -105,12 +102,15 @@ export default async function RegistrationRequestsPage({
   if (res.ok) {
     const data = (await res.json()) as { data?: RegistrationRequestRow[] };
     rows = data.data ?? [];
+  } else if (res.status === 401) {
+    redirect('/login?callbackUrl=/dashboard/admin/registration-requests');
   } else {
     fetchError = `Failed to load registration requests (HTTP ${res.status})`;
   }
 
   const pendingCount = rows.filter((r) => r.status === 'PENDING').length;
   const reviewedCount = rows.filter((r) => r.status === 'REVIEWED').length;
+  const provisionedCount = rows.filter((r) => r.status === 'PROVISIONED').length;
   const dismissedCount = rows.filter((r) => r.status === 'DISMISSED').length;
 
   const notifHeaders: Record<string, string> = {
@@ -151,8 +151,8 @@ export default async function RegistrationRequestsPage({
 
   return (
     <main className={styles.page}>
-      <Link href="/admin" className={styles.breadcrumb}>
-        ← Admin
+      <Link href="/dashboard" className={styles.breadcrumb}>
+        ← Dashboard
       </Link>
 
       <header className={styles.header}>
@@ -183,6 +183,10 @@ export default async function RegistrationRequestsPage({
           <span className={styles.summaryValue}>{reviewedCount}</span>
         </div>
         <div className={styles.summaryCard}>
+          <span className={styles.summaryLabel}>Provisioned</span>
+          <span className={styles.summaryValue}>{provisionedCount}</span>
+        </div>
+        <div className={styles.summaryCard}>
           <span className={styles.summaryLabel}>Dismissed</span>
           <span className={styles.summaryValue}>{dismissedCount}</span>
         </div>
@@ -191,8 +195,8 @@ export default async function RegistrationRequestsPage({
       <nav className={styles.filters} aria-label="Status filter">
         {STATUS_FILTERS.map((filter) => {
           const href = filter.value
-            ? `/admin/registration-requests?status=${filter.value}`
-            : '/admin/registration-requests';
+            ? `/dashboard/admin/registration-requests?status=${filter.value}`
+            : '/dashboard/admin/registration-requests';
           const isActive = (status || '') === filter.value;
           return (
             <Link
@@ -252,7 +256,7 @@ export default async function RegistrationRequestsPage({
                   <td>
                     <Link
                       className={styles.viewLink}
-                      href={`/admin/registration-requests/${row.id}`}
+                      href={`/dashboard/admin/registration-requests/${row.id}`}
                     >
                       Review →
                     </Link>

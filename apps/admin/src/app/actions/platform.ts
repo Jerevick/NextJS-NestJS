@@ -62,9 +62,6 @@ export async function provisionInstitutionAction(
   _prev: { error?: string } | null,
   formData: FormData,
 ): Promise<{ error?: string } | null> {
-  const slug = String(formData.get('slug') ?? '')
-    .trim()
-    .toLowerCase();
   const name = String(formData.get('name') ?? '').trim();
   const adminEmail = String(formData.get('adminEmail') ?? '').trim();
   const adminPassword = String(formData.get('adminPassword') ?? '');
@@ -74,12 +71,11 @@ export async function provisionInstitutionAction(
   const adminFirstName = String(formData.get('adminFirstName') ?? '').trim();
   const adminLastName = String(formData.get('adminLastName') ?? '').trim();
 
-  if (!slug || !name || !adminEmail || adminPassword.length < 8) {
-    return { error: 'Slug, name, admin email, and password (8+ chars) are required.' };
+  if (!name || !adminEmail || adminPassword.length < 8) {
+    return { error: 'Name, admin email, and password (8+ chars) are required.' };
   }
 
   const body: Record<string, unknown> = {
-    slug,
     name,
     adminEmail,
     adminPassword,

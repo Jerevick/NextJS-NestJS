@@ -22,6 +22,6 @@ import { AlumniService } from './alumni.service';
     MailService,
     PermissionsGuard,
   ],
-  exports: [AlumniService, AlumniMentorshipService],
+  exports: [AlumniService, AlumniMentorshipService, AlumniRepository],
 })
 export class AlumniModule {}

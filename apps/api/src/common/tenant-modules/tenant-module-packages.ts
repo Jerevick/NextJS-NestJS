@@ -10,10 +10,11 @@ export const MODULES_BUNDLED_WITH_SIS: TenantModule[] = [
   TenantModule.ELECTIONS,
   TenantModule.ALUMNI,
   TenantModule.SPORTS,
+  TenantModule.MEETINGS,
 ];
 
-/** Out-of-the-box modules included when LMS is selected (not separately selectable). */
-export const MODULES_BUNDLED_WITH_LMS: TenantModule[] = [TenantModule.MEETINGS];
+/** LMS is selectable as a standalone learning package; native admin modules ship with SIS. */
+export const MODULES_BUNDLED_WITH_LMS: TenantModule[] = [];
 
 export const OUT_OF_BOX_TENANT_MODULES: TenantModule[] = [
   ...MODULES_BUNDLED_WITH_SIS,

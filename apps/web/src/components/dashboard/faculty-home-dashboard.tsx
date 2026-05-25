@@ -82,7 +82,7 @@ export async function FacultyHomeDashboard({
         </div>
         {d.workflow.pendingCount > 0 ? (
           <Link
-            href="/workflow/inbox"
+            href="/dashboard/workflow/inbox"
             style={{
               padding: '0.85rem 1rem',
               background: '#fff7ed',
@@ -131,7 +131,7 @@ export async function FacultyHomeDashboard({
                 <div style={{ marginTop: '0.75rem', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {c.lmsCourseInstanceId ? (
                     <Link
-                      href={`/teach/${c.lmsCourseInstanceId}`}
+                      href={`/dashboard/teach/${c.lmsCourseInstanceId}`}
                       style={{ color: C.accent, fontWeight: 600, fontSize: '0.88rem' }}
                     >
                       Open teach workspace →
@@ -171,7 +171,7 @@ export async function FacultyHomeDashboard({
                   fontSize: '0.9rem',
                 }}
               >
-                <Link href="/workflow/inbox" style={{ color: C.accent }}>
+                <Link href="/dashboard/workflow/inbox" style={{ color: C.accent }}>
                   {w.definitionName}
                 </Link>
                 <span style={{ color: C.muted }}> · {w.entityCode}</span>
@@ -182,7 +182,7 @@ export async function FacultyHomeDashboard({
       ) : null}
 
       <p style={{ marginTop: '1.5rem' }}>
-        <Link href="/teach/attendance-qr" style={{ color: C.accent, fontWeight: 600 }}>
+        <Link href="/dashboard/teach/attendance-qr" style={{ color: C.accent, fontWeight: 600 }}>
           Attendance QR generator →
         </Link>
       </p>

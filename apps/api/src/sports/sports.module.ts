@@ -1,4 +1,4 @@
-import { DynamicModule, Logger, Module } from '@nestjs/common';
+import { DynamicModule, Logger, Module, forwardRef } from '@nestjs/common';
 import { BullModule, getQueueToken } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { AiModule } from '../ai/ai.module';
@@ -24,7 +24,7 @@ export class SportsModule {
     return {
       module: SportsModule,
       imports: [
-        ProgressionModule,
+        forwardRef(() => ProgressionModule),
         AiModule.register(),
         ...(useBull ? [BullModule.registerQueue({ name: SPORTS_ELIGIBILITY_QUEUE })] : []),
       ],

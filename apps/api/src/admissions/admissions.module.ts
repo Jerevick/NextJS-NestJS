@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { StudentsModule } from '../students/students.module';
 import { AnyPermissionsGuard } from '../common/guards/any-permissions.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
@@ -7,7 +7,7 @@ import { AdmissionsRepository } from './admissions.repository';
 import { AdmissionsService } from './admissions.service';
 
 @Module({
-  imports: [forwardRef(() => StudentsModule)],
+  imports: [StudentsModule.register()],
   controllers: [AdmissionsController],
   providers: [AdmissionsService, AdmissionsRepository, PermissionsGuard, AnyPermissionsGuard],
 })

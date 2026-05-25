@@ -120,13 +120,13 @@ export function FinanceReportsPanel({
             ) : null}
             <p style={{ marginTop: '0.75rem', fontSize: '0.82rem' }}>
               <a
-                href={`/finance/reports/revenue/export.xlsx${exportQuery}`}
+                href={`/dashboard/finance/reports/revenue/export.xlsx${exportQuery}`}
                 style={{ color: '#0d9488', marginRight: 12 }}
               >
                 Export Excel
               </a>
               <a
-                href={`/finance/reports/revenue/export.pdf${exportQuery}`}
+                href={`/dashboard/finance/reports/revenue/export.pdf${exportQuery}`}
                 style={{ color: '#0d9488' }}
               >
                 Export PDF

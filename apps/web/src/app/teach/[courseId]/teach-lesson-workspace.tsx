@@ -336,7 +336,7 @@ export function TeachLessonWorkspace({
               return linkedId ? (
                 <Button
                   component={Link}
-                  href={`/courses/${courseInstanceId}/assessments/${linkedId}`}
+                  href={`/dashboard/courses/${courseInstanceId}/assessments/${linkedId}`}
                   prefetch={false}
                   size="small"
                   variant="outlined"

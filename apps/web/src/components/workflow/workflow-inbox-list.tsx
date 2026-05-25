@@ -27,7 +27,7 @@ export function WorkflowInboxList({ rows }: { rows: WorkflowInboxRow[] }) {
       {rows.map((r) => (
         <Link
           key={r.id}
-          href={`/workflow/${r.id}`}
+          href={`/dashboard/workflow/${r.id}`}
           style={{
             textDecoration: 'none',
             color: 'inherit',

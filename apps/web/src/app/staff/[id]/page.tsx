@@ -72,7 +72,7 @@ export default async function StaffProfilePage({
     return (
       <main style={{ padding: '2rem' }}>
         <p>Could not load staff profile ({res.status}).</p>
-        <Link href="/staff">← Staff & HR</Link>
+        <Link href="/dashboard/staff">← Staff & HR</Link>
       </main>
     );
   }
@@ -86,7 +86,10 @@ export default async function StaffProfilePage({
     <main
       style={{ padding: '2rem 2.5rem', maxWidth: 720, minHeight: '100vh', background: '#f8fafc' }}
     >
-      <Link href="/staff" style={{ color: '#2563eb', fontSize: '0.9rem', textDecoration: 'none' }}>
+      <Link
+        href="/dashboard/staff"
+        style={{ color: '#2563eb', fontSize: '0.9rem', textDecoration: 'none' }}
+      >
         ← Staff & HR
       </Link>
 

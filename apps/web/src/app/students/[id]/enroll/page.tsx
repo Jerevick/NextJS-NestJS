@@ -46,7 +46,7 @@ export default async function StudentEnrollPage({
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 640 }}>
         <nav style={{ marginBottom: '1rem' }}>
-          <Link href={`/students/${studentId}`}>← Student</Link>
+          <Link href={`/dashboard/students/${studentId}`}>← Student</Link>
         </nav>
         <h1>Enroll</h1>
         <p style={{ color: '#64748b' }}>
@@ -66,7 +66,7 @@ export default async function StudentEnrollPage({
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 640 }}>
         <nav style={{ marginBottom: '1rem' }}>
-          <Link href={`/students/${studentId}`}>← Student</Link>
+          <Link href={`/dashboard/students/${studentId}`}>← Student</Link>
         </nav>
         <p style={{ color: '#b91c1c' }}>Could not load semesters ({semRes.status}).</p>
         <pre style={{ fontSize: 12 }}>{detail}</pre>
@@ -80,8 +80,8 @@ export default async function StudentEnrollPage({
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 560 }}>
         <nav style={{ marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
-          <Link href={`/students/${studentId}`}>← Student profile</Link>
-          <Link href="/students">Students</Link>
+          <Link href={`/dashboard/students/${studentId}`}>← Student profile</Link>
+          <Link href="/dashboard/students">Students</Link>
         </nav>
         <h1 style={{ color: '#1e3a5f' }}>Enroll in a section</h1>
         <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
@@ -132,7 +132,7 @@ export default async function StudentEnrollPage({
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 640 }}>
         <nav style={{ marginBottom: '1rem' }}>
-          <Link href={`/students/${studentId}/enroll`}>← Choose semester</Link>
+          <Link href={`/dashboard/students/${studentId}/enroll`}>← Choose semester</Link>
         </nav>
         <p style={{ color: '#b91c1c' }}>Could not load sections ({secRes.status}).</p>
         <pre style={{ fontSize: 12 }}>{detail}</pre>
@@ -147,8 +147,8 @@ export default async function StudentEnrollPage({
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 640 }}>
       <nav style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-        <Link href={`/students/${studentId}/enroll`}>← Change semester</Link>
-        <Link href={`/students/${studentId}`}>Student profile</Link>
+        <Link href={`/dashboard/students/${studentId}/enroll`}>← Change semester</Link>
+        <Link href={`/dashboard/students/${studentId}`}>Student profile</Link>
       </nav>
       <h1 style={{ color: '#1e3a5f' }}>Pick a section</h1>
       <p style={{ color: '#64748b', fontSize: '0.9rem' }}>

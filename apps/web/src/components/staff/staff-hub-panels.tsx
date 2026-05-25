@@ -121,7 +121,7 @@ export function StaffHubPanels({
       <StaffMyProfile profile={myProfile} entityAccess={entityAccess} />
 
       <p style={{ marginTop: '1rem', fontSize: '0.9rem' }}>
-        <Link href="/staff/inbox" style={{ color: '#2563eb', fontWeight: 600 }}>
+        <Link href="/dashboard/staff/inbox" style={{ color: '#2563eb', fontWeight: 600 }}>
           HR workflow inbox →
         </Link>
       </p>

@@ -5,12 +5,6 @@ export class UpdateInstitutionBillingConfigDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(0)
-  minimumBillableCount?: number | null;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
   @Min(1)
   @Max(28)
   billingDayOfMonth?: number;

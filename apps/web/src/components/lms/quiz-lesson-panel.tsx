@@ -39,7 +39,7 @@ export function QuizLessonPanel({
       <p style={{ margin: '0 0 0.85rem', fontSize: '0.85rem', color: '#64748b' }}>
         Prefer the full quiz layout?{' '}
         <Link
-          href={`/courses/${courseInstanceId}/assessments/${assessmentId}`}
+          href={`/dashboard/courses/${courseInstanceId}/assessments/${assessmentId}`}
           prefetch={false}
           style={{ color: '#2563eb' }}
         >

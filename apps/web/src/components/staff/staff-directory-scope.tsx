@@ -21,10 +21,10 @@ export function StaffDirectoryScope() {
 
   return (
     <div style={{ display: 'flex', gap: 8, marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-      <Link href="/staff" style={linkStyle(scope === 'entity')}>
+      <Link href="/dashboard/staff" style={linkStyle(scope === 'entity')}>
         This campus
       </Link>
-      <Link href="/staff?scope=institution" style={linkStyle(scope === 'institution')}>
+      <Link href="/dashboard/staff?scope=institution" style={linkStyle(scope === 'institution')}>
         All campuses
       </Link>
     </div>

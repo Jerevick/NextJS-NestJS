@@ -178,7 +178,7 @@ export function StaffAppraisalTracker({ appraisals }: { appraisals: AppraisalTra
                 <td style={{ padding: '0.4rem' }}>
                   {a.workflowInstance?.id ? (
                     <Link
-                      href={`/workflow/${a.workflowInstance.id}`}
+                      href={`/dashboard/workflow/${a.workflowInstance.id}`}
                       style={{ color: '#2563eb', fontSize: '0.8rem' }}
                     >
                       Open

@@ -45,10 +45,12 @@ export function useEntityContext(): EntityContext {
       }
       const body = (await res.json()) as {
         accessToken: string;
+        refreshToken?: string;
         user: { entityId?: string; entityScope?: string };
       };
       await update({
         accessToken: body.accessToken,
+        refreshToken: body.refreshToken,
         entityId: body.user.entityId ?? targetEntityId,
         entityScope: body.user.entityScope,
         omitEntityHeader: false,

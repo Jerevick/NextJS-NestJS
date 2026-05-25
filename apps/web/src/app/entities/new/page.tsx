@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { CreateEntityWizard } from '@/components/entities/create-entity-wizard';
 
+const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+
 export default async function NewEntityPage() {
   const session = await auth();
   if (!session?.accessToken) {
@@ -10,16 +12,40 @@ export default async function NewEntityPage() {
   }
   const perms = session.user.permissions ?? [];
   const canCreate =
-    session.user.entityScope === 'ALL' && (perms.includes('*') || perms.includes('institutions.write'));
+    session.user.entityScope === 'ALL' &&
+    (perms.includes('*') || perms.includes('institutions.write'));
   if (!canCreate) {
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 640 }}>
         <h1>Add campus</h1>
         <p style={{ color: '#64748b' }}>
-          You need <strong>entityScope ALL</strong> and the <strong>institutions.write</strong> permission to create
+          You need <strong>entityScope ALL</strong> and the <strong>institutions.write</strong>{' '}
+          permission to create campuses.
+        </p>
+        <Link href="/dashboard/entities" style={{ color: '#2563eb' }}>
+          Back to entities
+        </Link>
+      </main>
+    );
+  }
+
+  const institutionRes = await fetch(`${apiBase}/institutions/${session.user.institutionId}`, {
+    headers: {
+      Authorization: `Bearer ${session.accessToken}`,
+      'X-Institution-ID': session.user.institutionId,
+    },
+    cache: 'no-store',
+  });
+  const institution = (await institutionRes.json().catch(() => null)) as { status?: string } | null;
+  if (institution?.status === 'TRIAL') {
+    return (
+      <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 640 }}>
+        <h1>Add campus</h1>
+        <p style={{ color: '#92400e' }}>
+          Trial institutions cannot create sub-institutions. Complete onboarding before adding
           campuses.
         </p>
-        <Link href="/entities" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/entities" style={{ color: '#2563eb' }}>
           Back to entities
         </Link>
       </main>

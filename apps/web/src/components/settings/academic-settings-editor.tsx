@@ -74,7 +74,10 @@ export function AcademicSettingsEditor({
             : 'Configure letter bands and component weights for grade entry.'}
         </p>
         <p style={{ margin: '0.75rem 0 0', fontSize: '0.88rem' }}>
-          <Link href="/settings/grading-weights" style={{ color: '#2563eb', fontWeight: 600 }}>
+          <Link
+            href="/dashboard/settings/grading-weights"
+            style={{ color: '#2563eb', fontWeight: 600 }}
+          >
             Edit grading weights →
           </Link>
         </p>

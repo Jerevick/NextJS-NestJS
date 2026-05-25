@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { auth } from '@/auth';
 import styles from '../registration-requests.module.css';
@@ -12,12 +12,19 @@ import type {
 
 const apiBase =
   process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const webPublicBase = (
+  process.env.WEB_PUBLIC_URL ??
+  process.env.NEXT_PUBLIC_WEB_URL ??
+  process.env.NEXTAUTH_URL ??
+  'http://localhost:3000'
+).replace(/\/$/, '');
 
 export const metadata: Metadata = {
   title: 'Registration request — UniCore',
 };
 
 function statusBadgeClass(status: RegistrationRequestStatus): string {
+  if (status === 'PROVISIONED') return styles.statusProvisioned;
   if (status === 'REVIEWED') return styles.statusReviewed;
   if (status === 'DISMISSED') return styles.statusDismissed;
   return styles.statusPending;
@@ -44,6 +51,43 @@ function formatAddress(payload: RegistrationRequestPayload): string {
   return parts.join('\n');
 }
 
+function documentHref(requestId: string, document: 'logo' | 'accreditationEvidence'): string {
+  return `/dashboard/admin/registration-requests/${encodeURIComponent(requestId)}/documents/${document}`;
+}
+
+function trackerPath(requestId: string): string {
+  return `/register?reference=${encodeURIComponent(requestId)}`;
+}
+
+function trackerUrl(requestId: string): string {
+  return `${webPublicBase}${trackerPath(requestId)}`;
+}
+
+function trackerEmailHref(args: {
+  email?: string | null;
+  institutionName?: string | null;
+  reference: string;
+  url: string;
+}): string | null {
+  if (!args.email?.trim()) {
+    return null;
+  }
+  const institution = args.institutionName?.trim() || 'your institution';
+  const subject = `UniCore registration reference for ${institution}`;
+  const body = [
+    'Hello,',
+    '',
+    `Your UniCore registration reference is: ${args.reference}`,
+    `You can track your onboarding request here: ${args.url}`,
+    '',
+    'Regards,',
+    'The UniCore platform team',
+  ].join('\n');
+  return `mailto:${encodeURIComponent(args.email.trim())}?subject=${encodeURIComponent(
+    subject,
+  )}&body=${encodeURIComponent(body)}`;
+}
+
 export default async function RegistrationRequestDetailPage({
   params,
 }: {
@@ -53,19 +97,13 @@ export default async function RegistrationRequestDetailPage({
   const session = await auth();
 
   if (!session?.accessToken || !session.user) {
-    return (
-      <main className={styles.page}>
-        <Link href="/login" className={styles.breadcrumb}>
-          Sign in to continue
-        </Link>
-      </main>
-    );
+    redirect(`/login?callbackUrl=/dashboard/admin/registration-requests/${encodeURIComponent(id)}`);
   }
 
   if (!session.user.permissions?.includes('*')) {
     return (
       <main className={styles.page}>
-        <Link href="/admin/registration-requests" className={styles.breadcrumb}>
+        <Link href="/dashboard/admin/registration-requests" className={styles.breadcrumb}>
           ← Registration requests
         </Link>
         <h1 className={styles.title}>Registration request</h1>
@@ -87,10 +125,13 @@ export default async function RegistrationRequestDetailPage({
   if (res.status === 404) {
     notFound();
   }
+  if (res.status === 401) {
+    redirect(`/login?callbackUrl=/dashboard/admin/registration-requests/${encodeURIComponent(id)}`);
+  }
   if (!res.ok) {
     return (
       <main className={styles.page}>
-        <Link href="/admin/registration-requests" className={styles.breadcrumb}>
+        <Link href="/dashboard/admin/registration-requests" className={styles.breadcrumb}>
           ← Registration requests
         </Link>
         <h1 className={styles.title}>Registration request</h1>
@@ -105,10 +146,18 @@ export default async function RegistrationRequestDetailPage({
   const payload = row.payload ?? {};
   const accreditation = payload.accreditation ?? {};
   const contact = payload.contact ?? {};
+  const publicTrackerPath = trackerPath(row.id);
+  const publicTrackerUrl = trackerUrl(row.id);
+  const trackerEmail = trackerEmailHref({
+    email: contact.email ?? row.email,
+    institutionName: payload.institutionName,
+    reference: row.id,
+    url: publicTrackerUrl,
+  });
 
   return (
     <main className={styles.page}>
-      <Link href="/admin/registration-requests" className={styles.breadcrumb}>
+      <Link href="/dashboard/admin/registration-requests" className={styles.breadcrumb}>
         ← Registration requests
       </Link>
 
@@ -196,16 +245,43 @@ export default async function RegistrationRequestDetailPage({
           </section>
 
           <section className={styles.detailCard}>
+            <h2 className={styles.detailCardTitle}>Registrant tracker</h2>
+            <p className={styles.trackerHelpText}>
+              Share this reference or link when the registrant misplaces their onboarding tracker.
+            </p>
+            <div className={styles.trackerReferenceBox}>
+              <span className={styles.trackerReferenceLabel}>Reference ID</span>
+              <code className={styles.trackerReferenceCode}>{row.id}</code>
+            </div>
+            <div className={styles.trackerActions}>
+              <a
+                className={styles.documentLink}
+                href={publicTrackerPath}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                Open public tracker ↗
+              </a>
+              {trackerEmail ? (
+                <a className={styles.documentLink} href={trackerEmail}>
+                  Email reference
+                </a>
+              ) : null}
+            </div>
+            <p className={styles.trackerUrlText}>{publicTrackerUrl}</p>
+          </section>
+
+          <section className={styles.detailCard}>
             <h2 className={styles.detailCardTitle}>Documents</h2>
             <div style={{ display: 'grid', gap: '0.5rem' }}>
               {row.documents?.logoUrl ? (
                 <a
                   className={styles.documentLink}
-                  href={row.documents.logoUrl}
+                  href={documentHref(row.id, 'logo')}
                   target="_blank"
                   rel="noreferrer noopener"
                 >
-                  View institution logo ↗
+                  View institution logo{payload.logoFileName ? ` (${payload.logoFileName})` : ''} ↗
                 </a>
               ) : (
                 <p className={styles.reviewedNote}>No logo uploaded.</p>
@@ -213,11 +289,15 @@ export default async function RegistrationRequestDetailPage({
               {row.documents?.accreditationEvidenceUrl ? (
                 <a
                   className={styles.documentLink}
-                  href={row.documents.accreditationEvidenceUrl}
+                  href={documentHref(row.id, 'accreditationEvidence')}
                   target="_blank"
                   rel="noreferrer noopener"
                 >
-                  View accreditation evidence ↗
+                  View accreditation evidence
+                  {payload.accreditationEvidenceFileName
+                    ? ` (${payload.accreditationEvidenceFileName})`
+                    : ''}{' '}
+                  ↗
                 </a>
               ) : (
                 <p className={styles.reviewedNote}>No accreditation evidence on file.</p>

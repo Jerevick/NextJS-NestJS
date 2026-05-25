@@ -63,7 +63,7 @@ export function EnrollStudentButton({
             <>
               {' '}
               <Link
-                href={`/students/${state.studentId}`}
+                href={`/dashboard/students/${state.studentId}`}
                 style={{ color: '#1e3a5f', fontWeight: 600 }}
               >
                 View student →

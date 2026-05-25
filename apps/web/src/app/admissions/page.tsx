@@ -151,7 +151,7 @@ export default async function AdmissionsPage({
         <Link href="/dashboard" style={{ color: muted }}>
           Dashboard
         </Link>
-        <Link href="/students" style={{ color: primary }}>
+        <Link href="/dashboard/students" style={{ color: primary }}>
           Students
         </Link>
       </nav>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Socket } from 'socket.io-client';
 
-import { connectRealtimeSocket } from '@/lib/realtime-socket';
+import { connectRealtimeSocket, isJwtExpired } from '@/lib/realtime-socket';
 
 type Question = {
   id: string;
@@ -160,6 +160,10 @@ export function QuizAttemptShell({
 
   useEffect(() => {
     if (!attempt || submitted || typeof window === 'undefined') {
+      return;
+    }
+    if (isJwtExpired(accessToken)) {
+      setWsConnected(false);
       return;
     }
     const socket = connectRealtimeSocket(apiBase, accessToken);

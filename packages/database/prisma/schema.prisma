@@ -732,6 +732,7 @@ enum RegistrationRequestKind {
 enum RegistrationRequestStatus {
   PENDING
   REVIEWED
+  PROVISIONED
   DISMISSED
 }
 

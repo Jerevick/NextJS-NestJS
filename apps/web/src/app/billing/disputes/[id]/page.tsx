@@ -14,10 +14,20 @@ type DisputeDetail = {
   lines: unknown;
   resolutionNotes: string | null;
   createdAt: string;
-  invoice?: { id: string; amount: string; status: string; lockedAt: string | null; isRetroactive: boolean };
+  invoice?: {
+    id: string;
+    amount: string;
+    status: string;
+    lockedAt: string | null;
+    isRetroactive: boolean;
+  };
 };
 
-export default async function BillingDisputeDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function BillingDisputeDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const session = await auth();
   if (!session?.accessToken || !session.user?.institutionId) {
@@ -54,7 +64,7 @@ export default async function BillingDisputeDetailPage({ params }: { params: Pro
     const body = await res.text();
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui' }}>
-        <Link href="/billing/disputes">← Disputes</Link>
+        <Link href="/dashboard/billing/disputes">← Disputes</Link>
         <p style={{ color: '#b91c1c' }}>HTTP {res.status}</p>
         <pre style={{ fontSize: 12, overflow: 'auto' }}>{body}</pre>
       </main>
@@ -69,7 +79,7 @@ export default async function BillingDisputeDetailPage({ params }: { params: Pro
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 900 }}>
       <nav style={{ marginBottom: '1rem' }}>
-        <Link href="/billing/disputes" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/billing/disputes" style={{ color: '#2563eb' }}>
           ← Disputes
         </Link>
       </nav>
@@ -92,7 +102,10 @@ export default async function BillingDisputeDetailPage({ params }: { params: Pro
         <dt style={{ color: '#64748b' }}>Invoice</dt>
         <dd style={{ margin: 0 }}>
           {d.invoice ? (
-            <Link href={`/billing/invoice/${encodeURIComponent(d.invoice.id)}`} style={{ color: '#2563eb' }}>
+            <Link
+              href={`/dashboard/billing/invoice/${encodeURIComponent(d.invoice.id)}`}
+              style={{ color: '#2563eb' }}
+            >
               {d.invoice.amount} · {d.invoice.status}
             </Link>
           ) : (
@@ -119,7 +132,11 @@ export default async function BillingDisputeDetailPage({ params }: { params: Pro
         </pre>
       </section>
 
-      <ResolveDisputeForms disputeId={d.id} canResolve={canResolve} alreadyResolved={alreadyResolved} />
+      <ResolveDisputeForms
+        disputeId={d.id}
+        canResolve={canResolve}
+        alreadyResolved={alreadyResolved}
+      />
     </main>
   );
 }

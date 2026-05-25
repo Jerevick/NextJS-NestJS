@@ -72,7 +72,10 @@ export function GraduationClearancePanel({
           <p style={{ margin: 0, fontWeight: 600 }}>In progress ({active.status})</p>
           {active.workflowInstanceId ? (
             <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem' }}>
-              <a href={`/workflow/${active.workflowInstanceId}`} style={{ color: '#2563eb' }}>
+              <a
+                href={`/dashboard/workflow/${active.workflowInstanceId}`}
+                style={{ color: '#2563eb' }}
+              >
                 Open workflow →
               </a>
             </p>

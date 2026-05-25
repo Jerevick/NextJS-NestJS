@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { GradesModule } from '../grades/grades.module';
 import { ProgressionModule } from '../progression/progression.module';
@@ -12,7 +12,7 @@ import { LmsQuestionBankService } from './lms-question-bank.service';
 import { LmsSisPassbackService } from './lms-sis-passback.service';
 
 @Module({
-  imports: [LmsSharedModule, GradesModule, ProgressionModule],
+  imports: [LmsSharedModule, forwardRef(() => GradesModule), forwardRef(() => ProgressionModule)],
   controllers: [LmsAssessmentsController, LmsQuestionBankController],
   providers: [
     LmsAssessmentsService,

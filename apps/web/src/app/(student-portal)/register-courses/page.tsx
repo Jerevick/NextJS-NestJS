@@ -48,7 +48,7 @@ export default async function RegisterCoursesPage({
               {res.data.semesters.map((sem) => (
                 <Link
                   key={sem.id}
-                  href={`/register-courses?semesterId=${encodeURIComponent(sem.id)}`}
+                  href={`/dashboard/register-courses?semesterId=${encodeURIComponent(sem.id)}`}
                   style={{
                     padding: '0.35rem 0.65rem',
                     borderRadius: 8,

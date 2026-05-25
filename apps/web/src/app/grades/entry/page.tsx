@@ -169,7 +169,10 @@ export default async function GradeEntryPage({
         {policyNote}
         {hasPermission(session.user.permissions, 'grades.write') ? (
           <p style={{ marginTop: policyNote ? 0 : '0.65rem', fontSize: '0.85rem' }}>
-            <Link href="/settings/grading-weights" style={{ color: primary, fontWeight: 600 }}>
+            <Link
+              href="/dashboard/settings/grading-weights"
+              style={{ color: primary, fontWeight: 600 }}
+            >
               Configure grading component weights →
             </Link>
           </p>

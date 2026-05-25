@@ -55,14 +55,12 @@ export class BillingEvidenceService {
     const m0 = params.month - 1;
     const rangeStart = new Date(Date.UTC(params.year, m0, 1, 0, 0, 0, 0));
     const rangeEnd = new Date(Date.UTC(params.year, m0 + 1, 0, 0, 0, 0, 0));
-    const floor = params.minimumBillableCount ?? 0;
-
     const entities: BillingEvidencePayload['entities'] = [];
     let total = new Prisma.Decimal(0);
 
     for (const ent of params.entitySummaries) {
       const exempt = isEntityBillingExempt(ent.settings);
-      const billedCount = exempt ? 0 : Math.max(ent.watermarkCount, floor);
+      const billedCount = exempt ? 0 : ent.watermarkCount;
       const amount = exempt
         ? new Prisma.Decimal(0)
         : new Prisma.Decimal(billedCount).mul(params.unit);
@@ -113,7 +111,7 @@ export class BillingEvidenceService {
       billingYear: params.year,
       billingMonth: params.month,
       generatedAt: new Date().toISOString(),
-      minimumBillableCount: params.minimumBillableCount,
+      minimumBillableCount: null,
       entities,
       totals: { amount: total.toString(), currency: params.currency },
     };

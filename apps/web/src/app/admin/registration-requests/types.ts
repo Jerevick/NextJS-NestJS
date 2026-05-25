@@ -1,4 +1,4 @@
-export type RegistrationRequestStatus = 'PENDING' | 'REVIEWED' | 'DISMISSED';
+export type RegistrationRequestStatus = 'PENDING' | 'REVIEWED' | 'PROVISIONED' | 'DISMISSED';
 export type RegistrationRequestKind = 'NEW_INSTITUTION' | 'JOIN_INSTITUTION';
 
 export type RegistrationRequestRow = {

@@ -6,7 +6,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
-import { InstitutionEntityType } from '@prisma/client';
+import { InstitutionEntityType, InstitutionStatus } from '@prisma/client';
 import type { Queue } from 'bullmq';
 import type { AuthUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
@@ -87,7 +87,10 @@ export class InstitutionEntitiesService {
   async listForInstitution(actor: AuthUser, institutionId: string) {
     assertRead(actor);
     assertInstitutionAccess(actor, institutionId);
-    const rows = entitiesForConsolidatedScope(actor, await this.repo.findManyForInstitution(institutionId));
+    const rows = entitiesForConsolidatedScope(
+      actor,
+      await this.repo.findManyForInstitution(institutionId),
+    );
     const withCounts = await Promise.all(
       rows.map(async (r) => ({
         ...r,
@@ -119,17 +122,25 @@ export class InstitutionEntitiesService {
   }
 
   async getEntityStats(institutionId: string, entityId: string): Promise<EntityStatsPayload> {
-    const [snapshotCount, totalStudents, inactiveStudentCount, staffCount, enrollmentsCurrentAcademicYear, lastAt] =
-      await Promise.all([
-        this.repo.getLatestBillableCount(institutionId, entityId),
-        this.repo.countTotalStudentsForEntity(institutionId, entityId),
-        this.repo.countInactiveStudentsForEntity(institutionId, entityId),
-        this.repo.countDistinctStaffForEntity(institutionId, entityId),
-        this.repo.countEnrollmentsCurrentAcademicYearForEntity(institutionId, entityId),
-        this.repo.getLatestBillableSnapshotDateForEntity(institutionId, entityId),
-      ]);
+    const [
+      snapshotCount,
+      totalStudents,
+      inactiveStudentCount,
+      staffCount,
+      enrollmentsCurrentAcademicYear,
+      lastAt,
+    ] = await Promise.all([
+      this.repo.getLatestBillableCount(institutionId, entityId),
+      this.repo.countTotalStudentsForEntity(institutionId, entityId),
+      this.repo.countInactiveStudentsForEntity(institutionId, entityId),
+      this.repo.countDistinctStaffForEntity(institutionId, entityId),
+      this.repo.countEnrollmentsCurrentAcademicYearForEntity(institutionId, entityId),
+      this.repo.getLatestBillableSnapshotDateForEntity(institutionId, entityId),
+    ]);
     const activeStudents =
-      snapshotCount !== null ? snapshotCount : await this.repo.countBillableStudents(institutionId, entityId);
+      snapshotCount !== null
+        ? snapshotCount
+        : await this.repo.countBillableStudents(institutionId, entityId);
     return {
       activeStudents,
       totalStudents,
@@ -144,7 +155,10 @@ export class InstitutionEntitiesService {
   async consolidatedBillable(actor: AuthUser, institutionId: string) {
     assertRead(actor);
     assertInstitutionAccess(actor, institutionId);
-    const rows = entitiesForConsolidatedScope(actor, await this.repo.findManyForInstitution(institutionId));
+    const rows = entitiesForConsolidatedScope(
+      actor,
+      await this.repo.findManyForInstitution(institutionId),
+    );
     const entities = await Promise.all(
       rows.map(async (r) => ({
         entityId: r.id,
@@ -161,7 +175,10 @@ export class InstitutionEntitiesService {
   async consolidatedStats(actor: AuthUser, institutionId: string) {
     assertRead(actor);
     assertInstitutionAccess(actor, institutionId);
-    const rows = entitiesForConsolidatedScope(actor, await this.repo.findManyForInstitution(institutionId));
+    const rows = entitiesForConsolidatedScope(
+      actor,
+      await this.repo.findManyForInstitution(institutionId),
+    );
     const entities = await Promise.all(
       rows.map(async (r) => {
         const stats = await this.getEntityStats(institutionId, r.id);
@@ -185,7 +202,10 @@ export class InstitutionEntitiesService {
       billableStudentCount: entities.reduce((a, e) => a + e.billableStudentCount, 0),
       inactiveStudentCount: entities.reduce((a, e) => a + e.inactiveStudentCount, 0),
       totalStudentCount: entities.reduce((a, e) => a + e.totalStudentCount, 0),
-      enrollmentsCurrentAcademicYear: entities.reduce((a, e) => a + e.enrollmentsCurrentAcademicYear, 0),
+      enrollmentsCurrentAcademicYear: entities.reduce(
+        (a, e) => a + e.enrollmentsCurrentAcademicYear,
+        0,
+      ),
     };
     return { institutionId, institutionTotals, entities };
   }
@@ -193,10 +213,22 @@ export class InstitutionEntitiesService {
   async createEntity(actor: AuthUser, institutionId: string, dto: CreateInstitutionEntityDto) {
     assertInstitutionAccess(actor, institutionId);
     if (actor.entityScope !== 'ALL') {
-      throw new ForbiddenException('Creating campuses requires institution-wide (entityScope ALL) context');
+      throw new ForbiddenException(
+        'Creating campuses requires institution-wide (entityScope ALL) context',
+      );
     }
     if (!(actor.permissions.includes('*') || actor.permissions.includes('institutions.write'))) {
       throw new ForbiddenException('Missing permission to create campus entities');
+    }
+    const institution = await this.prisma.institution.findFirst({
+      where: { id: institutionId, deletedAt: null },
+      select: { status: true },
+    });
+    if (!institution) {
+      throw new NotFoundException('Institution not found');
+    }
+    if (institution.status === InstitutionStatus.TRIAL) {
+      throw new ForbiddenException('Trial institutions cannot create sub-institutions');
     }
     const existing = await this.repo.findManyForInstitution(institutionId);
     const code = dto.code.trim();
@@ -224,7 +256,12 @@ export class InstitutionEntitiesService {
       await this.provisionQueue.add(
         'provision',
         { institutionId, entityId: created.id },
-        { attempts: 5, backoff: { type: 'exponential', delay: 4000 }, removeOnComplete: 1000, removeOnFail: 5000 },
+        {
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 4000 },
+          removeOnComplete: 1000,
+          removeOnFail: 5000,
+        },
       );
     } else {
       await this.provisioning.provisionEntity(institutionId, created.id);
@@ -249,7 +286,9 @@ export class InstitutionEntitiesService {
   ) {
     assertInstitutionAccess(actor, institutionId);
     if (actor.entityScope !== 'ALL') {
-      throw new ForbiddenException('Updating campuses requires institution-wide (entityScope ALL) context');
+      throw new ForbiddenException(
+        'Updating campuses requires institution-wide (entityScope ALL) context',
+      );
     }
     if (!(actor.permissions.includes('*') || actor.permissions.includes('institutions.write'))) {
       throw new ForbiddenException('Missing permission to update campus entities');
@@ -265,9 +304,7 @@ export class InstitutionEntitiesService {
       ...(dto.logoUrl !== undefined ? { logoUrl: dto.logoUrl } : {}),
       ...(dto.primaryColor !== undefined ? { primaryColor: dto.primaryColor } : {}),
       ...(dto.customDomain !== undefined ? { customDomain: dto.customDomain } : {}),
-      ...(dto.settingsPatch !== undefined
-        ? (dto.settingsPatch as InstitutionEntitySettings)
-        : {}),
+      ...(dto.settingsPatch !== undefined ? (dto.settingsPatch as InstitutionEntitySettings) : {}),
     };
     const merged = mergeEntitySettings(row.settings, settingsPatch);
     const result = await this.repo.updateEntity(institutionId, entityId, {
@@ -283,7 +320,9 @@ export class InstitutionEntitiesService {
   async activateEntity(actor: AuthUser, institutionId: string, entityId: string) {
     assertInstitutionAccess(actor, institutionId);
     if (actor.entityScope !== 'ALL') {
-      throw new ForbiddenException('Activating campuses requires institution-wide (entityScope ALL) context');
+      throw new ForbiddenException(
+        'Activating campuses requires institution-wide (entityScope ALL) context',
+      );
     }
     if (!(actor.permissions.includes('*') || actor.permissions.includes('institutions.write'))) {
       throw new ForbiddenException('Missing permission to activate campus entities');
@@ -303,15 +342,12 @@ export class InstitutionEntitiesService {
     return this.getById(actor, institutionId, entityId);
   }
 
-  async suspendEntity(
-    actor: AuthUser,
-    institutionId: string,
-    entityId: string,
-    reason?: string,
-  ) {
+  async suspendEntity(actor: AuthUser, institutionId: string, entityId: string, reason?: string) {
     assertInstitutionAccess(actor, institutionId);
     if (actor.entityScope !== 'ALL') {
-      throw new ForbiddenException('Suspending campuses requires institution-wide (entityScope ALL) context');
+      throw new ForbiddenException(
+        'Suspending campuses requires institution-wide (entityScope ALL) context',
+      );
     }
     if (!(actor.permissions.includes('*') || actor.permissions.includes('institutions.write'))) {
       throw new ForbiddenException('Missing permission to suspend campus entities');

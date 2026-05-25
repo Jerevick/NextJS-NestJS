@@ -51,6 +51,8 @@ export class BillingInvoiceService {
       select: {
         id: true,
         minimumBillableCount: true,
+        status: true,
+        contractEndDate: true,
         disputeWindowDays: true,
       },
     });
@@ -60,9 +62,8 @@ export class BillingInvoiceService {
     return inst;
   }
 
-  private applyBillableFloor(watermarkCount: number, minimumBillableCount: number | null): number {
-    const floor = minimumBillableCount ?? 0;
-    return Math.max(watermarkCount, floor);
+  private applyBillableFloor(watermarkCount: number): number {
+    return watermarkCount;
   }
 
   private defaultUnitUsd(): Prisma.Decimal {
@@ -362,6 +363,11 @@ export class BillingInvoiceService {
   }> {
     assertBillingWrite(actor);
     const inst = await this.loadInstitutionBilling(actor.institutionId);
+    if (inst.status === 'TRIAL' && inst.contractEndDate && inst.contractEndDate > new Date()) {
+      throw new BadRequestException(
+        `Institution is still in trial until ${inst.contractEndDate.toISOString().slice(0, 10)}`,
+      );
+    }
     const { unit, currency } = await this.resolvePricing(actor.institutionId);
     const entityRows =
       actor.entityScope === 'ENTITY'
@@ -405,10 +411,7 @@ export class BillingInvoiceService {
         year,
         month,
       );
-      const billedCount = this.applyBillableFloor(
-        summary.watermarkCount,
-        inst.minimumBillableCount,
-      );
+      const billedCount = this.applyBillableFloor(summary.watermarkCount);
       const lineAmount = new Prisma.Decimal(billedCount).mul(unit);
       total = total.add(lineAmount);
       summariesForEvidence.push({
@@ -441,7 +444,7 @@ export class BillingInvoiceService {
       institutionId: actor.institutionId,
       year,
       month,
-      minimumBillableCount: inst.minimumBillableCount,
+      minimumBillableCount: null,
       unit,
       currency,
       entitySummaries: summariesForEvidence,

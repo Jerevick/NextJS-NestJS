@@ -70,7 +70,7 @@ export function RegistrationAlertsBanner({ alerts }: { alerts: RegistrationAlert
         ))}
       </ul>
       <p className={styles.alertsFooter}>
-        <Link href="/notifications" className={styles.alertsViewAll}>
+        <Link href="/dashboard/notifications" className={styles.alertsViewAll}>
           View all notifications →
         </Link>
       </p>

@@ -80,13 +80,13 @@ export async function AlumniHomeDashboard({
       </p>
 
       <nav style={{ marginTop: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-        <Link href="/alumni/events" style={{ color: C.accent, fontWeight: 600 }}>
+        <Link href="/dashboard/alumni/events" style={{ color: C.accent, fontWeight: 600 }}>
           Browse events →
         </Link>
-        <Link href="/alumni/jobs" style={{ color: C.accent, fontWeight: 600 }}>
+        <Link href="/dashboard/alumni/jobs" style={{ color: C.accent, fontWeight: 600 }}>
           Career board →
         </Link>
-        <Link href="/alumni/profile" style={{ color: C.accent }}>
+        <Link href="/dashboard/alumni/profile" style={{ color: C.accent }}>
           Edit profile
         </Link>
       </nav>
@@ -156,10 +156,10 @@ export async function AlumniHomeDashboard({
       )}
 
       <section style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-        <Link href="/alumni/jobs" style={{ textDecoration: 'none' }}>
+        <Link href="/dashboard/alumni/jobs" style={{ textDecoration: 'none' }}>
           <KpiCard label="Open job postings" value={String(d.openJobsCount)} />
         </Link>
-        <Link href="/alumni/events" style={{ textDecoration: 'none' }}>
+        <Link href="/dashboard/alumni/events" style={{ textDecoration: 'none' }}>
           <KpiCard label="Upcoming events" value={String(d.upcomingEvents.length)} />
         </Link>
       </section>
@@ -168,7 +168,7 @@ export async function AlumniHomeDashboard({
         <section style={{ marginTop: '1.75rem' }}>
           <h2 style={{ fontSize: '1.05rem' }}>
             Upcoming events{' '}
-            <Link href="/alumni/events" style={{ fontSize: '0.85rem', color: C.accent }}>
+            <Link href="/dashboard/alumni/events" style={{ fontSize: '0.85rem', color: C.accent }}>
               View all
             </Link>
           </h2>
@@ -196,7 +196,7 @@ export async function AlumniHomeDashboard({
       ) : (
         <p style={{ marginTop: '1.25rem', color: C.muted }}>
           No upcoming events —{' '}
-          <Link href="/alumni/events" style={{ color: C.accent }}>
+          <Link href="/dashboard/alumni/events" style={{ color: C.accent }}>
             check the events calendar
           </Link>
           .

@@ -1,13 +1,7 @@
 import Link from 'next/link';
 import { fetchDashboardJson } from '@/lib/dashboard-api';
 import type { Session } from 'next-auth';
-
-const C = {
-  text: '#0f172a',
-  muted: '#64748b',
-  border: '#e2e8f0',
-  accent: '#2563eb',
-};
+import styles from './admin-home-dashboard.module.css';
 
 type AdminPayload = {
   entityScope: string;
@@ -41,161 +35,307 @@ export async function AdminHomeDashboard({
   session: Session & { accessToken: string };
 }) {
   const res = await fetchDashboardJson<AdminPayload>('/dashboard/admin', session);
+  const isSuperAdmin =
+    session.user.role === 'SUPER_ADMIN' || session.user.permissions?.includes('*');
 
   if (!res.ok) {
     return (
-      <main style={{ padding: '2rem' }}>
-        <h1>Admin dashboard</h1>
-        <p style={{ color: '#b91c1c' }}>Could not load dashboard ({res.status}).</p>
+      <main className={styles.shell}>
+        <section className={styles.errorState}>
+          <p className={styles.eyebrow}>Dashboard unavailable</p>
+          <h1>Could not load the admin dashboard</h1>
+          <p>API returned status {res.status}. Refresh once the platform API is available.</p>
+        </section>
       </main>
     );
   }
 
   const d = res.data;
+  const institutionTotals = d.institutionTotals;
+  const entityStats = d.entityStats;
+  const activeCampuses = d.campuses.length;
+  const totalCampusStudents = d.campuses.reduce((sum, campus) => sum + campus.activeStudents, 0);
+  const scopeLabel = d.entity
+    ? `${d.entity.name} (${d.entity.code})`
+    : d.entityScope === 'ALL'
+      ? 'All campuses'
+      : `Scope: ${d.entityScope}`;
+  const studentUtilization =
+    institutionTotals && institutionTotals.totalStudentCount > 0
+      ? Math.round(
+          (institutionTotals.billableStudentCount / institutionTotals.totalStudentCount) * 100,
+        )
+      : null;
+
+  const heroMetrics = [
+    {
+      label: 'Billable students',
+      value: institutionTotals?.billableStudentCount ?? entityStats?.activeStudents ?? 0,
+      helper: institutionTotals
+        ? `${institutionTotals.totalStudentCount.toLocaleString()} total records`
+        : 'Active in current scope',
+      tone: 'blue',
+    },
+    {
+      label: 'Workflow inbox',
+      value: d.workflow.pendingCount,
+      helper: d.workflow.pendingCount === 1 ? '1 item needs action' : 'Items needing action',
+      tone: d.workflow.pendingCount > 0 ? 'amber' : 'green',
+    },
+    {
+      label: isSuperAdmin ? 'Campus footprint' : 'Active campuses',
+      value: activeCampuses || (d.entity ? 1 : 0),
+      helper: activeCampuses
+        ? `${totalCampusStudents.toLocaleString()} active students across campuses`
+        : d.entity
+          ? d.entity.status
+          : 'No campuses available',
+      tone: 'purple',
+    },
+    {
+      label: 'Entity scope',
+      value: d.entityScope,
+      helper: isSuperAdmin ? 'Platform-wide permissions enabled' : 'Institution permission scope',
+      tone: 'slate',
+    },
+  ] as const;
 
   return (
-    <main style={{ padding: '2rem 2.5rem', maxWidth: 1100, fontFamily: 'system-ui' }}>
-      <h1 style={{ margin: 0, fontSize: '1.75rem', color: C.text }}>Institution overview</h1>
-      <p style={{ color: C.muted, marginTop: '0.35rem' }}>
-        {d.entity
-          ? `${d.entity.name} (${d.entity.code})`
-          : d.entityScope === 'ALL'
-            ? 'All campuses'
-            : `Scope: ${d.entityScope}`}
-      </p>
-
-      {d.institutionTotals ? (
-        <section
-          style={{
-            marginTop: '1.25rem',
-            padding: '1.25rem',
-            borderRadius: 12,
-            border: `1px solid ${C.border}`,
-            background: '#f8fafc',
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: '1.05rem' }}>Institution-wide headcount</h2>
-          <section
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '1.5rem',
-              marginTop: '1rem',
-            }}
-          >
-            <Stat
-              label="Billable students"
-              value={d.institutionTotals.billableStudentCount}
-              large
-            />
-            <Stat label="Inactive" value={d.institutionTotals.inactiveStudentCount} />
-            <Stat label="Total students" value={d.institutionTotals.totalStudentCount} />
-          </section>
-          <p style={{ marginTop: '1rem', fontSize: '0.9rem' }}>
-            <Link href="/entities" style={{ color: C.accent, fontWeight: 600 }}>
-              Manage campuses →
-            </Link>
+    <main className={styles.shell}>
+      <section className={styles.hero}>
+        <div>
+          <p className={styles.eyebrow}>
+            {isSuperAdmin ? 'Platform command center' : 'Institution command center'}
           </p>
-        </section>
-      ) : null}
+          <h1>{isSuperAdmin ? 'Super admin dashboard' : 'Institution overview'}</h1>
+          <p className={styles.heroText}>
+            {scopeLabel}. Monitor operating health, review workflows, and jump into the tools that
+            keep UniCore running smoothly.
+          </p>
+          <div className={styles.heroActions}>
+            <Link
+              href={
+                isSuperAdmin
+                  ? '/dashboard/admin/registration-requests'
+                  : '/dashboard/workflow/inbox'
+              }
+              className={styles.primaryAction}
+            >
+              {isSuperAdmin ? 'Review onboarding queue' : 'Open workflow inbox'}
+            </Link>
+            <Link href="/dashboard/workflow/inbox" className={styles.secondaryAction}>
+              Workflow inbox
+            </Link>
+          </div>
+        </div>
+        <aside className={styles.healthCard}>
+          <span className={styles.healthPulse} aria-hidden />
+          <p className={styles.healthLabel}>Session</p>
+          <strong>{session.user.email}</strong>
+          <span>{isSuperAdmin ? 'Super administrator' : 'Administrator'}</span>
+        </aside>
+      </section>
 
-      {d.entityStats ? (
-        <section style={{ marginTop: '1.25rem' }}>
-          <h2 style={{ fontSize: '1.05rem' }}>Campus snapshot</h2>
-          <section
-            style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem', marginTop: '0.75rem' }}
-          >
-            <Stat label="Active students" value={d.entityStats.activeStudents} />
-            <Stat label="Staff" value={d.entityStats.staffCount} />
-            <Stat label="Enrollments (AY)" value={d.entityStats.enrollmentsCurrentAcademicYear} />
-          </section>
-        </section>
-      ) : null}
+      <section className={styles.metricGrid} aria-label="Dashboard metrics">
+        {heroMetrics.map((metric) => (
+          <MetricCard
+            key={metric.label}
+            label={metric.label}
+            value={metric.value}
+            helper={metric.helper}
+            tone={metric.tone}
+          />
+        ))}
+      </section>
 
-      {d.campuses.length > 0 ? (
-        <section style={{ marginTop: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.05rem' }}>Campuses</h2>
-          <ul style={{ listStyle: 'none', padding: 0, marginTop: '0.65rem' }}>
-            {d.campuses.map((campus) => (
-              <li
-                key={campus.entityId}
-                style={{
-                  padding: '0.65rem 0',
-                  borderBottom: `1px solid ${C.border}`,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                }}
-              >
-                <span>
-                  <strong>{campus.name}</strong>
-                  <span style={{ color: C.muted }}> ({campus.code})</span>
-                </span>
-                <span style={{ color: C.muted }}>
-                  {campus.activeStudents.toLocaleString()} active
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      {isSuperAdmin ? <SuperAdminCommandCards /> : null}
 
-      {d.workflow.pendingCount > 0 ? (
-        <section style={{ marginTop: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.05rem' }}>Workflow inbox ({d.workflow.pendingCount})</h2>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {d.workflow.preview.map((w) => (
-              <li key={w.id} style={{ padding: '0.5rem 0', fontSize: '0.9rem' }}>
-                <Link href="/workflow/inbox" style={{ color: C.accent }}>
-                  {w.definitionName}
+      <section className={styles.contentGrid}>
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <p className={styles.eyebrow}>Enrollment</p>
+              <h2>Institution-wide headcount</h2>
+            </div>
+            <Link href="/dashboard/entities" className={styles.panelLink}>
+              Manage campuses
+            </Link>
+          </div>
+
+          {institutionTotals ? (
+            <>
+              <div className={styles.headcountGrid}>
+                <MiniStat label="Billable" value={institutionTotals.billableStudentCount} />
+                <MiniStat label="Inactive" value={institutionTotals.inactiveStudentCount} />
+                <MiniStat label="Total" value={institutionTotals.totalStudentCount} />
+              </div>
+              {studentUtilization !== null ? (
+                <div className={styles.progressBlock}>
+                  <div>
+                    <span>Billable utilization</span>
+                    <strong>{studentUtilization}%</strong>
+                  </div>
+                  <div className={styles.progressTrack}>
+                    <span style={{ width: `${Math.min(studentUtilization, 100)}%` }} />
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : entityStats ? (
+            <div className={styles.headcountGrid}>
+              <MiniStat label="Active students" value={entityStats.activeStudents} />
+              <MiniStat label="Staff" value={entityStats.staffCount} />
+              <MiniStat label="AY enrollments" value={entityStats.enrollmentsCurrentAcademicYear} />
+            </div>
+          ) : (
+            <EmptyState message="No headcount snapshot is available for this scope yet." />
+          )}
+        </section>
+
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <p className={styles.eyebrow}>Operations</p>
+              <h2>Workflow inbox</h2>
+            </div>
+            <Link href="/dashboard/workflow/inbox" className={styles.panelLink}>
+              View all
+            </Link>
+          </div>
+
+          {d.workflow.preview.length > 0 ? (
+            <div className={styles.workflowList}>
+              {d.workflow.preview.map((w) => (
+                <Link href="/dashboard/workflow/inbox" className={styles.workflowItem} key={w.id}>
+                  <span>
+                    <strong>{w.definitionName}</strong>
+                    <small>
+                      {w.entityCode} · due {formatDateTime(w.dueAt)}
+                    </small>
+                  </span>
+                  <b>Open</b>
                 </Link>
-                <span style={{ color: C.muted }}>
-                  {' '}
-                  · {w.entityCode} · due {new Date(w.dueAt).toLocaleString()}
-                </span>
-              </li>
-            ))}
-          </ul>
+              ))}
+            </div>
+          ) : (
+            <EmptyState message="No pending workflows. Everything is clear." />
+          )}
         </section>
-      ) : null}
+      </section>
 
-      <nav style={{ marginTop: '1.75rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-        <Link href="/admin" style={{ color: C.accent, fontWeight: 600 }}>
-          Admin tools →
-        </Link>
-        <Link href="/entities" style={{ color: C.accent }}>
-          Campuses
-        </Link>
-        <Link href="/students" style={{ color: C.accent }}>
-          Students
-        </Link>
-        <Link href="/settings" style={{ color: C.accent }}>
-          Settings
-        </Link>
-        <Link href="/workflow/inbox" style={{ color: C.accent }}>
-          Workflow inbox
-        </Link>
+      <section className={styles.panel}>
+        <div className={styles.panelHeader}>
+          <div>
+            <p className={styles.eyebrow}>Campus portfolio</p>
+            <h2>Campuses and active students</h2>
+          </div>
+          <Link href="/dashboard/entities/new" className={styles.panelLink}>
+            Add campus
+          </Link>
+        </div>
+
+        {d.campuses.length > 0 ? (
+          <div className={styles.campusGrid}>
+            {d.campuses.map((campus) => (
+              <article className={styles.campusCard} key={campus.entityId}>
+                <span>{campus.code}</span>
+                <strong>{campus.name}</strong>
+                <p>{campus.activeStudents.toLocaleString()} active students</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyState message="No campus portfolio data is available yet." />
+        )}
+      </section>
+
+      <nav className={styles.quickNav} aria-label="Dashboard navigation">
+        <Link href="/dashboard/students">Students</Link>
+        <Link href="/dashboard/settings">Settings</Link>
+        <Link href="/dashboard/finance">Finance</Link>
+        <Link href="/dashboard/admissions">Admissions</Link>
+        <Link href="/dashboard/admin/ai-intelligence">AI intelligence</Link>
       </nav>
     </main>
   );
 }
 
-function Stat({ label, value, large }: { label: string; value: number; large?: boolean }) {
+function MetricCard({
+  label,
+  value,
+  helper,
+  tone,
+}: {
+  label: string;
+  value: number | string;
+  helper: string;
+  tone: 'blue' | 'amber' | 'green' | 'purple' | 'slate';
+}) {
   return (
-    <section>
-      <p style={{ margin: 0, fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase' }}>
-        {label}
-      </p>
-      <p
-        style={{
-          margin: '0.25rem 0 0',
-          fontSize: large ? '2rem' : '1.35rem',
-          fontWeight: 700,
-          color: '#0f172a',
-        }}
-      >
-        {value.toLocaleString()}
-      </p>
+    <section className={styles.metricCard} data-tone={tone}>
+      <span>{label}</span>
+      <strong>{typeof value === 'number' ? value.toLocaleString() : value}</strong>
+      <p>{helper}</p>
     </section>
   );
+}
+
+function MiniStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className={styles.miniStat}>
+      <span>{label}</span>
+      <strong>{value.toLocaleString()}</strong>
+    </div>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return <p className={styles.emptyState}>{message}</p>;
+}
+
+function SuperAdminCommandCards() {
+  const cards = [
+    {
+      title: 'Institution onboarding',
+      body: 'Review new registration requests, approve dossiers, and trigger next-step emails.',
+      href: '/dashboard/admin/registration-requests',
+      cta: 'Open queue',
+    },
+    {
+      title: 'Platform intelligence',
+      body: 'Use AI-generated operating narratives for anomalies, dropout risk, and billing signals.',
+      href: '/dashboard/admin/ai-intelligence',
+      cta: 'View intelligence',
+    },
+    {
+      title: 'Provision institution',
+      body: 'Create a tenant, prepare modules, and hand off first administrator access.',
+      href: '/dashboard/admin/institutions/new',
+      cta: 'Provision tenant',
+    },
+  ];
+
+  return (
+    <section className={styles.commandGrid} aria-label="Super admin command cards">
+      {cards.map((card) => (
+        <Link href={card.href} className={styles.commandCard} key={card.title}>
+          <span className={styles.eyebrow}>Super admin</span>
+          <strong>{card.title}</strong>
+          <p>{card.body}</p>
+          <b>{card.cta} →</b>
+        </Link>
+      ))}
+    </section>
+  );
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
 }

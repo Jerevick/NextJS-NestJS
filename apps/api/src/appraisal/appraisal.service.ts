@@ -1,8 +1,10 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { AppraisalStatus, Prisma } from '@prisma/client';
 import type { AuthUser } from '../auth/auth.types';
@@ -28,6 +30,7 @@ export class AppraisalService {
     private readonly repo: AppraisalRepository,
     private readonly staffRepo: StaffRepository,
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => WorkflowEngineService))
     private readonly workflows: WorkflowEngineService,
     private readonly audit: AuditService,
   ) {}

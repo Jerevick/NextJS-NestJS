@@ -5,7 +5,8 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { hasPermission } from '@/lib/permissions';
 
-const apiBase = process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiBase =
+  process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 export type CreateStudentState = {
   error?: string;
@@ -95,6 +96,6 @@ export async function createStudent(
     return { error: 'API returned an unexpected response.' };
   }
 
-  revalidatePath('/students');
-  redirect(`/students/${data.id}`);
+  revalidatePath('/dashboard/students');
+  redirect(`/dashboard/students/${data.id}`);
 }

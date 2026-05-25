@@ -95,7 +95,7 @@ export default async function BillingSnapshotPage({
       }}
     >
       <nav style={{ marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
-        <Link href="/billing" style={{ color: primary }}>
+        <Link href="/dashboard/billing" style={{ color: primary }}>
           ← Billing overview
         </Link>
         <Link href="/dashboard" style={{ color: muted }}>

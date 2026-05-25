@@ -1,0 +1,1 @@
+ALTER TYPE "RegistrationRequestStatus" ADD VALUE IF NOT EXISTS 'PROVISIONED';

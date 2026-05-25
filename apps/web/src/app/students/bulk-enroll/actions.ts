@@ -126,7 +126,7 @@ export async function bulkEnrollStudents(
     failCount = job.failCount;
   }
 
-  revalidatePath('/students');
+  revalidatePath('/dashboard/students');
 
   return {
     jobId: created.id,

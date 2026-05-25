@@ -11,7 +11,7 @@ import {
 } from 'react';
 import { useSession } from 'next-auth/react';
 import { appendOptionalEntityHeader } from '@/lib/api-headers';
-import { connectRealtimeSocket } from '@/lib/realtime-socket';
+import { connectRealtimeSocket, isJwtExpired } from '@/lib/realtime-socket';
 
 export type RealtimeNotificationPayload = {
   id: string;
@@ -48,6 +48,10 @@ export function NotificationsRealtimeProvider({ children }: { children: ReactNod
     const token = session?.accessToken;
     const user = session?.user;
     if (!token || !user?.institutionId) {
+      setLive(false);
+      return;
+    }
+    if (isJwtExpired(token)) {
       setLive(false);
       return;
     }

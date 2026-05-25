@@ -13,7 +13,7 @@ export default function VerifyVotePage() {
   return (
     <main style={{ padding: '2rem', maxWidth: 560, margin: '0 auto', fontFamily: 'system-ui' }}>
       <p style={{ marginTop: 0 }}>
-        <Link href="/elections" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/elections" style={{ color: '#2563eb' }}>
           ← Elections
         </Link>
       </p>

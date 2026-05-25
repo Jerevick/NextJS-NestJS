@@ -104,9 +104,8 @@ export class RegisterInstitutionDto {
   @IsEmail()
   contactEmail!: string;
 
-  @IsOptional()
   @IsEnum(['under-500', '500-2000', '2000-10000', '10000-plus'])
-  estimatedStudents?: 'under-500' | '500-2000' | '2000-10000' | '10000-plus';
+  estimatedStudents!: 'under-500' | '500-2000' | '2000-10000' | '10000-plus';
 
   @IsArray()
   @ArrayMinSize(1)

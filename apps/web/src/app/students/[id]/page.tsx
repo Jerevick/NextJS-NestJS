@@ -246,7 +246,7 @@ export default async function StudentProfilePage({
     return (
       <main style={{ padding: '2rem', fontFamily: 'var(--font-sans), system-ui', maxWidth: 720 }}>
         <nav style={{ marginBottom: '1rem' }}>
-          <Link href="/students" style={{ color: primary }}>
+          <Link href="/dashboard/students" style={{ color: primary }}>
             ← Students
           </Link>
         </nav>
@@ -263,7 +263,7 @@ export default async function StudentProfilePage({
 
   const student = (await res.json()) as StudentDetail;
   const name = displayName(student);
-  const profilePath = `/students/${id}`;
+  const profilePath = `/dashboard/students/${id}`;
   const profileReadOnly = student.enrollmentStatus !== 'ACTIVE';
 
   let graduationClearanceRequests: GraduationClearanceRow[] = [];
@@ -488,7 +488,10 @@ export default async function StudentProfilePage({
       }}
     >
       <nav style={{ marginBottom: '1.25rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-        <Link href="/students" style={{ color: primary, textDecoration: 'none', fontWeight: 500 }}>
+        <Link
+          href="/dashboard/students"
+          style={{ color: primary, textDecoration: 'none', fontWeight: 500 }}
+        >
           ← Students
         </Link>
         <Link href="/dashboard" style={{ color: muted, textDecoration: 'none' }}>
@@ -496,7 +499,7 @@ export default async function StudentProfilePage({
         </Link>
         {canEnroll && !profileReadOnly ? (
           <Link
-            href={`/students/${id}/enroll`}
+            href={`/dashboard/students/${id}/enroll`}
             style={{ color: primary, textDecoration: 'none', fontWeight: 600 }}
           >
             Enroll in section
@@ -504,7 +507,7 @@ export default async function StudentProfilePage({
         ) : null}
         {canEnroll && !profileReadOnly ? (
           <Link
-            href="/students/bulk-enroll"
+            href="/dashboard/students/bulk-enroll"
             style={{ color: muted, textDecoration: 'none', fontWeight: 600 }}
           >
             Bulk enroll
@@ -512,7 +515,7 @@ export default async function StudentProfilePage({
         ) : null}
         {canWrite ? (
           <Link
-            href="/students/new"
+            href="/dashboard/students/new"
             style={{ color: accent, textDecoration: 'none', fontWeight: 600 }}
           >
             Add student
@@ -761,7 +764,10 @@ export default async function StudentProfilePage({
             />
           ) : null}
           <p style={{ marginTop: '1.5rem', fontSize: '0.9rem' }}>
-            <Link href="/students/reactivation" style={{ color: primary, fontWeight: 600 }}>
+            <Link
+              href="/dashboard/students/reactivation"
+              style={{ color: primary, fontWeight: 600 }}
+            >
               Reactivation requests →
             </Link>
           </p>
@@ -855,7 +861,7 @@ export default async function StudentProfilePage({
             <p style={{ color: muted }}>You need finance.read to view the student ledger.</p>
           )}
           <p style={{ marginTop: '1rem', fontSize: '0.85rem' }}>
-            <Link href="/finance" style={{ color: '#2563eb', fontWeight: 600 }}>
+            <Link href="/dashboard/finance" style={{ color: '#2563eb', fontWeight: 600 }}>
               Institution finance hub →
             </Link>
           </p>

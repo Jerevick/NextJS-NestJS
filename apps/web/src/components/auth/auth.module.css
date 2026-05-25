@@ -401,6 +401,17 @@
   cursor: pointer;
 }
 
+.selectedFile {
+  margin: 0.45rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.selectedFile strong {
+  color: var(--navy);
+  font-weight: 700;
+}
+
 .modulePicker {
   display: flex;
   flex-direction: column;
@@ -585,6 +596,17 @@
   margin: 0;
 }
 
+.fileLimitNote {
+  margin: 0.45rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.18);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--navy);
+}
+
 .submit {
   margin-top: 0.25rem;
   padding: 0.75rem 1.25rem;
@@ -726,6 +748,124 @@
   font-size: 0.78rem;
   line-height: 1.5;
   color: var(--text-muted);
+}
+
+.trackerCard {
+  padding: 1rem;
+  border-radius: 14px;
+  background: rgba(30, 58, 95, 0.035);
+  border: 1px solid rgba(30, 58, 95, 0.14);
+}
+
+.trackerCard[data-compact='true'] {
+  margin: 0 0 1.25rem;
+}
+
+.trackerHeader {
+  margin-bottom: 0.85rem;
+}
+
+.trackerTitle {
+  margin: 0.35rem 0 0.25rem;
+  font-size: 1rem;
+  color: var(--navy);
+}
+
+.trackerText {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.trackerForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+}
+
+.trackerInput {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.9rem;
+  color: var(--navy);
+  background: #fff;
+}
+
+.trackerButton {
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, var(--navy), var(--navy-mid));
+  cursor: pointer;
+}
+
+.trackerButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.trackerError {
+  margin: 0.75rem 0 0;
+}
+
+.trackerResult {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+  padding: 0.85rem;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid var(--border);
+}
+
+.trackerResultLabel {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.trackerResult strong {
+  color: var(--navy);
+}
+
+.trackerResult p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.trackerStatusPill {
+  justify-self: start;
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--navy);
+  background: rgba(30, 58, 95, 0.08);
+}
+
+.trackerStatusPill[data-status='REVIEWED'] {
+  color: #047857;
+  background: rgba(4, 120, 87, 0.1);
+}
+
+.trackerStatusPill[data-status='PROVISIONED'] {
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.trackerStatusPill[data-status='DISMISSED'] {
+  color: #b91c1c;
+  background: rgba(185, 28, 28, 0.08);
 }
 
 .footnote {

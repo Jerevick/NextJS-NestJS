@@ -17,7 +17,11 @@ type BackfillDetail = {
   entity?: { code: string; name: string };
 };
 
-export default async function BillingBackfillDetailPage({ params }: { params: Promise<{ requestId: string }> }) {
+export default async function BillingBackfillDetailPage({
+  params,
+}: {
+  params: Promise<{ requestId: string }>;
+}) {
   const { requestId } = await params;
   const session = await auth();
   if (!session?.accessToken || !session.user?.institutionId) {
@@ -54,7 +58,7 @@ export default async function BillingBackfillDetailPage({ params }: { params: Pr
     const body = await res.text();
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui' }}>
-        <Link href="/billing">← Billing</Link>
+        <Link href="/dashboard/billing">← Billing</Link>
         <p style={{ color: '#b91c1c' }}>HTTP {res.status}</p>
         <pre style={{ fontSize: 12 }}>{body}</pre>
       </main>
@@ -67,7 +71,7 @@ export default async function BillingBackfillDetailPage({ params }: { params: Pr
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 720 }}>
       <nav style={{ marginBottom: '1rem' }}>
-        <Link href="/billing" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/billing" style={{ color: '#2563eb' }}>
           ← Billing
         </Link>
       </nav>

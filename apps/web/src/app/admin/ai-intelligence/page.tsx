@@ -28,7 +28,7 @@ export default async function AdminAiIntelligencePage() {
   if (!canView) {
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 720 }}>
-        <Link href="/admin">← Admin</Link>
+        <Link href="/dashboard">← Dashboard</Link>
         <h1>Administrative AI</h1>
         <p style={{ color: '#b91c1c' }}>You need institutions.read or billing.read access.</p>
       </main>
@@ -57,8 +57,8 @@ export default async function AdminAiIntelligencePage() {
       }}
     >
       <nav style={{ marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
-        <Link href="/admin" style={{ color: '#2563eb' }}>
-          ← Admin
+        <Link href="/dashboard" style={{ color: '#2563eb' }}>
+          ← Dashboard
         </Link>
         <Link href="/dashboard" style={{ color: '#64748b' }}>
           Dashboard

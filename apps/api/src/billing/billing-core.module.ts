@@ -25,6 +25,7 @@ import { BillingJobsService } from './jobs/billing-jobs.service';
     AnyPermissionsGuard,
   ],
   exports: [
+    BillingDisputeService,
     BillingInvoiceService,
     BillingSnapshotService,
     BillingJobsService,

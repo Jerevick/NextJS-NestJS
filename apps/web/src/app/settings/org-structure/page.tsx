@@ -130,7 +130,10 @@ export default async function OrgStructurePage({
       </p>
       {session.user && hasPermission(session.user.permissions, 'grades.write') ? (
         <p style={{ margin: '0', fontSize: '0.9rem' }}>
-          <Link href="/settings/grading-weights" style={{ color: '#2563eb', fontWeight: 600 }}>
+          <Link
+            href="/dashboard/settings/grading-weights"
+            style={{ color: '#2563eb', fontWeight: 600 }}
+          >
             Grading weights →
           </Link>
         </p>
@@ -144,7 +147,7 @@ export default async function OrgStructurePage({
       {session.user.entityScope === 'ALL' ? (
         <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '1rem 0' }}>
           <Link
-            href="/settings/org-structure"
+            href="/dashboard/settings/org-structure"
             style={{
               padding: '0.35rem 0.65rem',
               borderRadius: 8,
@@ -159,7 +162,7 @@ export default async function OrgStructurePage({
           {entities.map((e) => (
             <Link
               key={e.id}
-              href={`/settings/org-structure?entityId=${e.id}`}
+              href={`/dashboard/settings/org-structure?entityId=${e.id}`}
               style={{
                 padding: '0.35rem 0.65rem',
                 borderRadius: 8,
@@ -212,7 +215,7 @@ export default async function OrgStructurePage({
       ) : null}
 
       <p style={{ marginTop: '1.5rem' }}>
-        <Link href="/settings/positions" style={{ color: '#2563eb', fontWeight: 600 }}>
+        <Link href="/dashboard/settings/positions" style={{ color: '#2563eb', fontWeight: 600 }}>
           View positions →
         </Link>
       </p>

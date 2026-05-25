@@ -46,10 +46,12 @@ export function EntitySwitcher({
     }
     const body = (await res.json()) as {
       accessToken: string;
+      refreshToken?: string;
       user: { entityId?: string; entityScope?: string };
     };
     await update({
       accessToken: body.accessToken,
+      refreshToken: body.refreshToken,
       entityId: body.user.entityId ?? entityId,
       entityScope: body.user.entityScope,
       omitEntityHeader: false,
@@ -78,7 +80,9 @@ export function EntitySwitcher({
       transition={{ duration: 0.25 }}
       style={{ display: 'block', marginTop: '1rem' }}
     >
-      <span style={{ display: 'block', fontSize: '0.85rem', color: '#64748b', marginBottom: '0.35rem' }}>
+      <span
+        style={{ display: 'block', fontSize: '0.85rem', color: '#64748b', marginBottom: '0.35rem' }}
+      >
         Switch campus
       </span>
       <select
@@ -93,7 +97,9 @@ export function EntitySwitcher({
         {entities.map((e) => (
           <option key={e.id} value={e.id}>
             {e.name}
-            {typeof e.billableStudentCount === 'number' ? ` · ${e.billableStudentCount} ACTIVE` : ''}
+            {typeof e.billableStudentCount === 'number'
+              ? ` · ${e.billableStudentCount} ACTIVE`
+              : ''}
           </option>
         ))}
       </select>

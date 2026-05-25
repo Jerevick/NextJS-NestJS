@@ -55,7 +55,7 @@ export default async function BillingDisputesPage() {
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 960 }}>
       <nav style={{ marginBottom: '1rem' }}>
-        <Link href="/billing" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/billing" style={{ color: '#2563eb' }}>
           ← Billing
         </Link>
       </nav>

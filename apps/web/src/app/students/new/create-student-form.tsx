@@ -49,7 +49,13 @@ export function CreateStudentForm({ programs }: { programs: ProgramOption[] }) {
 
       <label style={{ display: 'grid', gap: 4 }}>
         <span>Email</span>
-        <input name="email" type="email" required autoComplete="email" style={{ padding: '0.5rem' }} />
+        <input
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          style={{ padding: '0.5rem' }}
+        />
       </label>
 
       <label style={{ display: 'grid', gap: 4 }}>
@@ -62,23 +68,43 @@ export function CreateStudentForm({ programs }: { programs: ProgramOption[] }) {
           autoComplete="new-password"
           style={{ padding: '0.5rem' }}
         />
-        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Minimum 8 characters. Student should change it after first login.</span>
+        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+          Minimum 8 characters. Student should change it after first login.
+        </span>
       </label>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         <label style={{ display: 'grid', gap: 4 }}>
           <span>First name</span>
-          <input name="firstName" required maxLength={120} autoComplete="given-name" style={{ padding: '0.5rem' }} />
+          <input
+            name="firstName"
+            required
+            maxLength={120}
+            autoComplete="given-name"
+            style={{ padding: '0.5rem' }}
+          />
         </label>
         <label style={{ display: 'grid', gap: 4 }}>
           <span>Last name</span>
-          <input name="lastName" required maxLength={120} autoComplete="family-name" style={{ padding: '0.5rem' }} />
+          <input
+            name="lastName"
+            required
+            maxLength={120}
+            autoComplete="family-name"
+            style={{ padding: '0.5rem' }}
+          />
         </label>
       </div>
 
       <label style={{ display: 'grid', gap: 4 }}>
         <span>Current level (optional)</span>
-        <input name="currentLevel" type="number" min={1} defaultValue={1} style={{ padding: '0.5rem' }} />
+        <input
+          name="currentLevel"
+          type="number"
+          min={1}
+          defaultValue={1}
+          style={{ padding: '0.5rem' }}
+        />
       </label>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
@@ -94,7 +120,7 @@ export function CreateStudentForm({ programs }: { programs: ProgramOption[] }) {
 
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginTop: '0.5rem' }}>
         <SubmitButton />
-        <Link href="/students" style={{ color: '#64748b' }}>
+        <Link href="/dashboard/students" style={{ color: '#64748b' }}>
           Cancel
         </Link>
       </div>

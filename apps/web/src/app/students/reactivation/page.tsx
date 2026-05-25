@@ -63,7 +63,7 @@ export default async function ReactivationRequestsPage({
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 960 }}>
       <nav style={{ marginBottom: '1rem' }}>
-        <Link href="/students" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/students" style={{ color: '#2563eb' }}>
           ← Students
         </Link>
       </nav>

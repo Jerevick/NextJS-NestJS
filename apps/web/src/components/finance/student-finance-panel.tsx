@@ -125,7 +125,7 @@ export function StudentFinancePanel({
                 {showReceiptLinks && studentId && t.status === 'COMPLETED' ? (
                   <td style={{ padding: '0.45rem 0.35rem' }}>
                     <a
-                      href={`/finance/receipts/${encodeURIComponent(studentId)}/${encodeURIComponent(t.id)}`}
+                      href={`/dashboard/finance/receipts/${encodeURIComponent(studentId)}/${encodeURIComponent(t.id)}`}
                       target="_blank"
                       rel="noreferrer"
                       style={{ color: '#2563eb', fontSize: '0.8rem' }}

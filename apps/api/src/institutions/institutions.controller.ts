@@ -26,6 +26,16 @@ export class InstitutionsController {
     return this.institutions.list(user, query);
   }
 
+  @Get(':id/terms/acceptance')
+  getTermsAcceptance(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.institutions.getTermsAcceptance(user, id);
+  }
+
+  @Post(':id/terms/accept')
+  acceptTerms(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.institutions.acceptTerms(user, id);
+  }
+
   @Get(':id')
   @UseGuards(AnyPermissionsGuard)
   @RequireAnyPermissions('institutions.read', 'institutions.write')

@@ -97,7 +97,10 @@ export default async function MyDocumentsPage() {
       )}
 
       <p style={{ marginTop: '1.5rem' }}>
-        <Link href="/workflow/inbox" style={{ color: STUDENT_PORTAL.teal, fontWeight: 600 }}>
+        <Link
+          href="/dashboard/workflow/inbox"
+          style={{ color: STUDENT_PORTAL.teal, fontWeight: 600 }}
+        >
           Track requests in workflow inbox →
         </Link>
       </p>

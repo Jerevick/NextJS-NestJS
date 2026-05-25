@@ -22,7 +22,7 @@ const reactivationColumns: GridColDef<ReactivationGridRow>[] = [
     width: 160,
     renderCell: ({ row, value }) => (
       <Link
-        href={`/students/reactivation/${encodeURIComponent(row.id)}`}
+        href={`/dashboard/students/reactivation/${encodeURIComponent(row.id)}`}
         style={{ color: '#2563eb' }}
       >
         {value ? String(value).slice(0, 19) : '—'}
@@ -90,7 +90,7 @@ const disputeColumns: GridColDef<BillingDisputeGridRow>[] = [
     renderCell: ({ row, value }) =>
       row.invoiceId ? (
         <Link
-          href={`/billing/invoice/${encodeURIComponent(row.invoiceId)}`}
+          href={`/dashboard/billing/invoice/${encodeURIComponent(row.invoiceId)}`}
           style={{ color: '#2563eb' }}
         >
           {value}
@@ -116,7 +116,7 @@ const disputeColumns: GridColDef<BillingDisputeGridRow>[] = [
           {value}
         </span>
         <Link
-          href={`/billing/disputes/${encodeURIComponent(row.id)}`}
+          href={`/dashboard/billing/disputes/${encodeURIComponent(row.id)}`}
           style={{ color: '#2563eb', fontSize: '0.8rem' }}
         >
           Detail

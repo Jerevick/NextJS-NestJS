@@ -9,6 +9,7 @@ export async function dismissRegistrationRequestAction(requestId: string) {
     return { error: 'message' in result ? result.message : 'Failed to dismiss request' };
   }
   revalidatePath('/registration-requests');
+  revalidatePath(`/registration-requests/${requestId}`);
   revalidatePath('/dashboard');
   return { ok: true as const };
 }
@@ -19,6 +20,7 @@ export async function markRegistrationRequestReviewedAction(requestId: string) {
     return { error: 'message' in result ? result.message : 'Failed to update request' };
   }
   revalidatePath('/registration-requests');
+  revalidatePath(`/registration-requests/${requestId}`);
   revalidatePath('/dashboard');
   return { ok: true as const };
 }

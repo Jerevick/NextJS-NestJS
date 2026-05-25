@@ -202,10 +202,10 @@ export default async function BillingPage() {
         <Link href="/dashboard" style={{ color: '#2563eb' }}>
           ← Dashboard
         </Link>
-        <Link href="/billing/disputes" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/billing/disputes" style={{ color: '#2563eb' }}>
           Billing disputes
         </Link>
-        <Link href="/billing/snapshot" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/billing/snapshot" style={{ color: '#2563eb' }}>
           Daily snapshots
         </Link>
       </nav>

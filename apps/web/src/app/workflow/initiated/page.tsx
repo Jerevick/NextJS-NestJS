@@ -36,7 +36,7 @@ export default async function WorkflowInitiatedPage() {
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 900 }}>
       <p style={{ marginTop: 0 }}>
-        <Link href="/workflow/inbox" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/workflow/inbox" style={{ color: '#2563eb' }}>
           ← Inbox
         </Link>
       </p>
@@ -44,7 +44,10 @@ export default async function WorkflowInitiatedPage() {
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {rows.map((r) => (
           <li key={r.id} style={{ marginBottom: '0.75rem' }}>
-            <Link href={`/workflow/${r.id}`} style={{ color: '#2563eb', fontWeight: 600 }}>
+            <Link
+              href={`/dashboard/workflow/${r.id}`}
+              style={{ color: '#2563eb', fontWeight: 600 }}
+            >
               {r.definition.name}
             </Link>
             <span style={{ color: '#64748b', fontSize: '0.85rem' }}>

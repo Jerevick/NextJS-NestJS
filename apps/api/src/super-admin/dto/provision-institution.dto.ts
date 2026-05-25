@@ -6,18 +6,20 @@ import {
   IsObject,
   IsOptional,
   IsString,
-  Matches,
   Max,
   Min,
   MinLength,
 } from 'class-validator';
-import { BillingCycle, PlanTier, TenantModule } from '@prisma/client';
+import { PlanTier, TenantModule } from '@prisma/client';
 
 export class ProvisionInstitutionDto {
+  @IsOptional()
   @IsString()
-  @MinLength(2)
-  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
-  slug!: string;
+  registrationRequestId?: string;
+
+  @IsOptional()
+  @IsString()
+  slug?: string;
 
   @IsString()
   @MinLength(2)
@@ -41,12 +43,6 @@ export class ProvisionInstitutionDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(0)
-  minimumBillableCount?: number;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
   @Min(1)
   @Max(28)
   billingDayOfMonth?: number;
@@ -62,8 +58,8 @@ export class ProvisionInstitutionDto {
   adminEmail!: string;
 
   @IsString()
-  @MinLength(8)
-  adminPassword!: string;
+  @IsOptional()
+  adminPassword?: string;
 
   @IsOptional()
   @IsString()
@@ -74,10 +70,6 @@ export class ProvisionInstitutionDto {
   @IsString()
   @MinLength(1)
   adminLastName?: string;
-
-  @IsOptional()
-  @IsEnum(BillingCycle)
-  billingCycle?: BillingCycle;
 
   @IsOptional()
   @IsString()

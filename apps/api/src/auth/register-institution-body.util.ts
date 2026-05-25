@@ -50,6 +50,11 @@ export function parseRegisterInstitutionBody(body: Record<string, string>): Regi
     throw new BadRequestException('Invalid institution type');
   }
 
+  const estimatedStudents = requiredString(body, 'estimatedStudents', 'Estimated active students');
+  if (!['under-500', '500-2000', '2000-10000', '10000-plus'].includes(estimatedStudents)) {
+    throw new BadRequestException('Invalid estimated active students range');
+  }
+
   const dto: RegisterInstitutionDto = {
     institutionName: requiredString(body, 'institutionName', 'Institution legal name'),
     institutionType: institutionType as RegisterInstitutionDto['institutionType'],
@@ -70,9 +75,7 @@ export function parseRegisterInstitutionBody(body: Record<string, string>): Regi
     contactPhone: requiredString(body, 'contactPhone', 'Contact phone'),
     contactEmail: requiredString(body, 'contactEmail', 'Contact email'),
     modulesInterested,
-    estimatedStudents: optionalString(body, 'estimatedStudents') as
-      | RegisterInstitutionDto['estimatedStudents']
-      | undefined,
+    estimatedStudents: estimatedStudents as RegisterInstitutionDto['estimatedStudents'],
     message: optionalString(body, 'message'),
   };
 

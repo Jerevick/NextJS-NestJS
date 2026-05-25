@@ -149,7 +149,7 @@ export function GuardianStudentCard({ student: s, visibility }: GuardianStudentC
       >
         {visibility.academic ? (
           <Link
-            href={`/guardian/${s.studentId}/academic`}
+            href={`/dashboard/guardian/${s.studentId}/academic`}
             style={{
               padding: '0.5rem 0.9rem',
               background: GUARDIAN_PORTAL.accent,
@@ -165,7 +165,7 @@ export function GuardianStudentCard({ student: s, visibility }: GuardianStudentC
         ) : null}
         {visibility.finance ? (
           <Link
-            href={`/guardian/${s.studentId}/finance`}
+            href={`/dashboard/guardian/${s.studentId}/finance`}
             style={{
               padding: '0.5rem 0.9rem',
               border: `2px solid ${GUARDIAN_PORTAL.accent}`,
@@ -181,7 +181,7 @@ export function GuardianStudentCard({ student: s, visibility }: GuardianStudentC
         ) : null}
         {visibility.attendance ? (
           <Link
-            href={`/guardian/${s.studentId}/attendance`}
+            href={`/dashboard/guardian/${s.studentId}/attendance`}
             style={{
               padding: '0.5rem 0.9rem',
               color: GUARDIAN_PORTAL.accent,

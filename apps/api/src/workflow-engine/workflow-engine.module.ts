@@ -24,9 +24,9 @@ import { AnyPermissionsGuard } from '../common/guards/any-permissions.guard';
   imports: [
     AuditModule,
     BillingCoreModule,
-    forwardRef(() => StudentsModule),
+    forwardRef(() => StudentsModule.register()),
     forwardRef(() => GradesModule),
-    ProgressionModule,
+    forwardRef(() => ProgressionModule),
     forwardRef(() => FinanceModule),
     forwardRef(() => StaffModule),
     forwardRef(() => LeaveModule),

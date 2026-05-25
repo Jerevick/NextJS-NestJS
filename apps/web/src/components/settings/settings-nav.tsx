@@ -4,15 +4,35 @@ const primary = '#1e3a5f';
 const muted = '#64748b';
 
 const links = [
-  { href: '/settings', label: 'Overview' },
-  { href: '/settings/branding', label: 'Branding' },
-  { href: '/settings/academic', label: 'Academic' },
-  { href: '/settings/custom-forms', label: 'Custom forms' },
-  { href: '/settings/notifications', label: 'Notifications' },
-  { href: '/settings/integrations', label: 'Integrations' },
-  { href: '/settings/payment', label: 'Payment' },
-  { href: '/settings/grading-weights', label: 'Grading weights' },
-  { href: '/settings/org-structure', label: 'Org structure' },
+  { href: '/dashboard/settings', legacyHref: '/settings', label: 'Overview' },
+  { href: '/dashboard/settings/branding', legacyHref: '/settings/branding', label: 'Branding' },
+  { href: '/dashboard/settings/academic', legacyHref: '/settings/academic', label: 'Academic' },
+  {
+    href: '/dashboard/settings/custom-forms',
+    legacyHref: '/settings/custom-forms',
+    label: 'Custom forms',
+  },
+  {
+    href: '/dashboard/settings/notifications',
+    legacyHref: '/settings/notifications',
+    label: 'Notifications',
+  },
+  {
+    href: '/dashboard/settings/integrations',
+    legacyHref: '/settings/integrations',
+    label: 'Integrations',
+  },
+  { href: '/dashboard/settings/payment', legacyHref: '/settings/payment', label: 'Payment' },
+  {
+    href: '/dashboard/settings/grading-weights',
+    legacyHref: '/settings/grading-weights',
+    label: 'Grading weights',
+  },
+  {
+    href: '/dashboard/settings/org-structure',
+    legacyHref: '/settings/org-structure',
+    label: 'Org structure',
+  },
 ] as const;
 
 export function SettingsNav({ active }: { active?: string }) {
@@ -30,18 +50,21 @@ export function SettingsNav({ active }: { active?: string }) {
         Dashboard
       </Link>
       <span style={{ color: '#cbd5e1' }}>|</span>
-      {links.map((l) => (
-        <Link
-          key={l.href}
-          href={l.href}
-          style={{
-            color: active === l.href ? primary : muted,
-            fontWeight: active === l.href ? 600 : 400,
-          }}
-        >
-          {l.label}
-        </Link>
-      ))}
+      {links.map((l) => {
+        const isActive = active === l.href || active === l.legacyHref;
+        return (
+          <Link
+            key={l.href}
+            href={l.href}
+            style={{
+              color: isActive ? primary : muted,
+              fontWeight: isActive ? 600 : 400,
+            }}
+          >
+            {l.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

@@ -72,7 +72,7 @@ export default async function RegistrarProgressionPage() {
         <Link href="/dashboard" style={{ color: '#2563eb' }}>
           ← Dashboard
         </Link>
-        <Link href="/students" style={{ color: '#64748b' }}>
+        <Link href="/dashboard/students" style={{ color: '#64748b' }}>
           Students
         </Link>
       </nav>

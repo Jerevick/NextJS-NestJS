@@ -31,5 +31,5 @@ export default async function EnrollmentRegisterPage() {
     );
   }
 
-  redirect('/register-courses');
+  redirect('/dashboard/register-courses');
 }

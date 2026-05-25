@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { NotificationPriority, Prisma } from '@prisma/client';
+import { NotificationPriority } from '@prisma/client';
 import type { AuthUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
 import { normalizePageLimit, sliceCursorPage } from '../common/pagination/cursor-page.util';
@@ -8,6 +8,12 @@ import { NotificationEngineService } from './notification-engine.service';
 import { NotificationScheduleService } from './notification-schedule.service';
 import type { ScheduleNotificationResult } from './notification-schedule.types';
 import type { SendNotificationInput, SendNotificationResult } from './notification.types';
+
+const REGISTRATION_EVENTS = [
+  'REGISTRATION_SUBMITTED',
+  'REGISTRATION_REVIEWED',
+  'REGISTRATION_DISMISSED',
+] as const;
 
 export type CreateNotificationInput = {
   institutionId: string;
@@ -170,6 +176,21 @@ export class NotificationsService {
         institutionId: actor.institutionId,
         userId: actor.userId,
         readAt: null,
+      },
+      data: { readAt: new Date() },
+    });
+    return { updated: result.count };
+  }
+
+  async markRegistrationRequestRead(actor: AuthUser, requestId: string) {
+    const actionUrl = `/admin/registration-requests/${requestId}`;
+    const result = await this.prisma.userNotification.updateMany({
+      where: {
+        institutionId: actor.institutionId,
+        userId: actor.userId,
+        readAt: null,
+        event: { in: [...REGISTRATION_EVENTS] },
+        OR: [{ actionUrl }, { metadata: { path: ['requestId'], equals: requestId } }],
       },
       data: { readAt: new Date() },
     });

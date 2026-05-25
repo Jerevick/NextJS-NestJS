@@ -62,12 +62,14 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     const body = await res.text();
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 720 }}>
-        <Link href="/billing" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/billing" style={{ color: '#2563eb' }}>
           ← Billing
         </Link>
         <h1 style={{ marginTop: '1rem' }}>Could not load invoice</h1>
         <p style={{ color: '#b91c1c' }}>HTTP {res.status}</p>
-        <pre style={{ fontSize: 12, overflow: 'auto', background: '#f8fafc', padding: '1rem' }}>{body}</pre>
+        <pre style={{ fontSize: 12, overflow: 'auto', background: '#f8fafc', padding: '1rem' }}>
+          {body}
+        </pre>
       </main>
     );
   }
@@ -76,14 +78,12 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const mono = { fontFamily: 'ui-monospace, monospace' } as const;
   const canWrite = hasPermission(session.user.permissions, 'billing.write');
   const disputeable =
-    canWrite &&
-    (inv.status === 'DRAFT' || inv.status === 'OPEN') &&
-    !inv.lockedAt;
+    canWrite && (inv.status === 'DRAFT' || inv.status === 'OPEN') && !inv.lockedAt;
 
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 900 }}>
       <nav style={{ marginBottom: '1rem' }}>
-        <Link href="/billing" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/billing" style={{ color: '#2563eb' }}>
           ← Billing
         </Link>
       </nav>
@@ -147,7 +147,14 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       </section>
 
       {disputeable ? (
-        <section style={{ marginTop: '2rem', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+        <section
+          style={{
+            marginTop: '2rem',
+            padding: '1rem',
+            border: '1px solid #e2e8f0',
+            borderRadius: 8,
+          }}
+        >
           <InitiateDisputeForm invoiceId={inv.id} />
         </section>
       ) : null}

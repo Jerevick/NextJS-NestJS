@@ -26,6 +26,10 @@ export interface JwtAccessPayload {
   jti?: string;
   /** Must match `User.sessionVersion` or the token is rejected (logout / inactivation). */
   sessionVersion?: number;
+  /** Institution-level terms acceptance gate. */
+  institutionTermsAccepted?: boolean;
+  /** User must change a temporary/generated password before normal app access. */
+  forcePasswordChange?: boolean;
   permissions: string[];
   iat?: number;
   exp?: number;

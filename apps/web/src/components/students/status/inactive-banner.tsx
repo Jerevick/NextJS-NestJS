@@ -30,19 +30,27 @@ export function InactiveStudentBanner({
       aria-live="polite"
     >
       <p style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem' }}>
-        This student is not ACTIVE — status <span style={{ fontFamily: 'ui-monospace, monospace' }}>{enrollmentStatus}</span>
+        This student is not ACTIVE — status{' '}
+        <span style={{ fontFamily: 'ui-monospace, monospace' }}>{enrollmentStatus}</span>
         {campusLabel ? ` · ${campusLabel}` : null}
       </p>
       <p style={{ margin: '0.5rem 0 0', fontSize: '0.88rem', lineHeight: 1.45 }}>
-        Read-only mode: the API blocks posting academic, financial, LMS, and admin records for non-ACTIVE students.
-        Use registrar workflows for reactivation, backfill, or permanent deletion where applicable.
+        Read-only mode: the API blocks posting academic, financial, LMS, and admin records for
+        non-ACTIVE students. Use registrar workflows for reactivation, backfill, or permanent
+        deletion where applicable.
       </p>
       <p style={{ margin: '0.65rem 0 0', fontSize: '0.88rem' }}>
-        <Link href={reactivationHref} style={{ color: '#1d4ed8', fontWeight: 600, textDecoration: 'underline' }}>
+        <Link
+          href={reactivationHref}
+          style={{ color: '#1d4ed8', fontWeight: 600, textDecoration: 'underline' }}
+        >
           Reactivation requests
         </Link>
         {' · '}
-        <Link href="/billing/disputes" style={{ color: '#1d4ed8', fontWeight: 600, textDecoration: 'underline' }}>
+        <Link
+          href="/dashboard/billing/disputes"
+          style={{ color: '#1d4ed8', fontWeight: 600, textDecoration: 'underline' }}
+        >
           Billing disputes
         </Link>
       </p>

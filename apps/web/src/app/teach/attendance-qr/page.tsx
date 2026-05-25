@@ -14,7 +14,7 @@ export default function TeachAttendanceQrPage() {
       }}
     >
       <nav style={{ marginBottom: '1rem' }}>
-        <Link href="/teach" style={{ color: primary, textDecoration: 'none' }}>
+        <Link href="/dashboard/teach" style={{ color: primary, textDecoration: 'none' }}>
           ← Teaching
         </Link>
       </nav>

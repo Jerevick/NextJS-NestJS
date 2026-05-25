@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -17,6 +19,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthRegistrationService } from './auth-registration.service';
 import { AuthService } from './auth.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import type { AuthUser } from './auth.types';
 import { DisableTotpDto } from './dto/disable-totp.dto';
 import { EnableTotpDto } from './dto/enable-totp.dto';
@@ -59,6 +62,13 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Get('institutions')
+  listSigninInstitutions() {
+    return this.auth.listSigninInstitutions();
+  }
+
+  @Public()
   @Throttle({ default: { limit: 5, ttl: 900_000 } })
   @Post('magic-link/request')
   requestMagicLink(@Req() req: Request, @Body() dto: MagicLinkRequestDto) {
@@ -79,7 +89,7 @@ export class AuthController {
       path: '/',
       maxAge: refreshCookieMaxAgeMs(refreshToken),
     });
-    return { accessToken, user };
+    return { accessToken, refreshToken, user };
   }
 
   @Public()
@@ -114,6 +124,56 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 900_000 } })
+  @Post('register/institution/:requestId/details')
+  getEditableInstitutionRegistration(
+    @Param('requestId') requestId: string,
+    @Body() body: { email?: string },
+  ) {
+    return this.registration.getEditableInstitutionRegistration(requestId, body.email);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
+  @Patch('register/institution/:requestId')
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'logo', maxCount: 1 },
+        { name: 'accreditationEvidence', maxCount: 1 },
+      ],
+      {
+        storage: memoryStorage(),
+        limits: { fileSize: 10 * 1024 * 1024 },
+      },
+    ),
+  )
+  updateInstitutionRegistration(
+    @Param('requestId') requestId: string,
+    @Req() req: Request,
+    @Body() body: Record<string, string>,
+    @UploadedFiles()
+    files: {
+      logo?: Express.Multer.File[];
+      accreditationEvidence?: Express.Multer.File[];
+    },
+  ) {
+    const verificationEmail = body.verificationEmail;
+    const dto = parseRegisterInstitutionBody(body);
+    return this.registration.updateInstitutionRegistration(req, requestId, verificationEmail, dto, {
+      logo: files.logo?.[0],
+      accreditationEvidence: files.accreditationEvidence?.[0],
+    });
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 15, ttl: 900_000 } })
+  @Get('register/institution/:requestId/status')
+  trackInstitutionRegistration(@Param('requestId') requestId: string) {
+    return this.registration.getRegistrationTrackingStatus(requestId);
+  }
+
+  @Public()
   @Throttle({ default: { limit: 5, ttl: 900_000 } })
   @Post('password-reset/request')
   requestPasswordReset(@Req() req: Request, @Body() dto: PasswordResetRequestDto) {
@@ -143,7 +203,7 @@ export class AuthController {
       path: '/',
       maxAge: refreshCookieMaxAgeMs(refreshToken),
     });
-    return { accessToken, user };
+    return { accessToken, refreshToken, user };
   }
 
   @Public()
@@ -158,7 +218,7 @@ export class AuthController {
       path: '/',
       maxAge: refreshCookieMaxAgeMs(refreshToken),
     });
-    return { accessToken };
+    return { accessToken, refreshToken };
   }
 
   @Public()
@@ -170,14 +230,32 @@ export class AuthController {
     return { ok: true };
   }
 
+  @Post('password/change')
+  changePassword(@CurrentUser() user: AuthUser, @Body() dto: ChangePasswordDto) {
+    return this.auth.changePassword(user, dto);
+  }
+
   @SkipThrottle()
   @Get('me')
   me(@CurrentUser() user: AuthUser | undefined) {
     if (!user) {
       return { user: null };
     }
-    const { accessJti: _accessJti, studentId, ...rest } = user;
-    return { user: { ...rest, studentId } };
+    return {
+      user: {
+        userId: user.userId,
+        email: user.email,
+        role: user.role,
+        institutionId: user.institutionId,
+        entityId: user.entityId,
+        entityScope: user.entityScope,
+        permissions: user.permissions,
+        position: user.position,
+        studentId: user.studentId,
+        institutionTermsAccepted: user.institutionTermsAccepted,
+        forcePasswordChange: user.forcePasswordChange,
+      },
+    };
   }
 
   @Post('switch-entity')
@@ -200,6 +278,6 @@ export class AuthController {
       path: '/',
       maxAge: refreshCookieMaxAgeMs(refreshToken),
     });
-    return { accessToken, user };
+    return { accessToken, refreshToken, user };
   }
 }

@@ -1,5 +1,18 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  BadRequestException,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Res,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { SuperAdminGuard } from '../common/guards/super-admin.guard';
@@ -18,6 +31,7 @@ import { RegistrationReviewService } from './registration-review.service';
 import { SuperAdminBillingService } from './super-admin-billing.service';
 import { SuperAdminInstitutionsService } from './super-admin-institutions.service';
 import { AuthRegistrationService } from '../auth/auth-registration.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PlatformSessionMetricsService } from './platform-session-metrics.service';
 import { SuperAdminPlatformService } from './super-admin-platform.service';
 
@@ -33,6 +47,7 @@ export class SuperAdminController {
     private readonly featureFlags: FeatureFlagsService,
     private readonly registration: AuthRegistrationService,
     private readonly registrationReview: RegistrationReviewService,
+    private readonly notifications: NotificationsService,
     private readonly sessionMetrics: PlatformSessionMetricsService,
   ) {}
 
@@ -169,8 +184,26 @@ export class SuperAdminController {
   }
 
   @Get('registration-requests/:id')
-  getRegistrationRequest(@Param('id') id: string) {
-    return this.registration.getRegistrationRequest(id);
+  async getRegistrationRequest(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const request = await this.registration.getRegistrationRequest(id);
+    await this.notifications.markRegistrationRequestRead(user, id);
+    return request;
+  }
+
+  @Get('registration-requests/:id/documents/:document')
+  async getRegistrationDocument(
+    @Param('id') id: string,
+    @Param('document') document: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (document !== 'logo' && document !== 'accreditationEvidence') {
+      throw new BadRequestException('Unknown registration document');
+    }
+    const file = await this.registration.getRegistrationDocument(id, document);
+    res.setHeader('Content-Type', file.contentType);
+    res.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    return new StreamableFile(file.buffer);
   }
 
   @Get('registration-requests')

@@ -253,7 +253,7 @@ export default function TeachCourseOutline({
                                     </Typography>
                                     <Typography sx={{ mt: 0.25 }}>
                                       <NextLink
-                                        href={`/courses/${courseInstanceId}/lessons/${lesson.id}`}
+                                        href={`/dashboard/courses/${courseInstanceId}/lessons/${lesson.id}`}
                                         passHref
                                         legacyBehavior
                                         prefetch={false}

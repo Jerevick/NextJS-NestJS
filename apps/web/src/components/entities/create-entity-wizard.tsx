@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import {
@@ -38,8 +38,14 @@ export function CreateEntityWizard() {
     defaultValues: { code: '', name: '', type: '' },
   });
 
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/login?callbackUrl=/dashboard/entities/new');
+    }
+  }, [router, status]);
+
   if (status !== 'authenticated' || !session?.accessToken) {
-    return <p>Sign in to continue.</p>;
+    return null;
   }
 
   const inst = session.user.institutionId;
@@ -88,7 +94,11 @@ export function CreateEntityWizard() {
       }),
     });
     if (!res.ok) {
-      setProvisionMessage(`Create failed (${res.status}). Check code uniqueness and MAIN campus rule.`);
+      const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
+      const message = Array.isArray(body?.message) ? body.message.join(' ') : body?.message;
+      setProvisionMessage(
+        message ?? `Create failed (${res.status}). Check code uniqueness and MAIN campus rule.`,
+      );
       return;
     }
     const created = (await res.json()) as { id?: string; status?: string };
@@ -99,7 +109,7 @@ export function CreateEntityWizard() {
     setProvisionMessage('Queued for provisioning. Waiting until ACTIVE…');
     const ok = await pollUntilActive(created.id);
     if (ok) {
-      router.push(`/entities/${created.id}`);
+      router.push(`/dashboard/entities/${created.id}`);
       router.refresh();
       return;
     }
@@ -110,7 +120,15 @@ export function CreateEntityWizard() {
 
   return (
     <div style={{ marginTop: '1.5rem' }}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', fontSize: '0.85rem', color: '#64748b' }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          marginBottom: '1rem',
+          fontSize: '0.85rem',
+          color: '#64748b',
+        }}
+      >
         <span style={{ fontWeight: step === 0 ? 700 : 400 }}>1. Type</span>
         <span>→</span>
         <span style={{ fontWeight: step === 1 ? 700 : 400 }}>2. Details</span>
@@ -145,11 +163,20 @@ export function CreateEntityWizard() {
                   cursor: 'pointer',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
                   <strong>{t.label}</strong>
                   <EntityTypeBadge type={t.value} />
                 </div>
-                <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 6 }}>{t.description}</div>
+                <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 6 }}>
+                  {t.description}
+                </div>
               </button>
             ))}
           </motion.div>
@@ -172,7 +199,9 @@ export function CreateEntityWizard() {
               />
             </label>
             {form.formState.errors.code ? (
-              <span style={{ color: '#b91c1c', fontSize: '0.85rem' }}>{form.formState.errors.code.message}</span>
+              <span style={{ color: '#b91c1c', fontSize: '0.85rem' }}>
+                {form.formState.errors.code.message}
+              </span>
             ) : null}
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Name</span>
@@ -182,7 +211,9 @@ export function CreateEntityWizard() {
               />
             </label>
             {form.formState.errors.name ? (
-              <span style={{ color: '#b91c1c', fontSize: '0.85rem' }}>{form.formState.errors.name.message}</span>
+              <span style={{ color: '#b91c1c', fontSize: '0.85rem' }}>
+                {form.formState.errors.name.message}
+              </span>
             ) : null}
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Coupling (optional)</span>
@@ -214,13 +245,24 @@ export function CreateEntityWizard() {
               <button
                 type="button"
                 onClick={() => setStep(0)}
-                style={{ padding: '0.5rem 1rem', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff' }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  background: '#fff',
+                }}
               >
                 Back
               </button>
               <button
                 type="submit"
-                style={{ padding: '0.5rem 1rem', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff' }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#2563eb',
+                  color: '#fff',
+                }}
               >
                 Continue
               </button>
@@ -244,14 +286,25 @@ export function CreateEntityWizard() {
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                style={{ padding: '0.5rem 1rem', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff' }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  background: '#fff',
+                }}
               >
                 Back
               </button>
               <button
                 type="button"
                 onClick={() => void form.handleSubmit(onCreate)()}
-                style={{ padding: '0.5rem 1rem', borderRadius: 8, border: 'none', background: '#16a34a', color: '#fff' }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#16a34a',
+                  color: '#fff',
+                }}
               >
                 Create &amp; wait for ACTIVE
               </button>
@@ -261,11 +314,13 @@ export function CreateEntityWizard() {
       </AnimatePresence>
 
       {provisionMessage ? (
-        <p style={{ marginTop: '1rem', color: '#334155', fontSize: '0.9rem' }}>{provisionMessage}</p>
+        <p style={{ marginTop: '1rem', color: '#334155', fontSize: '0.9rem' }}>
+          {provisionMessage}
+        </p>
       ) : null}
 
       <p style={{ marginTop: '1.5rem' }}>
-        <Link href="/entities" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/entities" style={{ color: '#2563eb' }}>
           Cancel
         </Link>
       </p>

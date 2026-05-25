@@ -85,7 +85,7 @@ export default async function PositionsPage({
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 1040 }}>
       <p style={{ marginTop: 0 }}>
-        <Link href="/settings/org-structure" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/settings/org-structure" style={{ color: '#2563eb' }}>
           ← Org structure
         </Link>
       </p>
@@ -96,7 +96,7 @@ export default async function PositionsPage({
           {entities.map((e) => (
             <Link
               key={e.id}
-              href={`/settings/positions?entityId=${e.id}${vacant ? '&vacant=1' : ''}`}
+              href={`/dashboard/settings/positions?entityId=${e.id}${vacant ? '&vacant=1' : ''}`}
               style={{
                 padding: '0.35rem 0.65rem',
                 borderRadius: 8,
@@ -110,7 +110,7 @@ export default async function PositionsPage({
             </Link>
           ))}
           <Link
-            href={`/settings/positions?entityId=${entityId ?? ''}&vacant=1`}
+            href={`/dashboard/settings/positions?entityId=${entityId ?? ''}&vacant=1`}
             style={{
               padding: '0.35rem 0.65rem',
               borderRadius: 8,

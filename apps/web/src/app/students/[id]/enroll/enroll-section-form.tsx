@@ -166,7 +166,7 @@ export function EnrollSectionForm({
       />
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
         <SubmitButton />
-        <Link href={`/students/${studentId}`} style={{ color: '#64748b' }}>
+        <Link href={`/dashboard/students/${studentId}`} style={{ color: '#64748b' }}>
           Cancel
         </Link>
       </div>

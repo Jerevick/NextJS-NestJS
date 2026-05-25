@@ -25,7 +25,7 @@ export default async function TeachCoursePage({
   if (!token || !canWrite) {
     return (
       <main style={{ padding: '2rem' }}>
-        <Link href="/teach">← Teach</Link>
+        <Link href="/dashboard/teach">← Teach</Link>
         <p style={{ marginTop: '1rem', color: '#64748b' }}>
           You need lms.write and an API token to use this outline.
         </p>
@@ -41,7 +41,7 @@ export default async function TeachCoursePage({
   if (!res.ok) {
     return (
       <main style={{ padding: '2rem' }}>
-        <Link href="/teach">← Teach</Link>
+        <Link href="/dashboard/teach">← Teach</Link>
         <p style={{ color: '#b91c1c' }}>Could not load course instance ({res.status}).</p>
       </main>
     );
@@ -96,8 +96,8 @@ export default async function TeachCoursePage({
   return (
     <main style={{ padding: '2rem', maxWidth: 1200 }}>
       <nav style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-        <Link href="/teach">← Teach</Link>
-        <Link href={`/courses/${courseId}`}>Student view</Link>
+        <Link href="/dashboard/teach">← Teach</Link>
+        <Link href={`/dashboard/courses/${courseId}`}>Student view</Link>
       </nav>
       <h1 style={{ color: '#0f1729' }}>
         {course.course.code} — {course.course.title}

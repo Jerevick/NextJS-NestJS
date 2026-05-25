@@ -60,7 +60,7 @@ export default async function ApplicationDetailPage({
     return (
       <main style={{ padding: '2rem' }}>
         <p style={{ color: '#b91c1c' }}>Could not load application ({res.status}).</p>
-        <Link href="/admissions">← Admissions</Link>
+        <Link href="/dashboard/admissions">← Admissions</Link>
       </main>
     );
   }
@@ -81,7 +81,7 @@ export default async function ApplicationDetailPage({
         fontFamily: '"IBM Plex Sans", system-ui',
       }}
     >
-      <Link href="/admissions" style={{ color: primary }}>
+      <Link href="/dashboard/admissions" style={{ color: primary }}>
         ← Admissions
       </Link>
       <h1
@@ -117,7 +117,7 @@ export default async function ApplicationDetailPage({
             }}
           >
             <a
-              href={`/admissions/${app.id}/offer-letter`}
+              href={`/dashboard/admissions/${app.id}/offer-letter`}
               target="_blank"
               rel="noreferrer"
               style={{ color: primary, fontWeight: 600 }}
@@ -125,7 +125,7 @@ export default async function ApplicationDetailPage({
               Offer letter (HTML)
             </a>
             <a
-              href={`/admissions/${app.id}/offer-letter/pdf`}
+              href={`/dashboard/admissions/${app.id}/offer-letter/pdf`}
               target="_blank"
               rel="noreferrer"
               style={{ color: primary, fontWeight: 600 }}
@@ -137,7 +137,7 @@ export default async function ApplicationDetailPage({
         {app.student ? (
           <p style={{ marginTop: '0.75rem', fontSize: '0.9rem' }}>
             Linked student:{' '}
-            <Link href={`/students/${app.student.id}`} style={{ color: primary }}>
+            <Link href={`/dashboard/students/${app.student.id}`} style={{ color: primary }}>
               {app.student.studentNumber}
             </Link>
           </p>

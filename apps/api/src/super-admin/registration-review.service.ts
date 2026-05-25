@@ -9,8 +9,19 @@ type RegistrationReviewDecision = 'REVIEWED' | 'DISMISSED';
 
 type RegistrationPayloadShape = {
   institutionName?: string;
+  institutionEmail?: string;
   contact?: { fullName?: string; firstName?: string; lastName?: string; email?: string };
 };
+
+function uniqueValidEmails(...emails: Array<string | undefined>): string[] {
+  return Array.from(
+    new Set(
+      emails
+        .map((email) => email?.trim().toLowerCase())
+        .filter((email): email is string => Boolean(email && email.includes('@'))),
+    ),
+  );
+}
 
 /**
  * Phase 1 hand-off after a super-admin reviews an institution onboarding submission.
@@ -45,6 +56,7 @@ export class RegistrationReviewService {
       [payload.contact?.firstName, payload.contact?.lastName].filter(Boolean).join(' ').trim() ||
       existing.email;
     const contactEmail = (payload.contact?.email ?? existing.email).trim().toLowerCase();
+    const institutionEmail = payload.institutionEmail?.trim().toLowerCase();
     const reviewerName = actor.email ?? actor.userId;
 
     const peerUserIds = await this.findPeerSuperAdminUserIds(actor.institutionId, actor.userId);
@@ -72,7 +84,7 @@ export class RegistrationReviewService {
 
     try {
       await this.sendExternalAcknowledgement({
-        toEmail: contactEmail,
+        toEmails: uniqueValidEmails(contactEmail, institutionEmail, existing.email),
         contactName,
         institutionName,
         requestId,
@@ -108,13 +120,13 @@ export class RegistrationReviewService {
   }
 
   private async sendExternalAcknowledgement(args: {
-    toEmail: string;
+    toEmails: string[];
     contactName: string;
     institutionName: string;
     requestId: string;
     decision: RegistrationReviewDecision;
   }): Promise<void> {
-    if (!args.toEmail || !args.toEmail.includes('@')) {
+    if (args.toEmails.length === 0) {
       return;
     }
     const isApproved = args.decision === 'REVIEWED';
@@ -128,6 +140,8 @@ export class RegistrationReviewService {
       '\n',
     );
     const html = `<p>${lead}</p><p><strong>Reference</strong> <code>${args.requestId}</code></p><p>— The UniCore platform team</p>`;
-    await this.mail.sendEmail(args.toEmail, subject, text, html);
+    await Promise.all(
+      args.toEmails.map((email) => this.mail.sendEmail(email, subject, text, html)),
+    );
   }
 }

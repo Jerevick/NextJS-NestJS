@@ -37,6 +37,43 @@ function mergeSettings(
   return { ...base, ...patch } as Prisma.InputJsonValue;
 }
 
+function readableSlugBase(value: string): string {
+  const slug = value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/&/g, ' and ')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-')
+    .slice(0, 48)
+    .replace(/-+$/g, '');
+  return slug || 'institution';
+}
+
+function withSlugSuffix(base: string, suffix: number): string {
+  if (suffix <= 1) {
+    return base;
+  }
+  const suffixText = `-${suffix}`;
+  return `${base.slice(0, 48 - suffixText.length).replace(/-+$/g, '')}${suffixText}`;
+}
+
+const TERMS_ACCEPTANCE_VERSION = 'unicore-terms-v1';
+
+function settingsRecord(settings: Prisma.JsonValue): Record<string, unknown> {
+  return settings && typeof settings === 'object' && !Array.isArray(settings)
+    ? (settings as Record<string, unknown>)
+    : {};
+}
+
+function readTermsAcceptance(settings: Prisma.JsonValue) {
+  const terms = settingsRecord(settings).termsAcceptance;
+  return terms && typeof terms === 'object' && !Array.isArray(terms)
+    ? (terms as Record<string, unknown>)
+    : {};
+}
+
 @Injectable()
 export class InstitutionsService {
   constructor(
@@ -75,6 +112,18 @@ export class InstitutionsService {
     }
   }
 
+  private canAcceptTerms(actor: AuthUser, institutionId: string): boolean {
+    if (actor.institutionId !== institutionId) {
+      return false;
+    }
+    return (
+      actor.role === 'ADMIN' ||
+      actor.role === 'SUPER_ADMIN' ||
+      actor.permissions.includes('*') ||
+      actor.permissions.includes('institutions.write')
+    );
+  }
+
   async list(actor: AuthUser, query: ListInstitutionsQueryDto) {
     this.assertRead(actor);
     const limit = query.limit ?? 20;
@@ -107,11 +156,8 @@ export class InstitutionsService {
   async create(actor: AuthUser, dto: CreateInstitutionDto) {
     this.assertWrite(actor);
     this.assertPlatformProvision(actor);
-    const slug = dto.slug.trim().toLowerCase();
-    const dup = await this.repo.findBySlug(slug);
-    if (dup) {
-      throw new ConflictException('An institution with this slug already exists');
-    }
+    const name = dto.name.trim();
+    const slug = await this.generateUniqueInstitutionSlug(name);
     const domain =
       dto.domain === undefined || dto.domain === null || dto.domain === ''
         ? null
@@ -127,7 +173,7 @@ export class InstitutionsService {
     const settings = mergeSettings({}, dto.settings as Record<string, unknown> | undefined);
     const row = await this.repo.create({
       slug,
-      name: dto.name.trim(),
+      name,
       domain,
       plan,
       maxStudents,
@@ -149,6 +195,22 @@ export class InstitutionsService {
       newValues: { slug: row.slug, name: row.name, plan: row.plan },
     });
     return this.serialize(withModules!);
+  }
+
+  private async generateUniqueInstitutionSlug(name: string): Promise<string> {
+    const base = readableSlugBase(name);
+    for (let suffix = 1; suffix <= 200; suffix += 1) {
+      const candidate = withSlugSuffix(base, suffix);
+      if (!(await this.repo.findBySlug(candidate))) {
+        return candidate;
+      }
+    }
+
+    const fallback = `${base.slice(0, 39).replace(/-+$/g, '')}-${Date.now().toString(36)}`;
+    if (!(await this.repo.findBySlug(fallback))) {
+      return fallback;
+    }
+    throw new ConflictException('Could not generate a unique institution slug');
   }
 
   async update(actor: AuthUser, id: string, dto: UpdateInstitutionDto) {
@@ -246,6 +308,64 @@ export class InstitutionsService {
       } as Prisma.InputJsonValue,
     });
     return this.serialize(row!);
+  }
+
+  async getTermsAcceptance(actor: AuthUser, id: string) {
+    this.assertCanAccessInstitution(actor, id);
+    const existing = await this.repo.findById(id);
+    if (!existing) {
+      throw new NotFoundException('Institution not found');
+    }
+    const terms = readTermsAcceptance(existing.settings);
+    const accepted =
+      terms.version === TERMS_ACCEPTANCE_VERSION && typeof terms.acceptedAt === 'string';
+    return {
+      institutionId: existing.id,
+      institutionName: existing.name,
+      accepted,
+      acceptedAt: accepted ? (terms.acceptedAt as string) : null,
+      acceptedByEmail:
+        accepted && typeof terms.acceptedByEmail === 'string' ? terms.acceptedByEmail : null,
+      version: TERMS_ACCEPTANCE_VERSION,
+      canAccept: this.canAcceptTerms(actor, id),
+    };
+  }
+
+  async acceptTerms(actor: AuthUser, id: string) {
+    this.assertCanAccessInstitution(actor, id);
+    if (!this.canAcceptTerms(actor, id)) {
+      throw new ForbiddenException('Only an authorized institution administrator can accept terms');
+    }
+    const existing = await this.repo.findById(id);
+    if (!existing) {
+      throw new NotFoundException('Institution not found');
+    }
+    const settings = settingsRecord(existing.settings);
+    const acceptedAt = new Date().toISOString();
+    const updated = await this.repo.update(existing.id, {
+      settings: {
+        ...settings,
+        termsAcceptance: {
+          version: TERMS_ACCEPTANCE_VERSION,
+          acceptedAt,
+          acceptedByUserId: actor.userId,
+          acceptedByEmail: actor.email,
+        },
+      } as Prisma.InputJsonValue,
+    });
+    this.audit.append({
+      institutionId: id,
+      actorId: actor.userId,
+      action: 'institution.terms_accept',
+      entity: 'Institution',
+      entityId: id,
+      newValues: {
+        version: TERMS_ACCEPTANCE_VERSION,
+        acceptedAt,
+        acceptedByEmail: actor.email,
+      },
+    });
+    return this.getTermsAcceptance(actor, updated.id);
   }
 
   async getAiSettings(actor: AuthUser, id: string) {

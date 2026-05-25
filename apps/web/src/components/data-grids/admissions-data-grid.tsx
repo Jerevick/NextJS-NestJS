@@ -21,7 +21,7 @@ const columns: GridColDef<ApplicationGridRow>[] = [
     flex: 1.2,
     minWidth: 160,
     renderCell: ({ row, value }) => (
-      <Link href={`/admissions/${row.id}`} style={{ color: '#1e3a5f', fontWeight: 600 }}>
+      <Link href={`/dashboard/admissions/${row.id}`} style={{ color: '#1e3a5f', fontWeight: 600 }}>
         {value}
       </Link>
     ),

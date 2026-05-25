@@ -15,6 +15,8 @@ export type AuthUser = {
   entityId: string;
   entityScope: 'ALL' | 'ENTITY';
   permissions: string[];
+  institutionTermsAccepted?: boolean;
+  forcePasswordChange?: boolean;
   position?: AuthPosition;
   /** Linked SIS student record when the user role is STUDENT and enrollment is ACTIVE. */
   studentId?: string;

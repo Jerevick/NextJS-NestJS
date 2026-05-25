@@ -143,7 +143,9 @@ export default async function StudentsPage({
     ? ((await catalogRes.json()) as ProgramOption[])
     : [];
   const exportQuery = buildStudentsExportQuery(sp);
-  const exportHref = exportQuery ? `/students/export?${exportQuery}` : '/students/export';
+  const exportHref = exportQuery
+    ? `/dashboard/students/export?${exportQuery}`
+    : '/dashboard/students/export';
 
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 1100 }}>
@@ -161,7 +163,7 @@ export default async function StudentsPage({
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           {canEnroll ? (
             <Link
-              href="/students/bulk-enroll"
+              href="/dashboard/students/bulk-enroll"
               style={{
                 border: '1px solid #cbd5e1',
                 color: '#1e3a5f',
@@ -177,7 +179,7 @@ export default async function StudentsPage({
           ) : null}
           {canWrite ? (
             <Link
-              href="/students/new"
+              href="/dashboard/students/new"
               style={{
                 background: '#1e3a5f',
                 color: '#fff',
@@ -254,7 +256,7 @@ export default async function StudentsPage({
             Apply
           </button>
           <Link
-            href="/students"
+            href="/dashboard/students"
             style={{ padding: '0.45rem 0', alignSelf: 'center', color: '#64748b' }}
           >
             Reset

@@ -72,7 +72,7 @@ export default async function RegistrarTimetablingPage() {
         <Link href="/dashboard" style={{ color: '#2563eb' }}>
           ← Dashboard
         </Link>
-        <Link href="/registrar/progression" style={{ color: '#64748b' }}>
+        <Link href="/dashboard/registrar/progression" style={{ color: '#64748b' }}>
           Progression
         </Link>
       </nav>

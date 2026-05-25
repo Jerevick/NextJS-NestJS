@@ -11,7 +11,7 @@ export function slugFromInstitutionName(name: string): string {
 export type RegistrationRequestRow = {
   id: string;
   kind: 'JOIN_INSTITUTION' | 'NEW_INSTITUTION';
-  status: 'PENDING' | 'REVIEWED' | 'DISMISSED';
+  status: 'PENDING' | 'REVIEWED' | 'PROVISIONED' | 'DISMISSED';
   email: string;
   institutionSlug: string | null;
   institutionId: string | null;

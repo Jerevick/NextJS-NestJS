@@ -66,7 +66,6 @@ export default async function NewInstitutionPage({
           <p style={{ margin: 0, color: '#94a3b8' }}>{registrationRequestSummary(request)}</p>
           {defaults?.logoUrl ? (
             <div style={{ marginTop: '0.75rem' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={defaults.logoUrl}
                 alt="Submitted logo"
@@ -113,7 +112,6 @@ export default async function NewInstitutionPage({
           initialValues={
             defaults
               ? {
-                  slug: defaults.slug,
                   name: defaults.name,
                   adminEmail: defaults.adminEmail,
                   adminFirstName: defaults.adminFirstName,

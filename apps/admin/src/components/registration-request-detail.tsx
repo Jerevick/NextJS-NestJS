@@ -7,6 +7,46 @@ import {
   type RegistrationRequestRow,
 } from '@/lib/registration-request.util';
 
+const webPublicBase = (
+  process.env.WEB_PUBLIC_URL ??
+  process.env.NEXT_PUBLIC_WEB_URL ??
+  process.env.NEXTAUTH_URL ??
+  'http://localhost:3000'
+).replace(/\/$/, '');
+
+function trackerPath(requestId: string): string {
+  return `/register?reference=${encodeURIComponent(requestId)}`;
+}
+
+function trackerUrl(requestId: string): string {
+  return `${webPublicBase}${trackerPath(requestId)}`;
+}
+
+function trackerEmailHref(args: {
+  email?: string | null;
+  institutionName?: string | null;
+  reference: string;
+  url: string;
+}): string | null {
+  if (!args.email?.trim()) {
+    return null;
+  }
+  const institution = args.institutionName?.trim() || 'your institution';
+  const subject = `UniCore registration reference for ${institution}`;
+  const body = [
+    'Hello,',
+    '',
+    `Your UniCore registration reference is: ${args.reference}`,
+    `You can track your onboarding request here: ${args.url}`,
+    '',
+    'Regards,',
+    'The UniCore platform team',
+  ].join('\n');
+  return `mailto:${encodeURIComponent(args.email.trim())}?subject=${encodeURIComponent(
+    subject,
+  )}&body=${encodeURIComponent(body)}`;
+}
+
 export function RegistrationRequestDetail({ row }: { row: RegistrationRequestRow }) {
   if (row.kind !== 'NEW_INSTITUTION') {
     return (
@@ -18,7 +58,14 @@ export function RegistrationRequestDetail({ row }: { row: RegistrationRequestRow
   }
 
   const p = row.payload as NewInstitutionPayload;
-  const canProvision = row.status === 'PENDING';
+  const canProvision = row.status === 'REVIEWED';
+  const publicTrackerUrl = trackerUrl(row.id);
+  const trackerEmail = trackerEmailHref({
+    email: p.contact?.email ?? row.email,
+    institutionName: p.institutionName,
+    reference: row.id,
+    url: publicTrackerUrl,
+  });
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem' }}>
@@ -41,7 +88,6 @@ export function RegistrationRequestDetail({ row }: { row: RegistrationRequestRow
             <div style={{ marginTop: '0.75rem' }}>
               <span style={labelStyle}>Logo</span>
               <div style={{ marginTop: 6 }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={row.documents.logoUrl}
                   alt="Institution logo"
@@ -55,6 +101,24 @@ export function RegistrationRequestDetail({ row }: { row: RegistrationRequestRow
           ) : (
             <DetailRow label="Logo" value={p.logoFileName} />
           )}
+        </DetailCard>
+
+        <DetailCard title="Registrant tracker">
+          <DetailRow label="Reference ID" value={row.id} />
+          <DetailRow label="Tracker link" value={publicTrackerUrl} />
+          <p style={{ margin: '0.75rem 0 0', color: '#94a3b8', fontSize: '0.82rem' }}>
+            Share this reference or link if the registrant misplaces their onboarding tracker.
+          </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+            <Link href={trackerPath(row.id)} target="_blank" style={trackerLink}>
+              Open tracker →
+            </Link>
+            {trackerEmail ? (
+              <a href={trackerEmail} style={trackerLink}>
+                Email reference
+              </a>
+            ) : null}
+          </div>
         </DetailCard>
 
         <DetailCard title="Address">
@@ -204,6 +268,17 @@ const provisionLink: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 600,
   width: 'fit-content',
+};
+
+const trackerLink: CSSProperties = {
+  display: 'inline-block',
+  padding: '0.4rem 0.7rem',
+  borderRadius: 6,
+  border: '1px solid #334155',
+  color: '#60a5fa',
+  textDecoration: 'none',
+  fontSize: '0.82rem',
+  fontWeight: 600,
 };
 
 const detailPre: CSSProperties = {

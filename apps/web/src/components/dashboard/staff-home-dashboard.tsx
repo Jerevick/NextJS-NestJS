@@ -66,21 +66,21 @@ export async function StaffHomeDashboard({
           <MetricCard
             label="Workflow pending"
             value={String(d.metrics.workflowPending)}
-            href="/workflow/inbox"
+            href="/dashboard/workflow/inbox"
           />
         ) : null}
         {d.metrics.activeStudents != null ? (
           <MetricCard
             label="Active students"
             value={d.metrics.activeStudents.toLocaleString()}
-            href="/students"
+            href="/dashboard/students"
           />
         ) : null}
         {d.metrics.pendingApplications != null ? (
           <MetricCard
             label="Applications in review"
             value={d.metrics.pendingApplications.toLocaleString()}
-            href="/admissions"
+            href="/dashboard/admissions"
           />
         ) : null}
       </div>
@@ -100,7 +100,10 @@ export async function StaffHomeDashboard({
                   marginBottom: 8,
                 }}
               >
-                <Link href="/workflow/inbox" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <Link
+                  href="/dashboard/workflow/inbox"
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
                   <strong>{w.definitionName}</strong>
                   <div style={{ fontSize: '0.85rem', color: STAFF.muted, marginTop: 4 }}>
                     {w.entityCode} · due {new Date(w.dueAt).toLocaleString()}

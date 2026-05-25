@@ -15,7 +15,15 @@ import { canAccessBillingNav, hasPermission } from '@/lib/permissions';
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
-const ENTITY_TABS = ['overview', 'billing', 'students', 'staff', 'modules', 'settings', 'danger'] as const;
+const ENTITY_TABS = [
+  'overview',
+  'billing',
+  'students',
+  'staff',
+  'modules',
+  'settings',
+  'danger',
+] as const;
 type EntityTab = (typeof ENTITY_TABS)[number];
 
 function normalizeTab(raw: string | undefined): EntityTab {
@@ -91,10 +99,13 @@ export default async function EntityDetailPage({
       cache: 'no-store',
     }),
     canBilling
-      ? fetch(`${apiBase}/billing/snapshots/daily?entityId=${encodeURIComponent(entityId)}&limit=35`, {
-          headers,
-          cache: 'no-store',
-        })
+      ? fetch(
+          `${apiBase}/billing/snapshots/daily?entityId=${encodeURIComponent(entityId)}&limit=35`,
+          {
+            headers,
+            cache: 'no-store',
+          },
+        )
       : Promise.resolve(null as Response | null),
     fetch(`${apiBase}/institutions/${inst}/entities/consolidated/stats`, {
       headers,
@@ -115,7 +126,7 @@ export default async function EntityDetailPage({
     return (
       <main style={{ padding: '2rem' }}>
         <p>Unable to load this campus ({entityRes.status}).</p>
-        <Link href="/entities">Back</Link>
+        <Link href="/dashboard/entities">Back</Link>
       </main>
     );
   }
@@ -147,8 +158,9 @@ export default async function EntityDetailPage({
         })
       : { data: [] };
 
-  const statsPayload =
-    statsRes.ok ? ((await statsRes.json()) as ConsolidatedStatsPayload) : { entities: [] };
+  const statsPayload = statsRes.ok
+    ? ((await statsRes.json()) as ConsolidatedStatsPayload)
+    : { entities: [] };
   const statRow = statsPayload.entities.find((e) => e.entityId === entityId);
 
   const trendPoints = [...(snaps.data ?? [])]
@@ -165,7 +177,7 @@ export default async function EntityDetailPage({
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 960 }}>
       <p style={{ marginTop: 0 }}>
-        <Link href="/entities" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/entities" style={{ color: '#2563eb' }}>
           ← All campuses
         </Link>
       </p>
@@ -193,7 +205,15 @@ export default async function EntityDetailPage({
         aria-label="Campus sections"
       >
         {ENTITY_TABS.map((t) => (
-          <Link key={t} href={t === 'overview' ? `/entities/${entityId}` : `/entities/${entityId}?tab=${t}`} style={tabLinkStyle(tab === t)}>
+          <Link
+            key={t}
+            href={
+              t === 'overview'
+                ? `/dashboard/entities/${entityId}`
+                : `/dashboard/entities/${entityId}?tab=${t}`
+            }
+            style={tabLinkStyle(tab === t)}
+          >
             {t === 'danger' ? 'Danger zone' : t.charAt(0).toUpperCase() + t.slice(1)}
           </Link>
         ))}
@@ -204,16 +224,24 @@ export default async function EntityDetailPage({
           <h2 style={{ fontSize: '1rem' }}>Overview</h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginTop: '0.75rem' }}>
             <div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Billable (ACTIVE)</div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700 }}>{statRow?.billableStudentCount ?? entity.billableStudentCount ?? '—'}</div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>
+                Billable (ACTIVE)
+              </div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 700 }}>
+                {statRow?.billableStudentCount ?? entity.billableStudentCount ?? '—'}
+              </div>
             </div>
             <div>
               <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Inactive</div>
-              <div style={{ fontSize: '1.35rem', fontWeight: 600, color: '#64748b' }}>{statRow?.inactiveStudentCount ?? '—'}</div>
+              <div style={{ fontSize: '1.35rem', fontWeight: 600, color: '#64748b' }}>
+                {statRow?.inactiveStudentCount ?? '—'}
+              </div>
             </div>
             <div>
               <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Total students</div>
-              <div style={{ fontSize: '1.35rem', fontWeight: 600 }}>{statRow?.totalStudentCount ?? '—'}</div>
+              <div style={{ fontSize: '1.35rem', fontWeight: 600 }}>
+                {statRow?.totalStudentCount ?? '—'}
+              </div>
             </div>
             {typeof statRow?.staffCount === 'number' ? (
               <div>
@@ -221,20 +249,27 @@ export default async function EntityDetailPage({
                 <div style={{ fontSize: '1.35rem', fontWeight: 600 }}>{statRow.staffCount}</div>
               </div>
             ) : null}
-            {typeof statRow?.enrollmentsCurrentAcademicYear === 'number' && statRow.enrollmentsCurrentAcademicYear > 0 ? (
+            {typeof statRow?.enrollmentsCurrentAcademicYear === 'number' &&
+            statRow.enrollmentsCurrentAcademicYear > 0 ? (
               <div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Enrolled seats (current AY)</div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 600 }}>{statRow.enrollmentsCurrentAcademicYear}</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                  Enrolled seats (current AY)
+                </div>
+                <div style={{ fontSize: '1.35rem', fontWeight: 600 }}>
+                  {statRow.enrollmentsCurrentAcademicYear}
+                </div>
               </div>
             ) : null}
           </div>
           {statRow?.lastBillableSnapshotAt ? (
             <p style={{ marginTop: '0.75rem', color: '#64748b', fontSize: '0.88rem' }}>
-              Latest daily billable snapshot (UTC): <strong>{statRow.lastBillableSnapshotAt.slice(0, 10)}</strong>
+              Latest daily billable snapshot (UTC):{' '}
+              <strong>{statRow.lastBillableSnapshotAt.slice(0, 10)}</strong>
             </p>
           ) : null}
           <p style={{ marginTop: '1rem', color: '#64748b', fontSize: '0.9rem', maxWidth: 640 }}>
-            Billable counts follow the status-only contract: ACTIVE enrollment is billed; other statuses are not.
+            Billable counts follow the status-only contract: ACTIVE enrollment is billed; other
+            statuses are not.
           </p>
         </section>
       ) : null}
@@ -243,21 +278,31 @@ export default async function EntityDetailPage({
         <section style={{ marginTop: '1.5rem' }}>
           <h2 style={{ fontSize: '1rem' }}>Billing</h2>
           {!canBilling ? (
-            <p style={{ color: '#64748b', fontSize: '0.9rem' }}>You do not have billing access for charts on this page.</p>
+            <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
+              You do not have billing access for charts on this page.
+            </p>
           ) : (
             <>
               <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.35rem' }}>
-                Daily billable headcount for this campus (latest UTC day in chart: {lastSnap ?? '—'}).
+                Daily billable headcount for this campus (latest UTC day in chart: {lastSnap ?? '—'}
+                ).
               </p>
               <div style={{ marginTop: '1rem', height: 280 }}>
-                <BillingTrendChart points={trendPoints} height={280} valueLabel="Billable (this campus)" />
+                <BillingTrendChart
+                  points={trendPoints}
+                  height={280}
+                  valueLabel="Billable (this campus)"
+                />
               </div>
               <p style={{ marginTop: '1rem', fontSize: '0.9rem' }}>
-                <Link href="/billing" style={{ color: '#2563eb', fontWeight: 600 }}>
+                <Link href="/dashboard/billing" style={{ color: '#2563eb', fontWeight: 600 }}>
                   Institution billing
                 </Link>
                 {' · '}
-                <Link href="/billing/disputes" style={{ color: '#2563eb', fontWeight: 600 }}>
+                <Link
+                  href="/dashboard/billing/disputes"
+                  style={{ color: '#2563eb', fontWeight: 600 }}
+                >
                   Billing disputes
                 </Link>
               </p>
@@ -270,11 +315,12 @@ export default async function EntityDetailPage({
         <section style={{ marginTop: '1.5rem' }}>
           <h2 style={{ fontSize: '1rem' }}>Students</h2>
           <p style={{ color: '#64748b', fontSize: '0.9rem', maxWidth: 640 }}>
-            The roster is scoped by your active campus in the session JWT. Use the campus switcher on the entities list
-            to match this campus, then open Students — or stay on your current context if you only need a quick link.
+            The roster is scoped by your active campus in the session JWT. Use the campus switcher
+            on the entities list to match this campus, then open Students — or stay on your current
+            context if you only need a quick link.
           </p>
           <p style={{ marginTop: '0.75rem' }}>
-            <Link href="/students" style={{ color: '#2563eb', fontWeight: 600 }}>
+            <Link href="/dashboard/students" style={{ color: '#2563eb', fontWeight: 600 }}>
               Open students
             </Link>
           </p>
@@ -290,10 +336,15 @@ export default async function EntityDetailPage({
             </p>
           ) : null}
           {canManageCampus ? (
-            <EntityUserAccessPanel institutionId={inst} entityId={entityId} initialRows={userAccessRows} />
+            <EntityUserAccessPanel
+              institutionId={inst}
+              entityId={entityId}
+              initialRows={userAccessRows}
+            />
           ) : (
             <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.75rem' }}>
-              Cross-campus access grants require institution-wide scope and <strong>institutions.write</strong>.
+              Cross-campus access grants require institution-wide scope and{' '}
+              <strong>institutions.write</strong>.
             </p>
           )}
         </section>
@@ -303,8 +354,8 @@ export default async function EntityDetailPage({
         <section style={{ marginTop: '1.5rem' }}>
           <h2 style={{ fontSize: '1rem' }}>Modules</h2>
           <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
-            Tenant modules (SIS, LMS, etc.) are configured at institution level. Entity-level module overrides will
-            appear here when the provisioning pipeline exposes them.
+            Tenant modules (SIS, LMS, etc.) are configured at institution level. Entity-level module
+            overrides will appear here when the provisioning pipeline exposes them.
           </p>
         </section>
       ) : null}
@@ -350,18 +401,28 @@ export default async function EntityDetailPage({
         <section style={{ marginTop: '1.5rem' }}>
           <h2 style={{ fontSize: '1rem', color: '#991b1b' }}>Danger zone</h2>
           <p style={{ color: '#64748b', fontSize: '0.9rem', maxWidth: 640 }}>
-            Suspending a campus marks it non-operational for this institution and flushes sessions for users tied to
-            this entity. This cannot be applied to the MAIN campus.
+            Suspending a campus marks it non-operational for this institution and flushes sessions
+            for users tied to this entity. This cannot be applied to the MAIN campus.
           </p>
           {canManageCampus ? (
-            <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <EntityActivateButton entityId={entity.id} entityCode={entity.code} status={entity.status} />
-              <EntitySuspendButton entityId={entity.id} entityCode={entity.code} isMainCampus={isMainCampus} />
+            <div
+              style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            >
+              <EntityActivateButton
+                entityId={entity.id}
+                entityCode={entity.code}
+                status={entity.status}
+              />
+              <EntitySuspendButton
+                entityId={entity.id}
+                entityCode={entity.code}
+                isMainCampus={isMainCampus}
+              />
             </div>
           ) : (
             <p style={{ marginTop: '1rem', color: '#64748b', fontSize: '0.9rem' }}>
-              You need <strong>institutions.write</strong> and institution-wide scope (<strong>entityScope ALL</strong>)
-              to manage campus lifecycle.
+              You need <strong>institutions.write</strong> and institution-wide scope (
+              <strong>entityScope ALL</strong>) to manage campus lifecycle.
             </p>
           )}
         </section>

@@ -288,7 +288,7 @@ export default async function FinancePage({
       <p style={{ color: '#64748b', lineHeight: 1.55, marginTop: '0.5rem' }}>
         Student ledger, fee structures, and payment gateways. Institution SaaS subscription billing
         remains under{' '}
-        <Link href="/billing" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/billing" style={{ color: '#2563eb' }}>
           Billing
         </Link>
         .
@@ -342,12 +342,12 @@ export default async function FinancePage({
           </h2>
           <ul style={{ margin: 0, paddingLeft: '1.2rem', color: '#334155', lineHeight: 1.7 }}>
             <li>
-              <Link href="/billing" style={{ color: '#2563eb' }}>
+              <Link href="/dashboard/billing" style={{ color: '#2563eb' }}>
                 Billing overview
               </Link>
             </li>
             <li>
-              <Link href="/billing/disputes" style={{ color: '#2563eb' }}>
+              <Link href="/dashboard/billing/disputes" style={{ color: '#2563eb' }}>
                 Billing disputes
               </Link>
             </li>
@@ -370,7 +370,7 @@ export default async function FinancePage({
           </h2>
           <p style={{ margin: '0 0 0.5rem', fontSize: '0.85rem' }}>
             <Link
-              href={`/finance/reports/outstanding${departmentQuery}`}
+              href={`/dashboard/finance/reports/outstanding${departmentQuery}`}
               style={{ color: '#2563eb', fontWeight: 600 }}
             >
               Download outstanding CSV
@@ -394,7 +394,7 @@ export default async function FinancePage({
                   style={{ padding: '0.35rem 0', borderBottom: '1px solid #f1f5f9' }}
                 >
                   <Link
-                    href={`/students/${r.studentId}?tab=financial`}
+                    href={`/dashboard/students/${r.studentId}?tab=financial`}
                     style={{ color: '#2563eb' }}
                   >
                     {r.studentNumber}

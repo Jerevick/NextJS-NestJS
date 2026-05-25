@@ -1,0 +1,2 @@
+ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "inactiveReason" TEXT;
+ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "inactiveSince" TIMESTAMP(3);

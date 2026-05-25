@@ -5,7 +5,8 @@ import { appendOptionalEntityHeader } from '@/lib/api-headers';
 import { hasPermission } from '@/lib/permissions';
 import { ReactivationReviewForms } from '../reactivation-review-forms';
 
-const apiBase = process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiBase =
+  process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 type Detail = {
   id: string;
@@ -19,7 +20,11 @@ type Detail = {
   entity?: { code: string; name: string };
 };
 
-export default async function ReactivationRequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ReactivationRequestDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const session = await auth();
   if (!session?.accessToken || !session.user?.institutionId) {
@@ -56,7 +61,7 @@ export default async function ReactivationRequestDetailPage({ params }: { params
     const body = await res.text();
     return (
       <main style={{ padding: '2rem', fontFamily: 'system-ui' }}>
-        <Link href="/students/reactivation">← List</Link>
+        <Link href="/dashboard/students/reactivation">← List</Link>
         <p style={{ color: '#b91c1c' }}>HTTP {res.status}</p>
         <pre style={{ fontSize: 12 }}>{body}</pre>
       </main>
@@ -71,11 +76,14 @@ export default async function ReactivationRequestDetailPage({ params }: { params
   return (
     <main style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 720 }}>
       <nav style={{ marginBottom: '1rem' }}>
-        <Link href="/students/reactivation" style={{ color: '#2563eb' }}>
+        <Link href="/dashboard/students/reactivation" style={{ color: '#2563eb' }}>
           ← Reactivation requests
         </Link>
         {' · '}
-        <Link href={`/students/${encodeURIComponent(r.studentId)}`} style={{ color: '#2563eb' }}>
+        <Link
+          href={`/dashboard/students/${encodeURIComponent(r.studentId)}`}
+          style={{ color: '#2563eb' }}
+        >
           Student profile
         </Link>
       </nav>

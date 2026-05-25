@@ -18,9 +18,9 @@ export async function reviewRegistrationRequest(
     return { ok: false, error: 'Platform super administrator access required.' };
   }
 
-  const res = await fetch(
-    `${apiBase}/super-admin/registration-requests/${encodeURIComponent(id)}`,
-    {
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase}/super-admin/registration-requests/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${session.accessToken}`,
@@ -28,8 +28,10 @@ export async function reviewRegistrationRequest(
       },
       body: JSON.stringify({ status }),
       cache: 'no-store',
-    },
-  );
+    });
+  } catch {
+    return { ok: false, error: 'Could not reach the platform API. Please try again.' };
+  }
 
   if (!res.ok) {
     let message = 'Failed to update registration request.';
@@ -48,5 +50,6 @@ export async function reviewRegistrationRequest(
 
   revalidatePath('/admin/registration-requests');
   revalidatePath(`/admin/registration-requests/${id}`);
+  revalidatePath('/dashboard');
   return { ok: true };
 }

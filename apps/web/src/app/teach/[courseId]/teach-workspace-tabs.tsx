@@ -143,7 +143,7 @@ export function TeachWorkspaceTabs({
                   >
                     <span style={{ fontWeight: 600, color: '#1e293b' }}>{a.title}</span>
                     <Link
-                      href={`/courses/${courseInstanceId}/assessments/${a.id}`}
+                      href={`/dashboard/courses/${courseInstanceId}/assessments/${a.id}`}
                       style={{ fontSize: '0.82rem', color: '#2563eb', flexShrink: 0 }}
                       prefetch={false}
                     >

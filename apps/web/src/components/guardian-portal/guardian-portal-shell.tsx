@@ -8,7 +8,8 @@ import { GUARDIAN_PORTAL } from './guardian-portal-styles';
 export function GuardianPortalShell({ children, email }: { children: ReactNode; email?: string }) {
   const pathname = usePathname();
   const onDashboard =
-    pathname === '/guardian/dashboard' || pathname.startsWith('/guardian/dashboard/');
+    pathname === '/dashboard/guardian/dashboard' ||
+    pathname.startsWith('/dashboard/guardian/dashboard/');
 
   return (
     <div
@@ -38,7 +39,7 @@ export function GuardianPortalShell({ children, email }: { children: ReactNode; 
           ) : null}
           <nav style={{ marginTop: '0.75rem' }}>
             <Link
-              href="/guardian/dashboard"
+              href="/dashboard/guardian/dashboard"
               style={{
                 color: onDashboard ? GUARDIAN_PORTAL.accent : GUARDIAN_PORTAL.muted,
                 fontWeight: 600,
